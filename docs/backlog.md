@@ -121,6 +121,7 @@ In the order approved.
   - The fix rewrites each mention without the name, or moves it to the README of a package that depends on the one named: an adapter's README can name its contract.
   - From checkpoint 2 of `refactor/email/contract-docs` (2026-10-14).
 - **A manifest and README check in `pnpm verify`.** A script that checks each library package for `"files": ["dist"]`, `"sideEffects": false`, the standard scripts, `publishConfig.registry`, `catalog:` for the shared tooling, and a README that names only packages its package depends on. Today these are rules of the root `CLAUDE.md` that only a review checks. It would fail on the READMEs of *Six READMEs name packages they do not depend on*, so it lands with that item or after it. From the spec of `chore/repo/lean-workflow` (2026-10-16).
+- **The `critic`'s first run on an L task does not see its ADR.** The critic runs after the spec's commit, and the ADRs of this repo come later in the plan: ADR 0006 after its checkpoint 1, ADR 0007 in step 3 of its plan. ADR 0007's first version overstated what the user had said, and a later run caught it only because one came (93ade53). Drafting the ADR with the spec, or a run on the ADR, would close it. From the first review of `chore/repo/spec-critic` (2026-10-16).
 
 ## Dropped
 
