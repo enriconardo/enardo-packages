@@ -23,7 +23,7 @@ ADR 0005 (point 6) had chosen no new subagents, since each run starts cold and r
 2. It runs after the commit of every L spec, and of every M spec whose *Why* says it or a decision comes from a discussion with the user; again after the user changes a decision it judged, on what changed; and on any proposal in the spec's form when the user asks, a rule of the learn step included.
 3. It gets the path, and on a re-run the commit of the version it judged: no summary of the discussion, which would carry the drift.
 4. The main agent weighs the report and applies what it accepts, in a commit of its own; an objection to a decision the user took goes to the user, with the main agent's view. The user sees the outcome: the verdict, what changed, and each rejected objection by the critic's own headline, with the main agent's reason. The report is kept in the scratchpad.
-5. Each run is a row of `docs/critic-runs.md`, with its trigger. Once five L specs are logged, a backlog item counts the rows by trigger, and a trigger goes if none of its runs changed a decision.
+5. Each run on a branch is a row of `docs/critic-runs.md`, with its trigger. Once five L specs are logged, a backlog item counts the rows by trigger: an automatic trigger goes if none of its runs changed a decision, one without runs is left to the user, and the user's own requests are not judged.
 6. This supersedes ADR 0005's "no new subagents" (point 6) for the critic; the rest of point 6 stands.
 
 ## Consequences
