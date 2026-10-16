@@ -94,18 +94,18 @@ The main agent proposes a tier at intake; the user confirms or changes it. A que
 | --- | --- | --- |
 | S | nothing a consumer sees changes (public API, documented behavior, dependency ranges), or docs, config, tooling only; one package or area | branch → change → verify → ⏸ 2 → integrate. No spec (the intent goes in the commit body), no subagent |
 | M | what a consumer sees changes | branch → spec → ⏸ 1 → tests → implement → verify → review → ⏸ 2 → integrate |
-| L | a new package, a change across packages, the dev environment or the workflow | as M, with an ADR for a decision that outlives the task |
+| L | a new package, a change across packages, the dev environment or the workflow | as M, with the `critic` on the spec before ⏸ 1, and an ADR for a decision that outlives the task |
 
 1. **Branch**: `scripts/task-start.sh <branch>`, from an up-to-date `main`.
 2. **Spec**: with the `spec` skill, as the branch's first commit.
 3. **⏸ Checkpoint 1**: the user approves the spec before any production code.
 4. **Implement** in small steps, each green and committed. Production code of a test-first step waits for the `test-author`'s report.
-5. **Review** with the `reviewer`, round after round while one finds a blocking defect. The first round covers the branch; each later one gets the previous findings and their SHA, and reviews `git diff <sha>..HEAD` only. A later change to code gets a round, to docs only not. From the fourth round on, ask the user before each. A fix looks for the other paths through the same mechanism. Follow-ups go in commit messages, not in the spec.
+5. **Review** with the `reviewer`, round after round while one finds a blocking defect. A later change to code gets a round, to docs only not. From the fourth round on, ask the user before each. A fix looks for the other paths through the same mechanism. Follow-ups go in commit messages, not in the spec.
 6. **⏸ Checkpoint 2**: the summary and the diff; wait for the go-ahead.
 7. **Integrate**, when verify is green (dependents included) and the README follows the public API: the spec `done`, then `scripts/integrate.sh` (verify, `merge --no-ff`, branch deleted). No PRs.
 8. **Learn**, for a problem that could recur and costs more than its rule costs to read: propose it, on the task's branch. Prefer a check, script, hook or lint rule; else the agent, skill or package `CLAUDE.md` it applies to; this file only for what every task needs. The rule, not its story. `scripts/check-context-size.sh` caps this file at 12 000 bytes and each agent at 6 000: a new rule merges with or replaces an old one.
 
-Roles: the main agent holds the intent; the `test-author` starts from the spec and the `reviewer` from the spec and the diff, in fresh contexts, so they don't share the author's blind spots; `pnpm verify` cannot talk itself into accepting a failure.
+Roles: the main agent holds the intent; the `critic` starts from the spec alone, the `test-author` from the spec and the `reviewer` from the spec and the diff, in fresh contexts, so they don't share the author's blind spots; `pnpm verify` cannot talk itself into accepting a failure.
 
 **Records.** Specs are frozen after merge, and read only when the user, the current spec or a backlog item points to one: the current truth is in READMEs and `CLAUDE.md` files. `docs/adr/` holds decisions beyond one task. A backlog item takes a few lines (what, why, where from), its probes go in the spec, and its branch removes it.
 
