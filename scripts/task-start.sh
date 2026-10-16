@@ -23,6 +23,13 @@ if ! [[ "$branch" =~ $pattern ]]; then
   exit 1
 fi
 
+# The merge's default subject, `Merge branch '<branch>'`, adds 15 characters,
+# and the commit-msg hook refuses a subject over 72.
+if ((${#branch} > 57)); then
+  echo "'$branch' has ${#branch} characters, over 57: the subject of its merge would be over the 72 that commit-msg allows." >&2
+  exit 1
+fi
+
 current="$(git branch --show-current)"
 if [[ "$current" != main ]]; then
   echo "On '${current:-a detached HEAD}': a task starts from main." >&2

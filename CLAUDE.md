@@ -1,6 +1,6 @@
 # enardo-packages
 
-Personal TypeScript monorepo of reusable infrastructure packages (`@enardo/*`), published to a private registry. The projects built on them live in repos of their own (currently `cambusa`) and install them from that registry. Solo developer.
+Personal TypeScript monorepo of reusable infrastructure packages (`@enardo/*`), published to a private registry. The projects built on them (currently `cambusa`) live in repos of their own and install them from there. Solo developer.
 
 ## Layout
 
@@ -22,7 +22,7 @@ Workspaces are declared in `pnpm-workspace.yaml`; internal dependencies use `wor
 Every command that touches `node_modules` runs in the `dev` container. The host runs the rest (the editor, git, Claude Code), and package commands go through `./dev.sh exec` (`./dev.sh exec pnpm --filter @enardo/uow-repository test`).
 
 ```
-./dev.sh up [-d]             # start the dev container and the test browsers; without -d, a shell
+./dev.sh up [-d]             # start the dev container and test browsers; no -d: a shell
 ./dev.sh shell [service]     # a shell in a service (default: dev)
 ./dev.sh exec <command>      # run one command in the dev container
 ./dev.sh logs [service...]   # follow logs (default: every service)
@@ -34,7 +34,7 @@ Every command that touches `node_modules` runs in the `dev` container. The host 
 - **A probe that needs a package outside the lockfile** runs in a throwaway container, never in the dev container, where an `npm i` can move files of `node_modules`. It mounts the repo read-only, to read built `dist/` files:
   ```
   docker run --rm -v "$PWD":/workspaces/enardo-packages:ro -v en-probe:/probe -w /probe node:24-bookworm \
-    sh -c 'npm init -y && npm i <packages>'    # then more runs with the same mounts
+    sh -c 'npm init -y && npm i <packages>'    # more runs: same mounts
   docker volume rm en-probe                   # when done
   ```
 - Mongo-backed tests start their own in-memory replica set. Browser tests run in the `playwright` service: see [docker/README.md](docker/README.md), which also says what the containers never mount.
@@ -42,6 +42,7 @@ Every command that touches `node_modules` runs in the `dev` container. The host 
 
 ## Tooling & commands
 
+- Every package has the scripts `build`, `dev`, `lint`, `lint:fix`, `format`, `format:check`, `typecheck`, `test` (where tests exist): turbo skips a package without one, silently. The config packages have no build.
 - Every `tsconfig.json` and `eslint.config.js` uses a preset of `@enardo/typescript-config` or `@enardo/eslint-config`. A package may override an option or a rule, with a comment saying why; an override two packages need moves into the preset.
 - The compiler is strict (`noUncheckedIndexedAccess` included) and ESLint type-aware, so `lint` depends on the upstream builds. Fix findings, don't suppress them; in production code an unchecked index gets a real check, not `!`.
 - Packages are consumed through their `dist/`: after changing one, build it and its consumers' dependencies (`pnpm exec turbo run build --filter=<consumer>...`) before checking the consumers.
@@ -54,7 +55,7 @@ Packages go to the private registry `https://npm.enriconardo.com` (`publishConfi
 
 ## Architecture conventions
 
-- **Ports & adapters**: a contract package defines interfaces and technology-agnostic logic (`transaction-manager`, `uow-repository`, `database`, `email`); a `<name>-<technology>` package implements it (`database-mongo`, `email-nodemailer`).
+- **Ports & adapters**: a contract package defines interfaces and technology-agnostic logic (`uow-repository`, `email`); a `<name>-<technology>` package implements it (`email-nodemailer`).
 - A contract package never depends on a technology. A driver (`mongodb`, `bcrypt`, `nodemailer`) is a peer and a dev dependency of its adapter. A project's app lists the driver of every adapter it runs in its own `dependencies`, since pnpm reports nothing when one is missing; any other package lists a driver only when its own code runs it.
 - `@enardo/*` packages never depend on a project's packages.
 - One entry point, `src/index.ts` → `dist/index.mjs` + `.d.mts`; the config packages ship their files as they are.
@@ -62,7 +63,7 @@ Packages go to the private registry `https://npm.enriconardo.com` (`publishConfi
 
 ## Code conventions
 
-- Files in kebab-case with a role suffix: `product.entity.ts`, `create-product.handler.ts`, `*.mongo.test.ts`, `*.node.test.ts`.
+- Files in kebab-case with a role suffix: `product.entity.ts`, `create-product.handler.ts`, `*.node.test.ts`.
 - `~/*` is aliased to `src/*` in each package.
 - `import type` for type-only imports, as a separate statement next to a default import: `import x, { type T }` compiles to `import x, {}`.
 - Library packages declare `"sideEffects": false` (nothing runs at load beyond declarations) and `"files": ["dist"]`.
@@ -75,7 +76,7 @@ Packages go to the private registry `https://npm.enriconardo.com` (`publishConfi
 ## Testing
 
 - Tests live in `<package>/__tests__/`, mirroring `src/`, as `*.test.ts`. Adapters are tested against the in-memory Mongo replica set (`__tests__/setup/replica-set.ts`, one database per test).
-- A package whose `src/` runs in browsers runs its tests there too; `@enardo/http-client` is the reference ([its CLAUDE.md](packages/http-client/CLAUDE.md), *Checks*). A test that needs Node goes in a `*.node.test.ts` beside its `*.test.ts`.
+- A package whose `src/` runs in browsers runs its tests there too (`errors` and `http-status` not yet: backlog); `@enardo/http-client` is the reference ([its CLAUDE.md](packages/http-client/CLAUDE.md), *Checks*). A test that needs Node goes in a `*.node.test.ts` beside its `*.test.ts`.
 - Refactors keep the existing tests green without changing them, unless the spec says so.
 
 **Test-first**, unless the spec says otherwise, with a reason:
@@ -100,14 +101,14 @@ The main agent proposes a tier at intake; the user confirms or changes it. A tas
 2. **Spec**: with the `spec` skill, as the branch's first commit.
 3. **⏸ Checkpoint 1**: the user approves the spec before any production code.
 4. **Implement** in small steps, each green and committed. Production code of a test-first step waits for the `test-author`'s report.
-5. **Review** with the `reviewer`, round after round while one finds a blocking defect. The first round covers the branch; each later one gets the previous findings and their SHA, and reviews `git diff <sha>..HEAD` only. A later change to code gets a round, to docs only not. Ask the user before a fourth round. A fix looks for the other paths through the same mechanism. Follow-ups go in commit messages, not in the spec.
+5. **Review** with the `reviewer`, round after round while one finds a blocking defect. The first round covers the branch; each later one gets the previous findings and their SHA, and reviews `git diff <sha>..HEAD` only. A later change to code gets a round, to docs only not. From the fourth round on, ask the user before each. A fix looks for the other paths through the same mechanism. Follow-ups go in commit messages, not in the spec.
 6. **⏸ Checkpoint 2**: the summary and the diff; wait for the go-ahead.
 7. **Integrate**, when verify is green (dependents included) and the README follows the public API: the spec `done`, then `scripts/integrate.sh` (verify, `merge --no-ff`, branch deleted). No PRs.
 8. **Learn**, for a problem that could recur and costs more than its rule costs to read: propose it, on the task's branch. Prefer a check, script, hook or lint rule; else the agent, skill or package `CLAUDE.md` it applies to; this file only for what every task needs. The rule, not its story. `scripts/check-context-size.sh` caps this file at 12 000 bytes and each agent at 6 000: a new rule merges with or replaces an old one.
 
-Roles: the main agent holds the intent; the `test-author` and the `reviewer` start from the spec and the diff in fresh contexts, so they don't share the author's blind spots; `pnpm verify` cannot talk itself into accepting a failure.
+Roles: the main agent holds the intent; the `test-author` starts from the spec and the `reviewer` from the spec and the diff, in fresh contexts, so they don't share the author's blind spots; `pnpm verify` cannot talk itself into accepting a failure.
 
-**Records.** Specs are frozen after merge, and read only when the user, the current spec or a backlog item points to one: the current truth is in READMEs and `CLAUDE.md` files. `docs/adr/` holds decisions beyond one task. A backlog item takes a few lines (what, why, where from), its probes go in the spec, and its branch removes it. `/arch-review <package>` assesses a package, read-only.
+**Records.** Specs are frozen after merge, and read only when the user, the current spec or a backlog item points to one: the current truth is in READMEs and `CLAUDE.md` files. `docs/adr/` holds decisions beyond one task. A backlog item takes a few lines (what, why, where from), its probes go in the spec, and its branch removes it.
 
 ### Branches and commits
 

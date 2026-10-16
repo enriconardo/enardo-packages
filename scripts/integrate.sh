@@ -15,6 +15,14 @@ if [[ -z "$branch" || "$branch" == main ]]; then
   exit 1
 fi
 
+# The merge's default subject, `Merge branch '<branch>'`, adds 15 characters,
+# and the commit-msg hook refuses a subject over 72: the merge would stop
+# halfway, with main mid-merge. Checked here too for a branch made by hand.
+if ((${#branch} > 57)); then
+  echo "'$branch' has ${#branch} characters, over 57: the subject of its merge would be over the 72 that commit-msg allows. Rename the branch first." >&2
+  exit 1
+fi
+
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "The working tree has uncommitted changes: commit them before integrating." >&2
   exit 1
