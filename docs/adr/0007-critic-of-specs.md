@@ -33,6 +33,7 @@ ADR 0005 (point 6) had chosen no new subagents, since each run starts cold and r
 - The spec is written by the agent that drifted, and its *Why* may carry the drift's framing: the critic treats the problem as a claim to check.
 - The user reads the outcome, not the report; the critic's own headlines show what the main agent set aside.
 - A drift in a discussion that has no spec yet, or in a rule of the learn step, is checked only when the user asks.
+- The critic reads nothing under `~/.claude/projects/`, where the session transcripts hold the discussion.
 - A critic asked to criticize may invent objections. A `holds` verdict is valid, an objection needs evidence, and the user decides.
 
 ## Alternatives considered
