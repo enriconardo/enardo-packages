@@ -2,6 +2,7 @@
   "name": "@enardo/email",
   "version": "1.0.0",
   "description": "Email sender contracts and message types.",
+  "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
     "registry": "https://npm.enriconardo.com/"

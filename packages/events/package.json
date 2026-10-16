@@ -2,6 +2,7 @@
   "name": "@enardo/events",
   "version": "1.1.0",
   "description": "Domain events infrastructure for DDD applications",
+  "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
     "registry": "https://npm.enriconardo.com/"

@@ -2,6 +2,7 @@
   "name": "@enardo/errors",
   "version": "1.0.0",
   "description": "Root of the error hierarchy: BaseError, with a required code, typed details and a serialized form for logs",
+  "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
     "registry": "https://npm.enriconardo.com/"
