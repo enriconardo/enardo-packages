@@ -1,0 +1,24 @@
+packages:
+  - 'packages/*'
+allowBuilds:
+  bcrypt: true
+  mongodb-memory-server: true
+minimumReleaseAgeExclude:
+  - '@types/node@26.1.1'
+# Versions of the dev tooling shared by every package: reference them as
+# `catalog:` so they cannot drift apart.
+catalog:
+  '@eslint/js': ^10.0.1
+  '@vitest/browser-playwright': ^4.1.11
+  '@types/node': ^26.4.0
+  eslint: ^10.9.1
+  eslint-config-prettier: ^10.1.8
+  globals: ^17.11.0
+  # Exact: it must be the version of docker/playwright/Dockerfile, which
+  # `pnpm verify` checks (docker/playwright/check-version.sh).
+  playwright: 1.63.0
+  prettier: ^3.9.6
+  tsdown: ^0.19.0
+  typescript: ^5.9.3
+  typescript-eslint: ^8.68.0
+  vitest: ^4.1.11

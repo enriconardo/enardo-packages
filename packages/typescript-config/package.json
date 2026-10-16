@@ -1,0 +1,19 @@
+{
+  "name": "@enardo/typescript-config",
+  "version": "1.0.0",
+  "description": "Shared tsconfig presets for the monorepo",
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "registry": "https://npm.enriconardo.com/"
+  },
+  "type": "module",
+  "files": [
+    "*.json"
+  ],
+  "exports": {
+    "./base.json": "./base.json",
+    "./library.json": "./library.json",
+    "./node-app.json": "./node-app.json",
+    "./react-app.json": "./react-app.json"
+  }
+}

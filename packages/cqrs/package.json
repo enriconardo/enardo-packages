@@ -1,0 +1,42 @@
+{
+  "name": "@enardo/cqrs",
+  "version": "1.0.0",
+  "description": "Minimal CQRS command primitives.",
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "registry": "https://npm.enriconardo.com/"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@enardo/errors": "workspace:^"
+  },
+  "devDependencies": {
+    "@enardo/eslint-config": "workspace:^",
+    "@enardo/typescript-config": "workspace:^",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  }
+}

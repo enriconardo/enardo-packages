@@ -1,0 +1,46 @@
+{
+  "name": "@enardo/id-generator",
+  "version": "1.0.0",
+  "description": "ID generator contracts and implementations.",
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "registry": "https://npm.enriconardo.com/"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "lint": "eslint src __tests__",
+    "lint:fix": "eslint src __tests__ --fix",
+    "format": "prettier --write src __tests__",
+    "format:check": "prettier --check src __tests__",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@enardo/eslint-config": "workspace:^",
+    "@enardo/typescript-config": "workspace:^",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "mongodb": "^7.6.0",
+    "prettier": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "mongodb": "^7.5.0"
+  }
+}

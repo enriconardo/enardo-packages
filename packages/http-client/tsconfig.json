@@ -1,0 +1,13 @@
+{
+  "extends": "@enardo/typescript-config/library.json",
+  "compilerOptions": {
+    // The client runs in browsers too: fetch, Headers and Response come from the DOM libs.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    // Without it, the build would emit declarations through this program,
+    // which has the DOM: an inferred type would be written with its DOM name
+    // (`BodyInit`). With it, tsdown emits them from the source text, so they
+    // repeat src/, which the two runtime programs (tsconfig.browser.json,
+    // tsconfig.node.json) check.
+    "isolatedDeclarations": true
+  }
+}

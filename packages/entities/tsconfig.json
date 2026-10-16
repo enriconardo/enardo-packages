@@ -1,0 +1,3 @@
+{
+  "extends": "@enardo/typescript-config/library.json"
+}

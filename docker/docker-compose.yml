@@ -1,0 +1,50 @@
+name: enardo-packages
+
+services:
+  # The development environment: every command that touches node_modules runs
+  # here (pnpm, turbo, verify), including builds in watch mode. Started from
+  # the host with ./dev.sh up.
+  dev:
+    build:
+      context: ./dev
+      args:
+        # Exported by dev.sh from id -u / id -g: bash does not export UID and
+        # has no GID, so a bare ${UID} would always fall back to 1000.
+        UID: ${DEV_UID:-1000}
+        GID: ${DEV_GID:-1000}
+    working_dir: /workspaces/enardo-packages
+    stdin_open: true
+    tty: true
+    environment:
+      # corepack fetches the pnpm version pinned in package.json; without this
+      # it asks for confirmation and a non-interactive exec would hang.
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      # No pager in here: `less` is not installed, and git output is piped.
+      GIT_PAGER: cat
+      # Keep the pnpm store on the same filesystem as node_modules: a store on
+      # another filesystem cannot be hard-linked from, so pnpm falls back to
+      # copying every package.
+      npm_config_store_dir: /workspaces/enardo-packages/.pnpm-store
+      # Where the browser tests find their browsers: the playwright service.
+      PLAYWRIGHT_WS_ENDPOINT: ws://playwright:3000/
+    # `pnpm verify` runs the browser tests, so the browsers start with this
+    # container, from every ./dev.sh up.
+    depends_on:
+      - playwright
+    volumes:
+      # Relative to this file, so the repo works wherever it is cloned.
+      - ..:/workspaces/enardo-packages
+      # Only the git identity: pushing happens on the host, so no SSH key and
+      # no credential ever enters this container.
+      - ${HOME}/.gitconfig:/home/node/.gitconfig:ro
+
+  # The browsers of the browser tests (vitest's browser mode), behind
+  # Playwright's run-server on port 3000. Vitest in the dev container connects
+  # to it, and the browsers load the test pages from that container's loopback
+  # through the connection (exposeNetwork). The port is not published: only
+  # this compose network reaches it. Nothing is mounted.
+  playwright:
+    build:
+      context: ./playwright
+    # The browsers start child processes: docker's init reaps them.
+    init: true

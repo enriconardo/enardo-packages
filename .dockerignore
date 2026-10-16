@@ -1,0 +1,11 @@
+.git
+.gitignore
+**/node_modules
+**/dist
+**/.turbo
+**/.cache
+**/.DS_Store
+**/*.log
+**/.env
+.vscode
+coverage

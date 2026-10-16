@@ -1,0 +1,16 @@
+#!/bin/sh
+# Refuses a commit whose subject line is over 72 characters (root CLAUDE.md,
+# Commits). Git runs it on `git commit` and `git merge`; enable it once per
+# clone with `git config core.hooksPath .githooks`.
+
+# Git strips comment lines and leading blank lines only after this hook, so
+# skip them to find the subject.
+subject=$(grep -v -m 1 -e '^#' -e '^[[:space:]]*$' "$1")
+# Characters, not bytes: dash's ${#subject} counts "è" as two.
+length=$(printf '%s' "$subject" | wc -m)
+
+if [ "$length" -gt 72 ]; then
+  printf 'commit-msg: the subject line has %s characters, over 72:\n  %s\n' \
+    "$length" "$subject" >&2
+  exit 1
+fi

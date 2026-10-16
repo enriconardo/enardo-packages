@@ -1,0 +1,35 @@
+{
+  "name": "@enardo/eslint-config",
+  "version": "1.0.0",
+  "description": "Shared ESLint flat-config presets for the monorepo",
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "registry": "https://npm.enriconardo.com/"
+  },
+  "type": "module",
+  "files": [
+    "index.js"
+  ],
+  "exports": {
+    ".": "./index.js"
+  },
+  "scripts": {
+    "lint": "eslint index.js",
+    "lint:fix": "eslint index.js --fix",
+    "format": "prettier --write index.js",
+    "format:check": "prettier --check index.js"
+  },
+  "dependencies": {
+    "@eslint/js": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "globals": "catalog:",
+    "typescript-eslint": "catalog:"
+  },
+  "peerDependencies": {
+    "eslint": "^10.0.0"
+  },
+  "devDependencies": {
+    "eslint": "catalog:",
+    "prettier": "catalog:"
+  }
+}

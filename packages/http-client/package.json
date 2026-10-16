@@ -1,0 +1,49 @@
+{
+  "name": "@enardo/http-client",
+  "version": "1.0.0",
+  "description": "HTTP client over the Fetch API: makes requests, in browsers and on Node",
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "registry": "https://npm.enriconardo.com/"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "lint": "eslint src __tests__",
+    "lint:fix": "eslint src __tests__ --fix",
+    "format": "prettier --write src __tests__",
+    "format:check": "prettier --check src __tests__",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.browser.json && tsc --noEmit -p tsconfig.node.json"
+  },
+  "dependencies": {
+    "@enardo/errors": "workspace:^",
+    "@enardo/http-status": "workspace:^"
+  },
+  "devDependencies": {
+    "@enardo/eslint-config": "workspace:^",
+    "@enardo/typescript-config": "workspace:^",
+    "@types/node": "catalog:",
+    "@vitest/browser-playwright": "catalog:",
+    "eslint": "catalog:",
+    "globals": "catalog:",
+    "playwright": "catalog:",
+    "prettier": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

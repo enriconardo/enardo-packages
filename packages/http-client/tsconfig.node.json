@@ -1,0 +1,9 @@
+{
+  // src/ alone, as Node sees it: the Node types and no DOM libs.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": ["src/**/*"]
+}
