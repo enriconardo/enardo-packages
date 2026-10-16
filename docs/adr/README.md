@@ -13,6 +13,7 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0003](0003-type-guards-claim-only-what-they-check.md) | A type guard never claims more than its check proves; `@enardo/http-status` splits class and membership guards | accepted |
 | [0004](0004-shared-packages-published-to-a-private-registry.md) | The shared packages are published to a private registry, and depend on each other through `workspace:^` | accepted |
 | [0005](0005-workflow-sized-to-the-task.md) | The workflow is sized to the task, and a review blocks only on defects a real caller meets | accepted |
+| [0006](0006-test-author-suite-recorded-at-handoff.md) | The test-author's suite is recorded at handoff, and a change to it needs a reason | accepted |
 
 ## Template
 
