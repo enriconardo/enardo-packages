@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); if printf '%s' \"$input\" | grep -q '\"stop_hook_active\"[[:space:]]*:[[:space:]]*true'; then exit 0; fi; cd \"${CLAUDE_PROJECT_DIR:-.}\" || exit 0; if [ -f /.dockerenv ]; then verify='pnpm verify'; else verify='./dev.sh exec pnpm verify'; fi; out=$($verify 2>&1) || { printf '%s\\n' \"$out\" | tail -40 >&2; printf '%s\\n' 'verify failed: fix the checks above before finishing.' >&2; exit 2; }",
+            "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/scripts/stop-hook.sh",
             "statusMessage": "Running pnpm verify...",
             "timeout": 900
           }
