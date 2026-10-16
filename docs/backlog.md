@@ -1,6 +1,6 @@
 # Backlog
 
-Work that is queued or proposed but not started. Each item becomes a branch with its own spec and goes through both checkpoints (see *Workflow* in the root `CLAUDE.md`).
+Work that is queued or proposed but not started. Each item becomes a branch, which follows the workflow of its tier (*Workflow* in the root `CLAUDE.md`).
 
 - **Adding items.** An item enters *To evaluate* when a review or an analysis finds it. It moves to *Queued* when the user approves it.
 - **Removing items.** A branch removes its own item, in a commit of its own before the merge, so the item leaves this file with the merge: the spec and the git history keep the record. A dropped item moves to *Dropped*, with the reason.

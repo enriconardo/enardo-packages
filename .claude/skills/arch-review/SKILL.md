@@ -14,7 +14,7 @@ Applications are built on these packages, and the user wants them structurally s
 
 - Its folder: `git grep -l '"name": "<package>"' -- '*package.json'`.
 - Its kind, which decides the conventions that apply: shared contract, shared adapter (`<name>-<technology>`), other shared library, config package.
-- Its branch scope, as *Branches* in the root `CLAUDE.md` defines it: the name without `@enardo/` (`uow-repository`).
+- Its branch scope, as *Branches and commits* in the root `CLAUDE.md` defines it: the name without `@enardo/` (`uow-repository`).
 - A former name: the command below prints the renames of its manifest, newest first, and stops at its creation. `--follow` also follows a manifest created as a copy of another package's, and `--diff-filter=R` would then print that package's renames: the `awk` stops at the first line that is not a rename.
 
   ```sh
