@@ -23,10 +23,11 @@ if ! [[ "$branch" =~ $pattern ]]; then
   exit 1
 fi
 
-# The merge's default subject, `Merge branch '<branch>'`, adds 15 characters,
-# and the commit-msg hook refuses a subject over 72.
-if ((${#branch} > 57)); then
-  echo "'$branch' has ${#branch} characters, over 57: the subject of its merge would be over the 72 that commit-msg allows." >&2
+# The commit-msg hook refuses a subject over 72 characters. The longest
+# default subject a branch gets is that of merging main into it,
+# `Merge branch 'main' into <branch>`: 25 characters more.
+if ((${#branch} > 47)); then
+  echo "'$branch' has ${#branch} characters, over 47: the subject of merging main into it would be over the 72 that commit-msg allows." >&2
   exit 1
 fi
 
