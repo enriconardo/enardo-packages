@@ -4,8 +4,9 @@ set -euo pipefail
 # Integrates the current branch into main (root CLAUDE.md, Workflow, step 7),
 # after checkpoint 2: refuses a branch name too long for merge subjects, a
 # dirty tree, a spec that is not done and a main the branch does not contain,
-# runs `pnpm verify`, merges with --no-ff and deletes the branch. Runs on the
-# host, where git and its hooks run; verify goes to the dev container.
+# runs `pnpm verify`, merges with --no-ff and deletes the branch and the
+# test-author's records of it (scripts/test-handoff.sh). Runs on the host,
+# where git and its hooks run; verify goes to the dev container.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
@@ -68,3 +69,4 @@ fi
 git switch main
 git merge --no-ff --no-edit "$branch"
 git branch -d "$branch"
+scripts/test-handoff.sh clear "$branch"

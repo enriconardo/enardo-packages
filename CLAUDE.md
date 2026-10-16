@@ -46,7 +46,7 @@ Every command that touches `node_modules` runs in the `dev` container. The host 
 - Every `tsconfig.json` and `eslint.config.js` uses a preset of `@enardo/typescript-config` or `@enardo/eslint-config`. A package may override an option or a rule, with a comment saying why; an override two packages need moves into the preset.
 - The compiler is strict (`noUncheckedIndexedAccess` included) and ESLint type-aware, so `lint` depends on the upstream builds. Fix findings, don't suppress them; in production code an unchecked index gets a real check, not `!`.
 - Packages are consumed through their `dist/`: after changing one, build it and its consumers' dependencies (`pnpm exec turbo run build --filter=<consumer>...`) before checking the consumers.
-- `pnpm verify` runs shellcheck, the playwright version check and the context-size check, then `format:check`, `lint`, `typecheck` and `test` on the packages changed against `main` and their dependents (`verify:all`: every package). A `Stop` hook runs `pnpm verify` at the end of each turn: a red state blocks finishing.
+- `pnpm verify` runs shellcheck, the playwright version check and the context-size check, then `format:check`, `lint`, `typecheck` and `test` on the packages changed against `main` and their dependents (`verify:all`: every package). A `Stop` hook runs `pnpm verify` at the end of each turn, unless nothing differs from `main`: a red state blocks finishing.
 - **A cached result is only as fresh as turbo's key.** A task whose outcome depends on something outside it (a running container, a passed-through variable, a file no `inputs` or `globalDependencies` names) gets an uncached check of its own, or a rule saying what to re-run.
 
 ## Publishing
@@ -82,14 +82,13 @@ Packages go to the private registry `https://npm.enriconardo.com` (`publishConfi
 **Test-first**, unless the spec says otherwise, with a reason:
 
 - A bug fix starts with a test that reproduces the bug and fails with its symptom.
-- The public API of `@enardo/*` and domain logic are test-first. In M and L the `test-author` writes the initial suite from the spec, in a new foreground run each time (a resumed one runs in the background, and the `Stop` hook blocks on its red tests). The main agent writes the tests of review follow-ups, and sees each fail before the fix. Wiring may be tested after.
-- Each behavior the spec requires has a case, or the spec says why not.
+- The public API of `@enardo/*` and domain logic are test-first. In M and L the `test-author` writes the initial suite from the spec, and records it. The main agent changes one of its tests only where it is wrong, saying why in the commit body, and writes the tests of review follow-ups, seeing each fail first. Wiring may be tested after.
 - A test written first fails for the expected reason, and asserts what identifies it (the class, `code`, `details`): `rejects.toThrow(undefined)` accepts any error.
 - A wrong implementation is tried on a copy of the package outside the repo, never by editing the working tree and reverting it: `git checkout` and `git stash` take uncommitted work with them.
 
 ## Workflow
 
-The main agent proposes a tier at intake; the user confirms or changes it. A task that turns out bigger changes tier, and the user is told.
+The main agent proposes a tier at intake; the user confirms or changes it. A question or discussion is no task until it leads to a change. A task that turns out bigger changes tier, and the user is told.
 
 | Tier | What | Steps |
 | --- | --- | --- |

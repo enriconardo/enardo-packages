@@ -1,6 +1,6 @@
 ---
 name: test-author
-description: Writes the initial failing tests of a test-first step of an M or L task from its spec, before the implementation exists (including the reproducing test of a bug fix). Give it the spec path and the cases to write. It never reads the code under change and never writes production code.
+description: Writes the initial failing tests of a test-first step of an M or L task from its spec, before the implementation exists (including the reproducing test of a bug fix). Give it the spec path and the cases to write, in a new foreground run each time (`run_in_background: false`): a resumed one runs in the background, where the `Stop` hook blocks on its red tests. It never reads the code under change and never writes production code.
 tools: Read, Grep, Glob, Write, Edit, Bash
 model: opus
 ---
@@ -36,9 +36,13 @@ A red suite shows that the tests fail, not that they would pass against a correc
 3. A failure is a bug in a test or a gap in the spec: fix the test, or report the gap. Never adapt a test to the model.
 4. Delete `.reference/`, restore the imports (`grep -rn '\.reference' <package>/__tests__` finds nothing), and check with `git status` that only your test files changed. Then run the red suite.
 
+## Recording the suite
+
+Last, after the red run: `scripts/test-handoff.sh record`. It keeps your suite as you hand it over, outside the branch, and the reviewer compares it with what the main agent commits. Nothing under `__tests__/` changes after it.
+
 ## Output
 
-- The test files you created or changed.
+- The ref that `record` printed, and the test files you created or changed.
 - For each test: the spec case it covers, and the failure message that shows why it fails today, or the existing behavior it pins.
 - Expectations you added beyond what the spec states.
 - Whether you used a reference model, and what it caught.
