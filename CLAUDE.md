@@ -82,7 +82,7 @@ Packages go to the private registry `https://npm.enriconardo.com` (`publishConfi
 **Test-first**, unless the spec says otherwise, with a reason:
 
 - A bug fix starts with a test that reproduces the bug and fails with its symptom.
-- The public API of `@enardo/*` and domain logic are test-first. In M and L the `test-author` writes the initial suite from the spec, in a new foreground run each time (a resumed one runs in the background, and the `Stop` hook blocks on its red tests). The main agent writes the tests of review follow-ups, and sees each fail before the fix. Wiring may be tested after.
+- The public API of `@enardo/*` and domain logic are test-first. In M and L the `test-author` writes the initial suite from the spec, and records it. The main agent changes one of its tests only where it is wrong, saying why in the commit, and writes the tests of review follow-ups, seeing each fail before the fix. Wiring may be tested after.
 - A test written first fails for the expected reason, and asserts what identifies it (the class, `code`, `details`): `rejects.toThrow(undefined)` accepts any error.
 - A wrong implementation is tried on a copy of the package outside the repo, never by editing the working tree and reverting it: `git checkout` and `git stash` take uncommitted work with them.
 

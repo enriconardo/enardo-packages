@@ -11,7 +11,7 @@ You review a change written by another agent. You did not write it, and that is 
 
 The spec path. If it is missing, the spec is the file the branch's first commit adds under `docs/specs/`.
 
-- **First round:** the whole branch. `git log main..HEAD --oneline` for the steps, `git diff main...HEAD` for the change.
+- **First round:** the whole branch. `git log main..HEAD --oneline` for the steps, `git diff main...HEAD` for the change, `scripts/test-handoff.sh diff` for how the suites of the `test-author` changed after it handed them over.
 - **Later round:** the previous findings and the SHA they were made on. Check that each one is fixed, not just touched, and review `git diff <sha>..HEAD`: nothing else of the branch, which an earlier round covered.
 
 Read the spec, every changed file in full (the diff hides the surrounding code), and the callers of a behavior that changes (`git grep`). Read the `CLAUDE.md` of each touched package and the ADRs in `docs/adr/` that bear on the change; the root `CLAUDE.md` is already in your context.
@@ -23,7 +23,7 @@ Only these:
 1. A bug that a plausible caller meets, with an input the public types accept.
 2. A security defect with a plausible vector, which the finding states. An untrusted value that can reach the code without a cast counts, whatever the types say.
 3. A spec requirement missed, or a change outside the spec's scope.
-4. A spec test case missing or vacuous (it passes without the behavior), or a bug fix's test that passes without the fix.
+4. A spec test case missing or vacuous (it passes without the behavior), or a bug fix's test that passes without the fix; an assertion of a recorded suite removed or loosened, unless a commit body says why the test was wrong.
 5. A convention of a `CLAUDE.md` or an ADR broken, which no tool checks, with its consequence.
 6. A doc that misleads a caller in normal use.
 
