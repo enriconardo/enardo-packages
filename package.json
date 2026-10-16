@@ -7,8 +7,9 @@
   "scripts": {
     "lint:sh": "git ls-files '*.sh' .githooks | xargs -r shellcheck",
     "lint:playwright": "bash docker/playwright/check-version.sh",
-    "verify": "pnpm lint:sh && pnpm lint:playwright && turbo run format:check lint typecheck test --filter=...[main]",
-    "verify:all": "pnpm lint:sh && pnpm lint:playwright && turbo run format:check lint typecheck test",
+    "lint:context": "bash scripts/check-context-size.sh",
+    "verify": "pnpm lint:sh && pnpm lint:playwright && pnpm lint:context && turbo run format:check lint typecheck test --filter=...[main]",
+    "verify:all": "pnpm lint:sh && pnpm lint:playwright && pnpm lint:context && turbo run format:check lint typecheck test",
     "packages:build": "turbo run build --filter=\"./packages/*\""
   },
   "devDependencies": {
