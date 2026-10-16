@@ -20,7 +20,7 @@ The `test-author` writes the initial suite of a test-first step from the spec, i
 - The suite as the `test-author` wrote it outlives its run, until the merge.
 - The record is taken by the agent that wrote the suite, not by the one whose changes it checks.
 - A branch abandoned without `integrate.sh` keeps its records, until `scripts/test-handoff.sh clear <branch>`.
-- A second `test-author` run on the same step adds a record; the reviewer reads a change between two records as the second run's.
+- A record holds the working tree under `__tests__/`: a second `test-author` run on the same step records the main agent's uncommitted test changes too. A change to the first suite shows in its diff whichever run made it, and needs a reason in a commit body.
 
 ## Alternatives considered
 

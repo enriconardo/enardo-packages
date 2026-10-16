@@ -23,7 +23,7 @@ Only these:
 1. A bug that a plausible caller meets, with an input the public types accept.
 2. A security defect with a plausible vector, which the finding states. An untrusted value that can reach the code without a cast counts, whatever the types say.
 3. A spec requirement missed, or a change outside the spec's scope.
-4. A spec test case missing or vacuous (it passes without the behavior), or a bug fix's test that passes without the fix; an assertion of a recorded suite removed or loosened, unless a later record holds the change or a commit body says why the test was wrong.
+4. A spec test case missing or vacuous (it passes without the behavior), or a bug fix's test that passes without the fix; an assertion of a recorded suite removed or loosened, unless a commit body says why the test was wrong.
 5. A convention of a `CLAUDE.md` or an ADR broken, which no tool checks, with its consequence.
 6. A doc that misleads a caller in normal use.
 
