@@ -80,7 +80,7 @@ Each fact the plan relies on is probed in the dev container before the spec stat
 When step 2 of the root `CLAUDE.md`'s *Workflow* calls for the `critic`, after the spec's commit:
 
 - **Its input** is the spec's path; on a re-run, after the user changed a decision it judged, also the commit of the version it judged. Nothing else: no summary of the discussion, no argument.
-- **Weigh the report yourself**, and apply what you accept to the spec, in a commit of its own. An objection to a decision the user took goes to the user, with your view: never undo that decision alone. After checkpoint 1, so does any change of a decision you accept, since the spec then changes only with the user's approval.
+- **Weigh the report yourself**, and apply what you accept to the spec, in a commit of its own. An objection to a decision the user took goes to the user, with your view: never undo that decision alone. After checkpoint 1, so does any change you accept, since the spec then changes only with the user's approval.
 - **Save the report as it came** in your scratchpad, as `critic/<slug>-<n>.md`.
 - **Show the user the outcome**, not the report: the verdict; what you changed; for each objection you rejected, its headline in the critic's words and your reason; the objections to the user's decisions, with your view; the report's path.
 - **Log the run** in `docs/critic-runs.md`, as its header says, once the user has answered the objections brought to them.
