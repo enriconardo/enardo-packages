@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Write the spec of an M or L task of this repo (root `CLAUDE.md`, Workflow), before checkpoint 1. Holds the template, the rules for probing the facts a spec states, and the questions for designing its test cases. Not for S tasks, which have no spec.
+description: Write the spec of an M or L task of this repo (root `CLAUDE.md`, Workflow), before checkpoint 1. Holds the template, the rules for probing the facts a spec states, the questions for designing its test cases, and how to weigh the `critic`'s report on it. Not for S tasks, which have no spec.
 argument-hint: "<slug>"
 ---
 
@@ -22,7 +22,7 @@ branch: <type>/<scope>/<description>
 
 ## Why
 
-The problem, where it comes from (a backlog item, the user, a review), and for a bug its root cause.
+The problem, where it comes from (a backlog item, a review, the user, a discussion with the user), and for a bug its root cause.
 
 ## Probes
 
@@ -74,3 +74,15 @@ Each fact the plan relies on is probed in the dev container before the spec stat
 - **An input where the side effect would show.** A case that checks one rule gives an input on which a wrong implementation gives another result: to test that a failing read keeps the `cause`, the error needs a `cause`.
 - **An input the change starts rejecting:** list every existing test that sends it. Search for the value, then for the uses of every constant that holds it.
 - **What identifies the outcome:** the expected error's class, `code` and `details`, not only that something is thrown.
+
+## The critic
+
+When step 2 of the root `CLAUDE.md`'s *Workflow* calls for the `critic`, after the spec's commit:
+
+- **Its input** is the spec's path; on a re-run, after the user changed a decision it judged, also the commit of the version it judged. Nothing else: no summary of the discussion, no argument.
+- **Weigh the report yourself**, and apply what you accept to the spec, in a commit of its own. An objection to a decision the user took goes to the user, with your view: never undo that decision alone.
+- **Save the report as it came** in your scratchpad, as `critic/<slug>-<n>.md`.
+- **Show the user the outcome**, not the report: the verdict; what you changed; for each objection you rejected, its headline in the critic's words and your reason; the objections to the user's decisions, with your view; the report's path.
+- **Log the run** in `docs/critic-runs.md`, as its header says.
+
+A proposal outside a spec (a rule of the learn step, a discussion), when the user asks: the same, written in the spec's form in your scratchpad.

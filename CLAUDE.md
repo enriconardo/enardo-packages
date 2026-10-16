@@ -94,10 +94,10 @@ The main agent proposes a tier at intake; the user confirms or changes it. A que
 | --- | --- | --- |
 | S | nothing a consumer sees changes (public API, documented behavior, dependency ranges), or docs, config, tooling only; one package or area | branch → change → verify → ⏸ 2 → integrate. No spec (the intent goes in the commit body), no subagent |
 | M | what a consumer sees changes | branch → spec → ⏸ 1 → tests → implement → verify → review → ⏸ 2 → integrate |
-| L | a new package, a change across packages, the dev environment or the workflow | as M, with the `critic` on the spec before ⏸ 1, and an ADR for a decision that outlives the task |
+| L | a new package, a change across packages, the dev environment or the workflow | as M, with an ADR for a decision that outlives the task |
 
 1. **Branch**: `scripts/task-start.sh <branch>`, from an up-to-date `main`.
-2. **Spec**: with the `spec` skill, as the branch's first commit.
+2. **Spec**: with the `spec` skill, as the branch's first commit; then the `critic`, on an L spec or an M spec whose *Why* says it or a decision comes from a discussion with the user, and again after the user changes a decision it judged.
 3. **⏸ Checkpoint 1**: the user approves the spec before any production code.
 4. **Implement** in small steps, each green and committed. Production code of a test-first step waits for the `test-author`'s report.
 5. **Review** with the `reviewer`, round after round while one finds a blocking defect. A later change to code gets a round, to docs only not. From the fourth round on, ask the user before each. A fix looks for the other paths through the same mechanism. Follow-ups go in commit messages, not in the spec.
@@ -107,7 +107,7 @@ The main agent proposes a tier at intake; the user confirms or changes it. A que
 
 Roles: the main agent holds the intent; the `critic` starts from the spec alone, the `test-author` from the spec and the `reviewer` from the spec and the diff, in fresh contexts, so they don't share the author's blind spots; `pnpm verify` cannot talk itself into accepting a failure.
 
-**Records.** Specs are frozen after merge, and read only when the user, the current spec or a backlog item points to one: the current truth is in READMEs and `CLAUDE.md` files. `docs/adr/` holds decisions beyond one task. A backlog item takes a few lines (what, why, where from), its probes go in the spec, and its branch removes it.
+**Records.** Specs are frozen after merge, and read only when the user, the current spec or a backlog item points to one: the current truth is in READMEs and `CLAUDE.md` files. `docs/adr/` holds decisions beyond one task.
 
 ### Branches and commits
 
