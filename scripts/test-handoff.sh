@@ -41,7 +41,7 @@ task_branch() {
 }
 
 record() {
-  local branch reference tree count ref commit
+  local branch reference tree last next ref commit
   branch="$(task_branch)"
 
   reference="$(git ls-files --others --exclude-standard -- ':(glob)**/__tests__/.reference/**')"
@@ -61,10 +61,16 @@ record() {
     exit 1
   fi
 
-  count="$(records_of "$branch" | wc -l)"
-  ref="refs/test-author/$branch/$((count + 1))"
+  # The highest number plus one, not the count, which a record removed by
+  # hand would turn into an existing one; the empty old value refuses it.
+  last="$(records_of "$branch" | tail -n 1)"
+  next=1
+  if [[ -n "$last" ]]; then
+    next=$((${last##*/} + 1))
+  fi
+  ref="refs/test-author/$branch/$next"
   commit="$(git commit-tree "$tree" -p HEAD -m "test-author suite on $branch")"
-  git update-ref "$ref" "$commit"
+  git update-ref "$ref" "$commit" ""
   echo "Recorded as $ref:"
   git diff --name-status HEAD "$commit"
 }
