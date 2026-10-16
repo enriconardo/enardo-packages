@@ -6,9 +6,9 @@
 
 ## Context
 
-The main agent writes a spec at the end of a discussion with the user, and over a long discussion its proposals drift toward the user's. On 2026-10-16 it turned the user's "minimal green, then refactor" into a refactoring rule of the `spec` skill with no case of the repo behind it; the user asked whether it was forcing the idea because they had proposed it, and the rule was dropped (f90562c). The user has seen the drift since, above all after long discussions.
+The main agent writes a spec at the end of a discussion with the user, and over a long discussion its proposals drift toward the user's. On 2026-10-16 it turned the user's "minimal green, then refactor" into a refactoring rule of the `spec` skill with no case of the repo behind it; the user asked whether it was forcing the idea because they had proposed it, and the rule was dropped at checkpoint 1 (f90562c). The user reports the drift, above all after long discussions.
 
-No one judged a spec's decisions independently. The `test-author` and the `reviewer` start from the spec and take it as given: the reviewer blocks on a requirement missed, not on a wrong one. Checkpoint 1 is the user, the source of the pull. A self-critique runs in the context that drifted.
+No one judged a spec's decisions independently. The `test-author` and the `reviewer` start from the spec and take it as given: the reviewer blocks on a requirement missed, not on a wrong one. Checkpoint 1 is the user, the source of the pull, who caught the case above by asking. A self-critique runs in the context that drifted.
 
 ADR 0005 (point 6) had chosen no new subagents, since each run starts cold and re-reads the same context.
 
@@ -30,7 +30,7 @@ ADR 0005 (point 6) had chosen no new subagents, since each run starts cold and r
 
 ## Alternatives considered
 
-- **A self-critique in the main agent's context**: it runs in the context that drifted.
+- **A self-critique in the main agent's context**, a rule of its own or of its memory included: it runs in the context that drifted.
 - **A critique triggered by a long discussion**: the agent that drifts cannot tell when it has.
 - **A prompt in the `spec` skill, run by a `general-purpose` agent**: the main agent would rewrite it each time, another way in for the drift, and could not limit its tools.
 - **The `reviewer`**: it reviews a diff against the spec, and takes the spec as given.
