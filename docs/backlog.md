@@ -111,6 +111,7 @@ In the order approved.
   - `http-client` names `@enardo/logger`; `http-status`, `@enardo/http-client`; `transaction-manager`, `@enardo/transaction-manager-mongo`; `transaction-manager-mongo`, `@enardo/database-mongo`; `uow-repository`, `@enardo/transaction-manager-mongo` and `@enardo/uow-repository-mongo`; `uow-repository-mongo`, `@enardo/database-mongo`. Found on 2026-10-14 by a lookup of every `@enardo/*` and `@cambusa/*` name in a README against its package's `dependencies`, `devDependencies` and `peerDependencies`.
   - The fix rewrites each mention without the name, or moves it to the README of a package that depends on the one named: an adapter's README can name its contract.
   - From checkpoint 2 of `refactor/email/contract-docs` (2026-10-14).
+- **A manifest and README check in `pnpm verify`.** A script that checks each library package for `"files": ["dist"]`, `"sideEffects": false`, the standard scripts, `publishConfig.registry`, `catalog:` for the shared tooling, and a README that names only packages its package depends on. Today these are rules of the root `CLAUDE.md` that only a review checks. It would fail on the READMEs of *Six READMEs name packages they do not depend on*, so it lands with that item or after it. From the spec of `chore/repo/lean-workflow` (2026-10-16).
 
 ## Dropped
 
