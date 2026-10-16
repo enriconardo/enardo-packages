@@ -40,7 +40,7 @@ No one judges a spec's decisions independently. The `test-author` and the `revie
 - **The triggers are stated once**, the first run's and the re-run's, in step 2 of the root `CLAUDE.md`'s *Workflow*. The handling of the report and the log go in the `spec` skill, loaded when a spec is written, which is when the critic runs: every main session loads each agent's `description`, which stays short.
 - **ADR 0007** supersedes ADR 0005's "no new subagents" (point 6) for the critic.
 - **Room in the root `CLAUDE.md`** comes from step 5's sentence on what a later review round gets, which the reviewer's own `description` and *Input* state, and from *Records*' sentence on backlog items, which moves to `docs/backlog.md`.
-- **This spec had no critic before checkpoint 1**: the agent did not exist yet. It ran on this spec once written (case 3), on the version with the user's decisions (case 4), and on this one (case 5).
+- **This spec had no critic before checkpoint 1**: the agent did not exist yet. It ran on this spec once written (case 3), on the version with the user's decisions (case 4), and on the next (case 5).
 
 ## Changes
 

@@ -42,7 +42,7 @@ In the order approved.
    - **From:** the first and second reviews of `fix/email-nodemailer/contract-compliance` (2026-10-14 and 2026-10-15); queued by the user at its checkpoint 2 (2026-10-15).
 5. **`chore/repo/evaluate-critic`**
    - **When:** once `docs/critic-runs.md` logs five L specs. Until then, the next item goes first.
-   - **What:** count the `critic`'s runs by trigger, and remove each trigger none of whose runs changed a decision; the critic goes when no trigger is left. The text-only count goes to the user with it.
+   - **What:** count the `critic`'s runs by trigger, and remove each trigger none of whose runs changed a decision; a trigger that had no run goes to the user. The critic goes when no trigger is left. The text-only count goes to the user with it.
    - **Why:** the critic guards against a drift seen twice, both times on an L spec of the workflow (ADR 0007), and a rule that is only ever added grew the workflow before (ADR 0005).
    - **From:** the critic's first run on the spec of `chore/repo/spec-critic` (2026-10-16); queued by the user (2026-10-16).
 

@@ -9,7 +9,7 @@ You judge a spec, or a proposal in its form, that another agent wrote, often at 
 
 ## Input
 
-The path of a spec under `docs/specs/`, or of a proposal in the same form (*Why*, *Decisions*, *Changes*). On a re-run, also the commit of the version you judged before: judge what changed since (`git diff <commit> -- <path>`), and read the rest for context. If the prompt carries anything else (a summary of the discussion, arguments, what the user prefers), don't use it, and say so at the top of your output.
+The path of a spec under `docs/specs/`, or of a proposal in the same form (*Why*, *Decisions*, *Changes*). On a re-run, also the version you judged before, a commit or, for a proposal outside the repo, a path: judge what changed since, and read the rest for context. If the prompt carries anything else (a summary of the discussion, arguments, what the user prefers), don't use it, and say so at the top of your output.
 
 Read the spec, and the code, docs and ADRs (`docs/adr/`) it names or touches; the root `CLAUDE.md` is already in your context. Before you weigh the spec's decisions, form your own view of its *Why*: would you solve that problem, and how?
 
