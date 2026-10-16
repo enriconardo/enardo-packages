@@ -3,8 +3,8 @@ set -euo pipefail
 
 # Integrates the current branch into main (root CLAUDE.md, Workflow, step 7),
 # after checkpoint 2: refuses a branch name too long for its merge subject, a
-# dirty tree, a spec that is not done and a merge that would conflict, runs
-# `pnpm verify`, merges with --no-ff and deletes the branch. Runs on the
+# dirty tree, a spec that is not done and a main the branch does not contain,
+# runs `pnpm verify`, merges with --no-ff and deletes the branch. Runs on the
 # host, where git and its hooks run; verify goes to the dev container.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -50,11 +50,11 @@ while IFS= read -r spec; do
   fi
 done <<<"$specs"
 
-# A conflict would stop the merge halfway, with main mid-merge. merge-tree
-# (git 2.38 or later) merges in the object store only: no ref, index or
-# working tree changes.
-if ! git merge-tree --write-tree main HEAD >/dev/null; then
-  echo "Merging '$branch' into main would conflict: merge main into the branch first." >&2
+# With main an ancestor of the branch, the merge cannot conflict, and its
+# commit gets the branch's own tree: the one verify checks below. A main that
+# moved since the branch started is merged into the branch first.
+if ! git merge-base --is-ancestor main HEAD; then
+  echo "main has commits that '$branch' lacks: merge main into the branch, then run this again." >&2
   exit 1
 fi
 
