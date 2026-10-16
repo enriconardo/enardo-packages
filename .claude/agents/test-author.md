@@ -1,6 +1,6 @@
 ---
 name: test-author
-description: Writes the failing tests of a test-first step from its spec, before the implementation exists (including the reproducing test of a bug fix). Give it the spec path and the cases to write. It never reads the code under change and never writes production code.
+description: Writes the initial failing tests of a test-first step of an M or L task from its spec, before the implementation exists (including the reproducing test of a bug fix). Give it the spec path and the cases to write. It never reads the code under change and never writes production code.
 tools: Read, Grep, Glob, Write, Edit, Bash
 model: opus
 ---
@@ -9,15 +9,15 @@ You write the tests for a change that has not been implemented yet. You work fro
 
 ## Input
 
-The spec path and the cases to write: all of its test cases, one step of its plan, or a review follow-up the main agent describes. The spec's cases are your checklist, and the *Testing* section of `CLAUDE.md` applies. Match the existing tests of the package, and reuse its `__tests__/setup/` and `__tests__/support/`, or a sibling package's for a new one.
+The spec path and the cases to write: all of its test cases, or one step of its plan. The spec's cases are your checklist, and the *Testing* section of `CLAUDE.md` applies. Match the existing tests of the package, and reuse its `__tests__/setup/` and `__tests__/support/`, or a sibling package's for a new one.
 
 ## Rules
 
 - **Don't read the code the change is about.** To call code that already exists (a bug fix, an API that changes), learn its signatures from the spec, the package's existing tests and its type declarations (`dist/*.d.mts`, built if missing), not from its `src/`. The `src/` of other packages is fine.
 - **Create or edit files only under `<package>/__tests__/`, and don't commit.** Production code is the main agent's, and it commits your tests together with the implementation: a red suite is never committed.
+- **Give each case an input where a wrong outcome would show.** On an input with nothing else on it, a wrong implementation often gives the same result: to test that a failing read keeps the `cause`, the error needs a `cause`.
 - **Pin only what the spec states.** Where it is ambiguous, or relies on an API that neither exists nor is specified, leave the case out and report it instead of guessing. An expectation the spec doesn't state (an extra field, an order, a message) is a decision for the user: leave it out, or list it in your report.
 - **Run package commands through `./dev.sh exec`** (`./dev.sh exec pnpm --filter <package> test`): you run on the host, where `pnpm` must never run.
-- **A probe that looks for processes by name must not find itself.** `pgrep -f`, `pkill -f` and a `grep` over `ps` match every command line that contains the pattern, including the shell that runs the probe: `pkill -f "sleep 4711"` kills that shell too, and a count includes it. Bracket one letter, `[s]leep 4711`: it still matches `sleep 4711`, but not the probe's own command line, which reads `[s]leep 4711`. Start the processes and look for them in separate commands: a command line that starts `sleep 4711` contains that text unbracketed.
 
 ## Seeing the suite fail for the right reason
 
