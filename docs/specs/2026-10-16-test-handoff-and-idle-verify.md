@@ -1,5 +1,5 @@
 ---
-status: draft
+status: done
 type: chore
 packages: []
 branch: chore/repo/test-handoff-and-idle-verify
