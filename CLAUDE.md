@@ -88,7 +88,7 @@ Packages go to the private registry `https://npm.enriconardo.com` (`publishConfi
 
 ## Workflow
 
-The main agent proposes a tier at intake; the user confirms or changes it. A task that turns out bigger changes tier, and the user is told.
+The main agent proposes a tier at intake; the user confirms or changes it. A question or discussion is no task until it leads to a change. A task that turns out bigger changes tier, and the user is told.
 
 | Tier | What | Steps |
 | --- | --- | --- |
