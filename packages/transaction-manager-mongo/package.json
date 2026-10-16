@@ -2,6 +2,7 @@
   "name": "@enardo/transaction-manager-mongo",
   "version": "0.1.0",
   "description": "MongoDB implementation of the @enardo/transaction-manager contracts.",
+  "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
     "registry": "https://npm.enriconardo.com/"

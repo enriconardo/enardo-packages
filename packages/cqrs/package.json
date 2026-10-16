@@ -2,6 +2,7 @@
   "name": "@enardo/cqrs",
   "version": "1.0.0",
   "description": "Minimal CQRS command primitives.",
+  "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
     "registry": "https://npm.enriconardo.com/"

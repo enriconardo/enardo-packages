@@ -2,6 +2,7 @@
   "name": "@enardo/env",
   "version": "1.0.0",
   "description": "An environment variables management system",
+  "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
     "registry": "https://npm.enriconardo.com/"

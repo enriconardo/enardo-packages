@@ -2,6 +2,7 @@
   "name": "@enardo/password-hasher",
   "version": "1.0.0",
   "description": "Password hasher contracts and implementations.",
+  "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
     "registry": "https://npm.enriconardo.com/"

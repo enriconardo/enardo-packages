@@ -2,6 +2,7 @@
   "name": "@enardo/database",
   "version": "1.0.0",
   "description": "Abstract database interface and types.",
+  "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
     "registry": "https://npm.enriconardo.com/"

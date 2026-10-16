@@ -2,6 +2,7 @@
   "name": "@enardo/database-mongo",
   "version": "1.0.0",
   "description": "A MongoDB database implementation.",
+  "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
     "registry": "https://npm.enriconardo.com/"

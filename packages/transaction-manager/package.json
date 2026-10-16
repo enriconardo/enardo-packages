@@ -2,6 +2,7 @@
   "name": "@enardo/transaction-manager",
   "version": "1.0.0",
   "description": "Transaction and transaction manager contracts shared across the monorepo.",
+  "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
     "registry": "https://npm.enriconardo.com/"
