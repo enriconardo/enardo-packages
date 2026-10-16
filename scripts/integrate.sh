@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Integrates the current branch into main (root CLAUDE.md, Workflow, step 7),
-# after checkpoint 2: refuses a branch name too long for its merge subject, a
+# after checkpoint 2: refuses a branch name too long for merge subjects, a
 # dirty tree, a spec that is not done and a main the branch does not contain,
 # runs `pnpm verify`, merges with --no-ff and deletes the branch. Runs on the
 # host, where git and its hooks run; verify goes to the dev container.
