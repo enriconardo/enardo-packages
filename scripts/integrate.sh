@@ -25,13 +25,21 @@ front_matter() {
   awk 'NR == 1 && $0 == "---" { inside = 1; next } inside && $0 == "---" { exit } inside' "$1"
 }
 
-# The specs this branch adds; an S task has none.
+if ! git rev-parse --verify --quiet main >/dev/null; then
+  echo "No local main branch to integrate into." >&2
+  exit 1
+fi
+
+# The specs this branch adds; an S task has none. Listed in an assignment,
+# so that a failing git diff stops the script instead of skipping the check.
+specs="$(git diff --name-only --diff-filter=A main...HEAD -- 'docs/specs/*.md')"
 while IFS= read -r spec; do
+  [[ -n "$spec" ]] || continue
   if ! front_matter "$spec" | grep -qx 'status: done'; then
     echo "$spec is not 'status: done': set it in a commit before integrating." >&2
     exit 1
   fi
-done < <(git diff --name-only --diff-filter=A main...HEAD -- 'docs/specs/*.md')
+done <<<"$specs"
 
 if [[ -f /.dockerenv ]]; then
   pnpm verify
