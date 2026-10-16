@@ -80,7 +80,9 @@ The list of globals is computed from the `globals` package: the browser's keys t
 
 Tests run under vitest, in two projects (`vitest.config.ts`):
 - **`node`** runs every test file.
-- **`browser`** runs every file but `*.node.test.ts`, in Chromium, Firefox and WebKit, through the `playwright` service (root `CLAUDE.md`).
+- **`browser`** runs every file but `*.node.test.ts`, in Chromium, Firefox and WebKit, through the `playwright` service (`docker/README.md`).
+
+This package is the reference for browser tests. Another package whose `src/` runs in browsers opts in by adding `@vitest/browser-playwright` and `playwright` (`catalog:`) to its `devDependencies`, and a `browser` project copied from this `vitest.config.ts`. The second package that opts in moves that project into a shared preset. Helpers that both kinds of test file use go in `__tests__/support/`, which imports nothing from `node:*`; a constant or a builder of a few lines may be repeated instead.
 
 **What runs where:**
 - **Stubs.** The tests that run in browsers stub `fetchImpl`.

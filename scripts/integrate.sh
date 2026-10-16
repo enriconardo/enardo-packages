@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Integrates the current branch into main (root CLAUDE.md, Workflow, step 7),
+# after checkpoint 2: refuses a branch name too long for merge subjects, a
+# dirty tree, a spec that is not done and a main the branch does not contain,
+# runs `pnpm verify`, merges with --no-ff and deletes the branch. Runs on the
+# host, where git and its hooks run; verify goes to the dev container.
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+branch="$(git branch --show-current)"
+if [[ -z "$branch" || "$branch" == main ]]; then
+  echo "On '${branch:-a detached HEAD}': run this from the branch to integrate." >&2
+  exit 1
+fi
+
+# The commit-msg hook refuses a subject over 72 characters, and stops a merge
+# halfway. The longest default subject a branch gets is that of merging main
+# into it, which this script may ask for: `Merge branch 'main' into
+# <branch>`, 25 characters more. Checked here too for a branch made by hand.
+if ((${#branch} > 47)); then
+  echo "'$branch' has ${#branch} characters, over 47: the subject of merging main into it would be over the 72 that commit-msg allows. Rename the branch first." >&2
+  exit 1
+fi
+
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "The working tree has uncommitted changes: commit them before integrating." >&2
+  exit 1
+fi
+
+# The status of a spec is in its front matter, between the first two `---`.
+front_matter() {
+  awk 'NR == 1 && $0 == "---" { inside = 1; next } inside && $0 == "---" { exit } inside' "$1"
+}
+
+if ! git rev-parse --verify --quiet main >/dev/null; then
+  echo "No local main branch to integrate into." >&2
+  exit 1
+fi
+
+# The specs this branch adds; an S task has none. Listed in an assignment,
+# so that a failing git diff stops the script instead of skipping the check.
+specs="$(git diff --name-only --diff-filter=A main...HEAD -- 'docs/specs/*.md')"
+while IFS= read -r spec; do
+  [[ -n "$spec" ]] || continue
+  if ! front_matter "$spec" | grep -qx 'status: done'; then
+    echo "$spec is not 'status: done': set it in a commit before integrating." >&2
+    exit 1
+  fi
+done <<<"$specs"
+
+# With main an ancestor of the branch, the merge cannot conflict, and its
+# commit gets the branch's own tree: the one verify checks below. A main that
+# moved since the branch started is merged into the branch first.
+if ! git merge-base --is-ancestor main HEAD; then
+  echo "main has commits that '$branch' lacks: merge main into the branch, then run this again." >&2
+  exit 1
+fi
+
+if [[ -f /.dockerenv ]]; then
+  pnpm verify
+else
+  ./dev.sh exec pnpm verify
+fi
+
+git switch main
+git merge --no-ff --no-edit "$branch"
+git branch -d "$branch"

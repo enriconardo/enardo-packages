@@ -1,7 +1,7 @@
 #!/bin/sh
 # Refuses a commit whose subject line is over 72 characters (root CLAUDE.md,
-# Commits). Git runs it on `git commit` and `git merge`; enable it once per
-# clone with `git config core.hooksPath .githooks`.
+# Branches and commits). Git runs it on `git commit` and `git merge`; enable
+# it once per clone with `git config core.hooksPath .githooks`.
 
 # Git strips comment lines and leading blank lines only after this hook, so
 # skip them to find the subject.
