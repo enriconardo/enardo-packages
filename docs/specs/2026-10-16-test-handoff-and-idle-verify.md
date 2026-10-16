@@ -35,8 +35,8 @@ From a discussion of the workflow with the user (2026-10-16):
 - **The hook skips verify when the tree is clean at `main`'s commit.** `integrate.sh` merges only after a green verify, so that tree has passed it. Not taken: a stamp of the last green tree, which would also skip a discussion on a branch, but keys the result on the tree alone; on a branch the container is up, and a cached verify takes seconds.
 - **The test-author records its suite**, as its last step, under `refs/test-author/<branch>/<n>`: a commit outside `refs/heads`, so that a red suite never lands on the branch, built through a temporary index, so that the working tree, the index and the branch stay as they are. The test-author records, not the main agent, whose changes the record checks. Not taken: committing the red suite as `it.fails`, which changes the tests; a patch file in a scratchpad, which the reviewer may not see.
 - **A removed or loosened assertion of a recorded suite is blocking** (reviewer, point 4), unless a commit body says why the test was wrong. A case added later is not.
-- **Refactoring:** a restructuring the change needs is a step of the plan of its own, before the step that changes behavior, with the tests unchanged. Not a phase of every task, nor a separate agent.
 - **No implementer** for now (user).
+- **No refactoring rule.** A phase of refactoring after green, or a restructuring step planned before the change: no task of the repo has shown the problem, and "one logical change per commit" and "refactors keep the existing tests green" already cover most of it. It goes to the learn step when a review meets it.
 
 ## Changes
 
@@ -49,7 +49,6 @@ From a discussion of the workflow with the user (2026-10-16):
 - `.claude/agents/test-author.md`: records the suite last, nothing under `__tests__/` changes after it; the output names the ref. The `description` takes the invocation rule of the root: a new foreground run each time (`run_in_background: false`), since a resumed one runs in the background, where the `Stop` hook blocks on its red tests.
 - `.claude/agents/reviewer.md`: on the first round, `scripts/test-handoff.sh diff`; point 4 covers a removed or loosened assertion of a recorded suite without a reason in a commit body.
 - Root `CLAUDE.md`: the hook skips a clean tree at `main`'s commit (line 49); the test-author records its suite, and the main agent changes one of its tests only where the test is wrong, with the reason in the commit body (line 85, which loses the invocation rule); line 86 removed; a question or a discussion is no task (line 92). Within 12 000 bytes.
-- `.claude/skills/spec/SKILL.md`, *Plan*: the refactoring step.
 - `docs/adr/0006-…`: the recorded suite and the rule on changing it; the index.
 
 ## Test cases
@@ -85,5 +84,5 @@ Not test-first: the repo has no harness for its scripts; the cases above are run
 1. This spec.
 2. `stop-hook.sh`, `settings.json`, root `CLAUDE.md` line 49 (cases 1–6, 16).
 3. `test-handoff.sh`, `integrate.sh`, both agents, root `CLAUDE.md` line 85 (cases 7–16).
-4. Root `CLAUDE.md` lines 86 and 92, the `spec` skill's *Plan*.
+4. Root `CLAUDE.md` lines 86 and 92.
 5. ADR 0006 and the index.
