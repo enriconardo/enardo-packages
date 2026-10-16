@@ -4,7 +4,7 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 - **Adding items.** An item enters *To evaluate* when a review or an analysis finds it. It moves to *Queued* when the user approves it.
 - **Removing items.** A branch removes its own item, in a commit of its own before the merge, so the item leaves this file with the merge: the spec and the git history keep the record. A dropped item moves to *Dropped*, with the reason.
-- **Format.** Every item says what, why, and where it comes from. It names its source in full, never as "the same review": the item that named the review may leave the file first. Items refer to each other by branch name, not by number: numbers change as the queue moves.
+- **Format.** Every item takes a few lines, and says what, why, and where it comes from; the probes of its work go in its branch's spec. It names its source in full, never as "the same review": the item that named the review may leave the file first. Items refer to each other by branch name, not by number: numbers change as the queue moves.
 
 ## Queued
 
@@ -40,6 +40,11 @@ In the order approved.
      - Options: refuse a `subject`, `text` or `html` that is not a string, as the adapter already refuses a recipient that is not an object, which closes both paths; or set `disableFileAccess` and `disableUrlAccess` in each message's data, which makes a body with `path` or `href` reject with `EFILEACCESS` or `EURLACCESS` (probed), unless the transporter's own options set them, and leaves the subject open.
    - **Why:** a value the types refuse reads a file into the message, or writes raw headers (`Bcc`, `Reply-To`), through the adapter.
    - **From:** the first and second reviews of `fix/email-nodemailer/contract-compliance` (2026-10-14 and 2026-10-15); queued by the user at its checkpoint 2 (2026-10-15).
+5. **`chore/repo/evaluate-critic`**
+   - **When:** once `docs/critic-runs.md` logs five L specs. Until then, the next item goes first.
+   - **What:** count the `critic`'s runs by trigger, and remove each trigger none of whose runs changed a decision; a trigger that had no run goes to the user. The critic goes when no trigger is left. The text-only count goes to the user with it.
+   - **Why:** the critic guards against a drift seen twice, both times on an L spec of the workflow (ADR 0007), and a rule that is only ever added grew the workflow before (ADR 0005).
+   - **From:** the critic's first run on the spec of `chore/repo/spec-critic` (2026-10-16); queued by the user (2026-10-16).
 
 ## To evaluate
 
@@ -116,6 +121,7 @@ In the order approved.
   - The fix rewrites each mention without the name, or moves it to the README of a package that depends on the one named: an adapter's README can name its contract.
   - From checkpoint 2 of `refactor/email/contract-docs` (2026-10-14).
 - **A manifest and README check in `pnpm verify`.** A script that checks each library package for `"files": ["dist"]`, `"sideEffects": false`, the standard scripts, `publishConfig.registry`, `catalog:` for the shared tooling, and a README that names only packages its package depends on. Today these are rules of the root `CLAUDE.md` that only a review checks. It would fail on the READMEs of *Six READMEs name packages they do not depend on*, so it lands with that item or after it. From the spec of `chore/repo/lean-workflow` (2026-10-16).
+- **The `critic`'s first run on an L task does not see its ADR.** The critic runs after the spec's commit, and the ADRs of this repo come later in the plan: ADR 0006 after its checkpoint 1, ADR 0007 in step 3 of its plan. ADR 0007's first version overstated what the user had said; the critic caught it only because, not existing yet at the spec's commit, it first ran after the ADR (93ade53). Drafting the ADR with the spec, or a run on the ADR, would close it. From the first review of `chore/repo/spec-critic` (2026-10-16).
 
 ## Dropped
 
