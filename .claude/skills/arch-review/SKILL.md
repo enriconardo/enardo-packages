@@ -13,7 +13,7 @@ Applications are built on these packages, and the user wants them structurally s
 ## 1. Find the package
 
 - Its folder: `git grep -l '"name": "<package>"' -- '*package.json'`.
-- Its kind, which decides the conventions that apply: shared contract, shared adapter (`<name>-<technology>`), other shared library, config package.
+- Its kind, which decides the conventions that apply: contract, adapter (`<name>-<technology>`), other library, config package.
 - Its branch scope, as *Branches and commits* in the root `CLAUDE.md` defines it: the name without `@enardo/` (`uow-repository`).
 - A former name: the command below prints the renames of its manifest, newest first, and stops at its creation. `--follow` also follows a manifest created as a copy of another package's, and `--diff-filter=R` would then print that package's renames: the `awk` stops at the first line that is not a rename.
 
@@ -38,7 +38,7 @@ It changes on any write to a tracked or untracked file, including a second write
 - **The whole package**: manifest, `tsconfig*.json`, `eslint.config.js`, `vitest.config.ts`, its own `.gitignore` or `.npmignore` if it has one (without a `files` field, it changes what `pnpm pack` ships), `src/`, `__tests__/`, README, and its `CLAUDE.md` if it has one.
 - **The rules**: the root `CLAUDE.md` (already in context) and the ADRs in `docs/adr/`.
 - **What is already known**: the items of `docs/backlog.md` that name the package.
-- **Why it is the way it is**: `git log --oneline -- <folder>`, the specs that name it (`git grep -l -E '<package>([^a-z0-9-]|$)' -- docs/specs`: the class keeps `@enardo/email` from matching `@enardo/email-nodemailer`) and those of branches scoped to it (`git grep -l -E '^branch: [a-z]+/<scope>/' -- docs/specs`). A choice a spec made on purpose is judged against its reason, not as an accident.
+- **Why it is the way it is**: `git log --oneline -- <folder>`, and the list of the specs that name it (`git grep -l -E '<package>([^a-z0-9-]|$)' -- docs/specs`: the class keeps `@enardo/email` from matching `@enardo/email-nodemailer`) and of those of branches scoped to it (`git grep -l -E '^branch: [a-z]+/<scope>/' -- docs/specs`). Read a spec when a choice is in question, not all of them up front: the specs of one package add up to hundreds of KB, and the current truth is in its README and `CLAUDE.md` files (root `CLAUDE.md`, *Records*). Before calling a choice a problem, look for its reason: `git grep -n '<symbol or term>'` on the specs listed, then the spec that made it. A choice a spec made on purpose is judged against its reason, not as an accident.
 - **Its consumers**: the packages that depend on it (`git grep -l '"<package>"' -- '*package.json'`), and how they use it: `git grep -n -E "[\"']<package>(/[^\"']*)?[\"']" -- ':!*package.json' ':!pnpm-lock.yaml' ':!*.md'` finds the imports, and a config package's `extends` of a subpath. An API is judged from the side that calls it too. The projects that install the package from the registry live in repos of their own, which this one cannot see: ask the user for the uses that matter, rather than judge an export unused because nothing here imports it.
 
 ## 3. What to judge
@@ -73,7 +73,7 @@ Write nothing in the repo: no source, no docs, no backlog, no `CLAUDE.md`, no un
 
 At the end, take the fingerprint of section 1 again and compare. If it differs, say so in the report, with what `git status` shows.
 
-What you propose for the repo stays a draft in your report. Writing it is a later step, on a branch, when the user asks for it. When a backlog item calls for the assessment, and also for changes (an upgrade, a fix), the assessment comes first, read-only; the changes follow in that item's spec.
+What you propose for the repo stays a draft in your report. Writing it is a later step, on a branch, when the user asks for it. When a backlog item calls for the assessment, and also for changes (an upgrade, a fix), the assessment comes first, read-only; the changes follow on that item's branch, in the workflow of its tier.
 
 ## 6. Report
 
@@ -81,14 +81,14 @@ In the language of the conversation. The drafts meant for the repo (the `CLAUDE.
 
 1. **Overall judgment.** A few paragraphs: whether the package is sound, its main strength, its main risk.
 2. **Problems, most severe first.** Use one scale, so that the assessments of different packages compare:
-   - **bug**: wrong behavior today;
+   - **bug**: wrong behavior today that a plausible caller meets, or a security defect: points 1 and 2 of *What is blocking* in `.claude/agents/reviewer.md`;
    - **contract**: an API, a type or a manifest that will cause bugs in consumers, or blocks a planned use;
    - **convention**: a rule of the repo broken, with its concrete cost;
-   - **hygiene**: docs, tests, tooling.
+   - **hygiene**: docs, tests, tooling, and the defects that the same section calls not blocking, such as one that only an input built to break the code reaches.
 
    For each: where (`file:line`), what, a scenario where it bites, the evidence (the probe and its result, or *not probed*), a direction for the fix, and the backlog item that already holds it, if one does.
 3. **Choices to keep.** What is right and not obvious, so that later work does not undo it. These are the candidates for the package's invariants.
-4. **`CLAUDE.md`.** Whether the package needs one, or what its existing one lacks. If it needs one, a draft with the structure of the existing ones (`packages/errors/CLAUDE.md`): one line on the package's purpose, then *Layout*, *Invariants*, *Tests*, *Public API changes*. It holds only what the root `CLAUDE.md` does not. When the root already covers the package, say that it needs none.
+4. **`CLAUDE.md`.** Whether the package needs one, or what its existing one lacks. If it needs one, a draft like the existing ones (`packages/*/CLAUDE.md`): one line on the package's purpose, then *Layout*, its invariants (one *Invariants* section, as in `packages/errors/CLAUDE.md`, or a section per topic, as in `packages/http-client/CLAUDE.md`), *Tests*, *Public API changes*. It holds only what the root `CLAUDE.md` does not. When the root already covers the package, say that it needs none.
 5. **Backlog drafts.** One item per problem worth a branch of its own, in the format of `docs/backlog.md` (what, why, where it comes from), with the source "the architectural review of `<package>` (<date>)". A problem that the backlog already holds gets no draft: name its item in the list above.
 6. **Not verified.** The suspicions that no probe settled, each with what would settle it.
 7. **Outside the package.** The defects found in other packages, one line each: the package, what, the evidence. No severity and no draft: they are left to that package's own assessment.
