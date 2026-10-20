@@ -58,7 +58,8 @@ Each is a plain `Error` (`name: "Error"`, no `cause`) with own fields `code`, `c
   - both: `accepted: []`, `rejected` of both, no `rejectedErrors`;
   - one refused at `RCPT TO`, one after the data: `rejectedErrors` holds both, the second as `EMESSAGE`, `DATA`, with its `recipient`.
 
-  The adapter on `main`, which reads `rejected`, rejects with `{ refused: 1 }`, `{ refused: 2 }` and `{ refused: 2 }`.
+  The adapter on `main`, which reads `rejected`, rejects with `{ refused: 1 }`, `{ refused: 2 }` and `{ refused: 2 }`. nodemailer keeps the reply after the data in its envelope's `rejectedErrors`, but puts that array in the result only when it holds an entry once `DATA` is answered (`_actionDATA`, read in its source): the same reply is exposed or not, depending on another recipient (the `critic`'s second run).
+- **Where LMTP is turned on.** `created.transporter.options`, nodemailer's own copy of the options, has `lmtp: true` for `{ lmtp: true }`, for a `url` with `?lmtp=true` (as an object or a string), and for that `url` with `lmtp: false` beside it: the URL wins. A `lmtp` getter on the prototype is not copied, and `options.lmtp` is absent. `SMTPConnection` reads `lmtp` from those options, merged with what a caller's `getSocket` calls back with (`smtp-transport`'s `send`, read in its source).
 - **The envelope's form of an address.** With `to` of `anna@example.test`, `bob@Refused.TEST`, `bob@refused.test` and `Bob@refused.test`, the envelope, `rejected` and the `recipient`s hold `bob@refused.test` once, and `Bob@refused.test`: the domain lowercased, the local part as given, an exact duplicate once. The grammar of the adapter's `address.ts` lets nodemailer change nothing else (fuzzed by the spec of `fix/email-nodemailer/contract-compliance`). The adapter on `main` rejects with `{ refused: 2 }`.
 
 ### `@enardo/cqrs`, `@enardo/errors`, TypeScript
@@ -67,11 +68,15 @@ Each is a plain `Error` (`name: "Error"`, no `cause`) with own fields `code`, `c
 - `toJSON()` keeps a `cause` that is not an `Error` as it is: `{ code: "ESOCKET", command: "CONN" }` comes out unchanged. A `cause` passed as `undefined` is an own property of the error, and `toJSON()` leaves it out.
 - A parameter typed `{ cause?: Readonly<Record<string, string | number>> }` refuses an `Error`, an interface that extends it, and an `unknown` (TS2322), and accepts an object of identifiers (`tsc --strict`).
 
+### The constructor
+
+- `new NodemailerEmailSender({ transport: "smtp://user:s3cret@[bad" })`, and the same `url` in an object, throw `createTransport`'s `TypeError` as it is: `{ message: "Invalid URL", code: "ERR_INVALID_URL", input: "smtp://user:s3cret@[bad" }`, the password in `input` (found by the `critic`'s second run, run again here).
+
 ### The callers
 
 - In Cambusa (`474c20c`), the api-server builds the only `NodemailerEmailSender`. Identity's resend handler and its `UserRegistered` handler call `send`, to one recipient. No code of Cambusa's names an error of the adapter, and its web app maps no email code (`apps/web/src/lib/api/error-messages.ts`).
 - In this repo, outside the adapter and frozen specs, its errors are named only by `docs/backlog.md`.
-- No test of the adapter sends from `deferred.test`, or to `refused-after-data.test`.
+- No test of the adapter sends from `deferred.test`, or sets `lmtp`.
 
 ## Decisions
 
@@ -85,15 +90,17 @@ Each is a plain `Error` (`name: "Error"`, no `cause`) with own fields `code`, `c
    - It says whether the same send, later and with nothing changed, may succeed. It does not say that a retry is safe: an `EmailSendFailedError` may follow a delivered message, which the adapter cannot tell (*The rejection shows no stage*).
    - SMTP draws the line in its replies: `4xx` is transient, `5xx` permanent. An app hands its mail to a relay, which queues it and retries the delivery itself, so a `4xx` reaches the app from that relay: a rate limit, too many recipients (`452`), a temporary local error.
    - The adapter's rule for a failure: retryable on a `4xx` reply; with neither a `4xx` nor a `5xx` reply, on a connection that failed, timed out or was lost (`ECONNECTION`, `ESOCKET`, `ETIMEDOUT`, `EDNS`). A wrong host or port gives the codes of an outage (`ECONNREFUSED`, a TLS mismatch), so it counts as retryable: a caller bounds its retries anyway, while a transient failure taken for a permanent one loses the message.
-   - For a refused recipient: retryable when its own reply is a `4xx`. A refusal whose reply nodemailer does not keep (LMTP, after the data) counts as permanent.
+   - For a refused recipient: retryable when its own reply is a `4xx`. A reply the adapter cannot read counts as permanent: with LMTP refused (*8*), only a rejection that the caller's own `getSocket` produces gets there.
    - Not chosen: no flag, which leaves the caller reading the cause.
 3. **The refused recipients are named by their index in `to`**: `details.refused` lists `{ index, retryable }` for each, once, in ascending order, with index 0 for a single recipient.
    - A caller that sent to several recipients can retry the deferred ones alone, and mark those refused for good: the others took the message. With a count, it can only send twice, or give up.
    - An index holds no address (*4*); the caller maps it back to its own `to`. A retry to some of the recipients is another message: its `To` header lists only them. The README says so.
    - Two entries of `to` that the envelope sends as one recipient, such as `bob@Refused.TEST` and `bob@refused.test`, are both listed.
    - The cost: the adapter matches each refused address to `to` by its envelope form (*Probes*), which holds while `address.ts`'s grammar does; and every implementation takes the duty. An implementation whose provider reports each recipient's outcome later, as events, never rejects with a partial refusal, so the duty does not arise for it (how HTTP providers answer is not probed).
+   - An implementation that knows the relay refused recipients, but not which, rejects with `EmailSendFailedError`: the contract says so, and the adapter does it for a refusal it cannot read.
+   - The class holds what it can: its type takes a list of at least one recipient, and it keeps a copy sorted by index. Listing each recipient once stays the implementation's duty.
    - No `retryable` for the error as a whole: retrying the whole message would send it twice to the recipients that took it.
-   - Not chosen: a count with one `retryable`, which the `critic`'s first run proposed on the ground that the only consumer sends to one recipient. Adding the list later would be a major for every project and implementation. Nor the addresses, which are personal data.
+   - Not chosen: a count with one `retryable`, which the `critic`'s first run proposed on the ground that the only consumer sends to one recipient. Adding the list later puts a new duty on every implementation. Nor the addresses, which are personal data.
 4. **The errors hold no address, name, subject or body**, in their message, `details` or `cause`, so a caller can log them, as `CommandHandler` logs every failure. The user chose it before checkpoint 1 (2026-10-20), over nodemailer's error as `cause`, which the item's *What* names.
    - The adapter's errors and logs hold none already (its README). The contract makes it a rule for every implementation.
    - The compiler holds part of it: the classes take a `cause` of type `EmailErrorCause`, `Readonly<Record<string, string | number>>`, which refuses an `Error` and an `unknown` (*Probes*). A string can still hold an address: the README states the rule.
@@ -106,8 +113,13 @@ Each is a plain `Error` (`name: "Error"`, no `cause`) with own fields `code`, `c
    - `@enardo/errors` changes its README only, which needs no version.
 6. **The errors are classes of `@enardo/email`**, which gains runtime code and a dependency on `@enardo/errors`. Its `dist/index.mjs` stops being empty, and the adapter's starts importing it. `@enardo/database` and `@enardo/database-mongo` do the same with `DatabaseError`. The adapter does not re-export them, as it does not re-export `EmailSender`.
 7. **The adapter's logs follow the errors.** A refusal logs `warn` `Email recipients refused.` with `{ recipientsCount, refused }`, `refused` being the length of `details.refused`, whether the relay refused some recipients or all. `Email send failed.` carries the fields of the cause, so it gains `originalCode`.
-8. **Test-first**, as public API of two `@enardo/*` packages. The `test-author` writes the cases of *Test cases*, one run per package.
-9. **No ADR.** Each decision is a rule of `@enardo/email`'s contract or of its adapter, recorded in their READMEs; the one that reaches beyond them goes into `@enardo/errors`' README.
+8. **The adapter refuses LMTP**: the constructor throws `InvalidEmailSenderOptionsError`, `not-smtp`, when nodemailer's copy of the options has `lmtp`, and the type of `transport` takes `lmtp?: false`, as it takes `pool?: false`.
+   - LMTP hands the message to its final mailbox store, with no queue behind it: `EmailSender` sends through a relay (its JSDoc), and the adapter's README speaks of an SMTP server only.
+   - It is the one path on which nodemailer resolves with refusals whose replies it may or may not expose (*Probes*), so the same reply would be retryable or not depending on another recipient (the `critic`'s second run).
+   - The check reads what nodemailer built, like the constructor's other checks, so a `url` with `?lmtp=true` is refused too. A caller's `getSocket` can still call back with `lmtp`, after the check: a refusal is still read from `rejected`, so it never passes for a send, but its reply may be lost, and `retryable` false.
+   - A project that delivers over LMTP writes an implementation of its own; the refusal comes inside a major that already breaks. Not chosen: LMTP kept, with a refusal without a readable reply counted as retryable, which keeps the test server's LMTP mode and the dependence on another recipient.
+9. **Test-first**, as public API of two `@enardo/*` packages. The `test-author` writes the cases of *Test cases*, one run per package.
+10. **No ADR.** Each decision is a rule of `@enardo/email`'s contract or of its adapter, recorded in their READMEs; the one that reaches beyond them goes into `@enardo/errors`' README.
 
 ## Changes
 
@@ -118,7 +130,7 @@ Each is a plain `Error` (`name: "Error"`, no `cause`) with own fields `code`, `c
 | Class | Constructor | `details` | `message` |
 | --- | --- | --- | --- |
 | `InvalidEmailMessageError` | `(details: InvalidEmailMessageDetails, options?)` | as given | `The email has no recipient: to is an empty list`; `The email has no sender: no from, and no default sender`; `The email sender refuses the address of to[1]` (or `from`, `replyTo`) |
-| `EmailRecipientsRefusedError` | `(refused: readonly RefusedEmailRecipient[], options?)` | `{ refused }` | `The relay refused the email for to[1], to[3]` |
+| `EmailRecipientsRefusedError` | `(refused: readonly [RefusedEmailRecipient, ...RefusedEmailRecipient[]], options?)` | `{ refused }`, a copy sorted by `index` | `The relay refused the email for to[1], to[3]` |
 | `EmailSendFailedError` | `(details: EmailSendFailedDetails, options?)` | as given | `Sending the email failed`, plus `; a later retry may succeed` when `retryable` |
 
 - **Types**, exported:
@@ -133,13 +145,14 @@ Each is a plain `Error` (`name: "Error"`, no `cause`) with own fields `code`, `c
   - the package holds the types and the errors of `send`, no longer types only;
   - the exports, the errors among them;
   - *Callers*: branch on the class or on `code`. Retry an `EmailRecipientsRefusedError` with the refused recipients whose `retryable` is true, and only them: a message of its own, whose `To` header lists them alone. Retry an `EmailSendFailedError` when `retryable`, knowing that it may send twice. The errors can be logged: they hold no address, name, subject or body. An example of each retry;
-  - *Implementations*: when each error applies (*Decisions* 1), what `retryable` means (*2*), how `refused` lists the recipients (*3*), what the errors never hold, a `cause` included (*4*), and that a driver's error never passes through. The sentence `The contract does not define yet what send rejects with` leaves;
+  - *Implementations*: when each error applies (*Decisions* 1), what `retryable` means (*2*), how `refused` lists the recipients, each once, and `EmailSendFailedError` for a refusal of recipients it cannot name (*3*), what the errors never hold, a `cause` included (*4*), and that a driver's error never passes through. The sentence `The contract does not define yet what send rejects with` leaves;
   - *Contributing*: the tests check behavior too.
 - **Node only**: no browser project. Sending email takes credentials that a browser must not hold, so no browser runs an implementation, and a client learns of a failure from its server's `code`.
 
 ### `@enardo/email-nodemailer` 2.0.0
 
 - **`src/errors/`** keeps `InvalidEmailSenderOptionsError`; `InvalidEmailMessageError` and `EmailRecipientsRefusedError` leave.
+- **The constructor** refuses LMTP (*Decisions* 8): after `createTransport`, it throws `InvalidEmailSenderOptionsError("not-smtp")` when `created.transporter.options.lmtp` is truthy. `NodemailerSmtpOptions` becomes `Omit<SMTPTransport.Options, "pool" | "lmtp"> & { pool?: false; lmtp?: false }`.
 - **`src/nodemailer-email-sender.ts`** throws the contract's errors, imported from `@enardo/email`:
   - Before the send, it keeps each `to` address's envelope form: the local part as given, the domain lowercased.
   - **A refusal** comes from `rejected` and `rejectedErrors`: the result's when `sendMail` resolves with `rejected` not empty, as today; the rejection's when it rejects with `code: "EENVELOPE"` and `command: "RCPT TO"`. Each address of `rejected` is matched to every index of `to` with that envelope form, and `send` rejects with `EmailRecipientsRefusedError`, listing each matched index once, in ascending order. An index is retryable when the entry of `rejectedErrors` whose `recipient` is its address has a `responseCode` from 400 to 499 (a number); without such an entry, it is not.
@@ -149,10 +162,11 @@ Each is a plain `Error` (`name: "Error"`, no `cause`) with own fields `code`, `c
   - The logs of *Decisions* 7.
 - **`src/index.ts`**: `NodemailerEmailSender`, `NodemailerEmailSenderOptions`, `NodemailerSmtpOptions`, `InvalidEmailSenderOptionsError`, `InvalidEmailSenderOptionsReason`, `Logger`, `LoggerMetadata`.
 - **`package.json`**: version `2.0.0`. `@enardo/email` stays in `dependencies` (`workspace:^`, packed as `^2.0.0`).
-- **`README.md`**: the exports; the table of `send`, with the contract's errors; `refused`, where two entries of `to` that differ only in the case of the domain are both listed; the rules of `retryable`, LMTP's refusals after the data included; *Errors*: the cause's fields, and `InvalidEmailSenderOptionsError`, the adapter's own; *Logs*; *Against `@enardo/email`'s contract* loses its line on two errors for a refusal.
+- **`README.md`**: the exports; *Options*: LMTP refused, with a `url` that turns it on; the table of `send`, with the contract's errors; `refused`, where two entries of `to` that differ only in the case of the domain are both listed; the rules of `retryable`; *Errors*: the cause's fields, and `InvalidEmailSenderOptionsError`, the adapter's own; *Logs*; *Against `@enardo/email`'s contract* loses its line on two errors for a refusal.
 - **`CLAUDE.md`**:
   - *Layout*: `src/errors/` holds the constructor's error;
-  - *Sending*: the lines on nodemailer's rejections passing through and on the interim classes leave. A refusal is read from `rejected`, which LMTP fills after the data, and matched to `to` by envelope form, which relies on the grammar of `address.ts`: a change to it checks the match again. Its `retryable` comes from `rejectedErrors`, matched by `recipient`. Every other rejection becomes `EmailSendFailedError`, with its identifiers in `cause`;
+  - *Transporters*: LMTP is refused, read from nodemailer's copy of the options, and why (*Decisions* 8);
+  - *Sending*: the lines on nodemailer's rejections passing through and on the interim classes leave. A refusal is read from `rejected`, which LMTP would fill after the data, and matched to `to` by envelope form, which relies on the grammar of `address.ts`: a change to it checks the match again. Its `retryable` comes from `rejectedErrors`, matched by `recipient`. Every other rejection becomes `EmailSendFailedError`, with its identifiers in `cause`;
   - *Logs*: `originalCode` joins the identifiers;
   - *Tests*: cases 1 to 56 carry their number in the spec of `fix/email-nodemailer/contract-compliance`, from 57 on in this one.
 
@@ -166,6 +180,7 @@ Each is a plain `Error` (`name: "Error"`, no `cause`) with own fields `code`, `c
 - `docs/backlog.md`:
   - in `fix/email-nodemailer/non-string-content`, a line: since `feature/email/send-errors`, `InvalidEmailMessageDetails` is `@enardo/email`'s, so refusing a `subject`, `text` or `html` that is not a string adds a field and a reason to the contract, a minor of `@enardo/email`;
   - in *To evaluate*, a new item: `@enardo/cqrs`'s `CommandHandler` puts the `message` of any `Error` that is not a `BaseError` in the response's `error`, which an HTTP layer like Cambusa's api-server sends to the client. Before this task, that was nodemailer's message, with the address of a refused recipient or the SMTP host (*Probes*). The item of this task recorded it, and leaves with it. From the spec of `feature/email/send-errors`;
+  - in *To evaluate*, a new item: `NodemailerEmailSender`'s constructor lets `createTransport`'s errors through, and the `TypeError` for a `url` that does not parse holds the URL in `input`, the SMTP password included (*Probes*, *The constructor*). From the `critic`'s second run on the spec of `feature/email/send-errors`;
   - this task's item removed, in a commit of its own.
 
 ## Test cases
@@ -174,20 +189,20 @@ Each is a plain `Error` (`name: "Error"`, no `cause`) with own fields `code`, `c
 
 E1. Each class, built with valid arguments: an instance of it and of `BaseError`, `name` equal to the class name, its `code`, and a stack whose first line is `<name>: <message>`.
 E2. `InvalidEmailMessageError`, for each of `{ field: "to", reason: "empty" }`, `{ field: "to", reason: "address", index: 1 }`, `{ field: "from", reason: "address" }`, `{ field: "replyTo", reason: "address" }` and `{ field: "from", reason: "missing" }`: `details` equals the argument, and `message` is the one of *Changes*.
-E3. `EmailRecipientsRefusedError([{ index: 1, retryable: false }, { index: 3, retryable: true }])`: `details` is `{ refused: [{ index: 1, retryable: false }, { index: 3, retryable: true }] }`, and `message` is `The relay refused the email for to[1], to[3]`.
+E3. `EmailRecipientsRefusedError([{ index: 3, retryable: true }, { index: 1, retryable: false }])`: `details` is `{ refused: [{ index: 1, retryable: false }, { index: 3, retryable: true }] }`, and `message` is `The relay refused the email for to[1], to[3]`. The list given is not changed, and a later change to it does not reach `details`.
 E4. `EmailSendFailedError` with `{ retryable: false }` and `{ retryable: true }`: `details` equals the argument; the messages are `Sending the email failed` and `Sending the email failed; a later retry may succeed`.
 E5. Each class, given `{ cause: { code: "ESOCKET", responseCode: 421 } }`: `cause` is that object, and `toJSON().cause` equals it. Built without `options`, `toJSON()` has no `cause`.
 E6. The entry point exports at run time exactly `InvalidEmailMessageError`, `EmailRecipientsRefusedError` and `EmailSendFailedError`.
 E7. Types, checked by `pnpm typecheck`:
    - each `code` is its literal, and `details` is `InvalidEmailMessageDetails`, `EmailRecipientsRefusedDetails` and `EmailSendFailedDetails`;
-   - assigning a field of `RefusedEmailRecipient` or of `EmailSendFailedDetails` is a type error;
+   - assigning a field of `RefusedEmailRecipient` or of `EmailSendFailedDetails` is a type error, and so is `new EmailRecipientsRefusedError([])`;
    - for each class, a `cause` of type `Error`, and one of type `unknown`, are type errors.
 
 ### `@enardo/email-nodemailer`
 
 Each case imports the contract's errors from `@enardo/email`, so a rejection with the right class from another copy fails.
 
-**Support.** The SMTP server also answers `451` to a `MAIL FROM` at `deferred.test`. With `lmtp`, it answers `LHLO` as it answers `EHLO`, and after the data one reply per recipient it accepted, in order: `550` at `refused-after-data.test`, `250` otherwise.
+**Support.** The SMTP server also answers `451` to a `MAIL FROM` at `deferred.test`.
 
 **Changed cases**, under their number in the spec of `fix/email-nodemailer/contract-compliance`:
 
@@ -208,12 +223,7 @@ Each case imports the contract's errors from `@enardo/email`, so a rejection wit
 
 57. **Refused and deferred, in order.** `to` of `anna@example.test`, `bruno@refused.test`, `carla@deferred.test`: `{ refused: [{ index: 1, retryable: false }, { index: 2, retryable: true }] }`; one message sent.
 58. **Every recipient refused, mixed.** `to` of `bruno@refused.test`, `carla@deferred.test`: `{ refused: [{ index: 0, retryable: false }, { index: 1, retryable: true }] }`; no `DATA`. nodemailer's own `responseCode` is `450`, so a `retryable` read from it gives `true` to both.
-59. **LMTP, after the data.** With `lmtp: true`:
-    - `to` of `anna@example.test`, `bob@refused-after-data.test`: `{ refused: [{ index: 1, retryable: false }] }`;
-    - both at `refused-after-data.test`: `{ refused: [{ index: 0, retryable: false }, { index: 1, retryable: false }] }`;
-    - `to` of `carla@deferred.test`, `bob@refused-after-data.test`: `{ refused: [{ index: 0, retryable: true }, { index: 1, retryable: false }] }`.
-
-    A refusal read from `rejectedErrors` alone resolves the first two.
+59. **LMTP refused.** `transport` of the server's options with `lmtp: true`; of `{ url: "smtp://127.0.0.1:<port>/?lmtp=true" }`, alone and with `lmtp: false`; and the same URL as a string: each throws `InvalidEmailSenderOptionsError`, `details.reason: "not-smtp"`, and the server sees no connection. `lmtp: true` in a literal is a type error (`@ts-expect-error`). `lmtp: false` builds a sender, and a send reaches the server.
 60. **The envelope's form.** `to` of `anna@example.test`, `bob@Refused.TEST`, `bob@refused.test`, `Bob@refused.test`: `{ refused: [{ index: 1, retryable: false }, { index: 2, retryable: false }, { index: 3, retryable: false }] }`. A match on the exact address misses index 1; one that stops at the first index misses 2.
 61. **The sender refused.** `from` of `victim@refused.test`: `EmailSendFailedError`, `{ retryable: false }`, `cause` strictly `{ code: "EENVELOPE", command: "MAIL FROM", responseCode: 550 }`. `JSON.stringify(error.toJSON())` holds no `victim`, which the server's answer echoes.
 62. **The sender deferred.** `from` at `deferred.test`: `{ retryable: true }`, `cause` strictly `{ code: "EENVELOPE", command: "MAIL FROM", responseCode: 451 }`.
@@ -239,12 +249,13 @@ Each case imports the contract's errors from `@enardo/email`, so a rejection wit
     - the same `rejected`, with `rejectedErrors` of `[{ recipient: "anna@example.test", responseCode: "450" }]`, `[{ recipient: "other@example.test", responseCode: 450 }]`, `[]`, absent, or a getter that throws: `{ refused: [{ index: 0, retryable: false }] }`;
     - `rejected` of `["stranger@example.test"]`, `[7]`, `[]`, `"x"`, absent, or a getter that throws: `EmailSendFailedError`, `{ retryable: false }`, `cause` strictly `{ code: "EENVELOPE", command: "RCPT TO", responseCode: 550 }`.
 
-**On `main`**, every case of this list fails: the E cases and 57 to 67 on missing exports, on nodemailer's own errors or on a count in `details`, the changed cases on their imports or on the old classes and `details`. The `test-author` reports any that passes, and why.
+**On `main`**, the E cases and 57 to 67 fail, on missing exports, on nodemailer's own errors or on a count in `details`, and so do the changed cases, on their imports or on the old classes and `details`. Two parts pass, as checks of what stays: `lmtp: false` in 59, and 32. The `test-author` reports any other that passes, and why.
 
 **Wrong implementations these cases rule out:**
 - recipients matched by their exact address (60), or by the first index only (60);
 - `retryable` read from nodemailer's own `responseCode` (58), or from an entry of `rejectedErrors` by its position rather than its `recipient` (67, `other@example.test`);
-- a refusal read from `rejectedErrors` alone (59);
+- a refusal read from `rejectedErrors` alone (67, `rejectedErrors: []`);
+- LMTP checked on the options given rather than on nodemailer's copy (59, the URL with `lmtp: false`);
 - every `EENVELOPE` taken as permanent (62);
 - the `code` read before the `responseCode` (65, `554`);
 - nodemailer's error, or every field of it, as the cause (61, 66);
@@ -267,7 +278,7 @@ Each step ends green and committed.
 
 1. This spec, the `critic`, checkpoint 1.
 2. `@enardo/email`, test-first: the `test-author` writes E1 to E7. Then the three classes, the JSDoc, `package.json` and `pnpm install`, and the README.
-3. `@enardo/email-nodemailer`, test-first: the `test-author` changes the cases listed, writes 57 to 67, and adds the server's `451` and LMTP mode. Then the sender, the classes that leave, `package.json`, the README and the `CLAUDE.md`.
+3. `@enardo/email-nodemailer`, test-first: the `test-author` changes the cases listed, writes 57 to 67, and adds the server's `451`. Then the sender and its constructor, the classes that leave, `package.json`, the README and the `CLAUDE.md`.
 4. `@enardo/errors`' README.
 5. The check by hand.
 6. `docs/backlog.md`: the line in `fix/email-nodemailer/non-string-content` and the new item. Then, in a commit of its own, this task's item removed.
