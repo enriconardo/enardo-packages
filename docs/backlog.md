@@ -120,6 +120,10 @@ In the order approved.
   - Before `feature/email/send-errors`, that message was nodemailer's: `getaddrinfo EAI_AGAIN smtp.internal.corp.test` for a host that does not resolve, and `Can't send mail - all recipients were rejected: 550 5.1.1 <anna.marker@example.test>: no such user` when the relay refused the recipient (probed through `CommandHandler` and `@enardo/logger` in its spec, 2026-10-20). That branch closes the email path; any other native error still reaches the client with its message.
   - `QueryHandler` maps errors the same way (`packages/cqrs/src/query-handler.ts`).
   - From the spec of `feature/email/send-errors` (2026-10-20); that branch's own item named it, and leaves with its merge.
+- **Some transient failures on the way to the relay come out `retryable: false`** in `@enardo/email-nodemailer`.
+  - The rule of `feature/email/send-errors` counts as retryable, without a reply code, a connection that failed, timed out or was lost: to the relay, a proxy or an OAuth2 token endpoint. An answer that a retry may change is left out. A token endpoint that answers `503` gives `EAUTH`, `AUTH XOAUTH2`, with no `originalCode` for an HTML body (nodemailer's `JSON.parse` throws), and with `originalCode: "EOAUTH2"` for RFC 6749's `temporarily_unavailable`. A proxy that accepts the connection and closes it before the tunnel gives `EPROXY`.
+  - Each of these codes also covers misconfigurations, a proxy that refuses its credentials or a token answer nodemailer cannot use, which is why the user kept them permanent. Telling the two apart needs what the sender keeps out of its identifiers: the HTTP status, or the proxy's answer.
+  - From the second review of `feature/email/send-errors` (2026-10-20), which probed them.
 
 ## Dropped
 
