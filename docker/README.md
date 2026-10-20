@@ -8,6 +8,30 @@ The dev container, the test browsers' image, and the compose stack that runs the
 - git comes with that base and must stay: turbo's `--filter=...[main]` resolves the affected packages by diffing against git, inside the container.
 - Nothing sensitive is mounted: no Docker socket (a container that can reach the host daemon is root on the host), no SSH key, no credentials. Only `~/.gitconfig`, read-only. Pushing and authenticating happen on the host.
 
+## One checkout drives the stack
+
+The compose project has a fixed name, so a clone or a worktree of the repo would drive the same containers: its `./dev.sh exec` would run in the tree the dev container mounts, and its `./dev.sh up` would recreate the container on the clone. So `up`, `shell`, `exec`, `logs` and `down` first compare the dev container's mount at its working directory with the checkout `./dev.sh` runs from, as the same directory (a symlink passes), and refuse any other. `help` and `clean` do not check.
+
+- **With no dev container**, before the first `up` or after a `down`, nothing is compared: the first checkout to run `./dev.sh up` holds the stack, and the others are refused until it runs `./dev.sh down`.
+- **When the mounted checkout no longer exists**, such as a deleted clone, the refusal gives the command that removes the stack: `docker compose -p enardo-packages down`.
+- **The check is `dev.sh`'s.** `docker compose` run by hand from another checkout still drives the stack, the fallback of *When its image cannot be built* included: run it from the mounted checkout.
+
+### Another checkout's code
+
+It runs in a throwaway container of the dev image, with that checkout mounted in place of the repo:
+
+```
+git -C <clone> branch main origin/main    # for pnpm verify, when the clone has no main
+docker run --rm --network enardo-packages_default -e PLAYWRIGHT_WS_ENDPOINT=ws://playwright:3000/ \
+  -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 -v <clone>:/workspaces/enardo-packages -w /workspaces/enardo-packages \
+  enardo-packages-dev sh -c 'pnpm install --frozen-lockfile && pnpm verify'
+```
+
+- **`<clone>` is an absolute path that exists**: Docker creates a missing one as a directory owned by root, which the host user cannot remove.
+- **The install stays in the clone**: `node_modules` and the pnpm store are the clone's, owned by the host user, so the next run reuses them. The first install takes about 30 s.
+- **The browser tests use the stack's `playwright` service**, through its network: the stack has to be up. That service mounts nothing.
+- **A clone made while the repo is on a branch has no local `main`**, which `pnpm verify` diffs against: hence the `git branch` line.
+
 ## Rebuilds
 
 `./dev.sh up` rebuilds an image when its Dockerfile (`dev/`, `playwright/`) changed. A rebuilt `playwright` image recreates that service only, not the dev container.
