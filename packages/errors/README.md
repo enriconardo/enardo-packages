@@ -34,7 +34,7 @@ export class UserNotFoundError extends BaseError {
 - **`name` is a class field equal to the class name.** It is abstract in `BaseError`, so the compiler rejects a concrete class that forgets it, and minifiers cannot change it the way they change `constructor.name`. The field gets the literal type `"UserNotFoundError"`; a class meant to be extended annotates it `name: string`, otherwise its subclasses cannot declare their own. An abstract intermediate class declares no name.
 - **`code` is required**: it is what code handling the error switches on.
 - **`details` is an object.** An interface used for it must extend `Record<string, unknown>`; a type alias works as is.
-- **Accept a `cause` and pass it on** when the error wraps another one, instead of pasting the other error's message into your own.
+- **Accept a `cause` and pass it on** when the error wraps another one, instead of pasting the other error's message into your own. `toJSON()` carries the whole `cause` chain into every log: when the other error can hold personal data or secrets (an address, a password in a URL, a response body), pass its identifiers instead, such as its `code`, and document them.
 - **Narrow with `declare readonly`**, not with generics: `declare` emits nothing, so the values set by the `BaseError` constructor stay, and instances expose the precise types.
 
 ## Handling an error
