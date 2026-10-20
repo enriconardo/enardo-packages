@@ -85,7 +85,8 @@ export class NodemailerEmailSender implements EmailSender {
    * @throws {EmailRecipientsRefusedError} (rejects) when the relay refused
    * recipients, some or all.
    * @throws {EmailSendFailedError} (rejects) for any other rejection of
-   * nodemailer, with its identifiers in `cause`.
+   * nodemailer, with its identifiers in `cause`, and for a refusal whose
+   * recipients the sender cannot name.
    */
   send(message: EmailMessage, options?: SendEmailOptions): Promise<void>;
   // `options` holds `tags` only, which SMTP has nowhere to keep: the
@@ -335,11 +336,12 @@ function refusalOf(
 // `rejected` of `source`, when it is a list of strings with at least one.
 function refusedAddressesOf(source: unknown): string[] | undefined {
   const rejected = readField(source, "rejected");
-  if (!Array.isArray(rejected)) {
-    return undefined;
-  }
 
+  // `Array.isArray` throws on a revoked Proxy.
   try {
+    if (!Array.isArray(rejected)) {
+      return undefined;
+    }
     const addresses: unknown[] = Array.from(rejected);
     return addresses.length > 0 && addresses.every(isString)
       ? addresses
@@ -355,11 +357,12 @@ function refusedAddressesOf(source: unknown): string[] | undefined {
 function replyCodesOf(source: unknown): Map<string, number> {
   const entries = readField(source, "rejectedErrors");
   const replies = new Map<string, number>();
-  if (!Array.isArray(entries)) {
-    return replies;
-  }
 
+  // `Array.isArray` throws on a revoked Proxy.
   try {
+    if (!Array.isArray(entries)) {
+      return replies;
+    }
     for (const entry of Array.from(entries as unknown[])) {
       const recipient = readField(entry, "recipient");
       const responseCode = readField(entry, "responseCode");

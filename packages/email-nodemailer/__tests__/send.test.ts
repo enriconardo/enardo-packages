@@ -572,6 +572,13 @@ describe("send", () => {
 
     const ANNA_REJECTED = set({ rejected: ["anna@example.test"] });
 
+    /** A Proxy on which every operation throws, `Array.isArray` included. */
+    function revokedProxy(): unknown {
+      const { proxy, revoke } = Proxy.revocable([], {});
+      revoke();
+      return proxy;
+    }
+
     it("67: names index 0, retryable, from the 450 of its entry in rejectedErrors over the rejection's 550", async () => {
       const error = await rejectionOf(
         sendRejectedWith(
@@ -612,6 +619,7 @@ describe("send", () => {
       ["an empty list", set({ rejectedErrors: [] })],
       ["no rejectedErrors", () => undefined],
       ["a getter that throws", throwing("rejectedErrors")],
+      ["a revoked Proxy", set({ rejectedErrors: revokedProxy() })],
     ];
 
     it.each(NOT_RETRYABLE)(
@@ -639,6 +647,7 @@ describe("send", () => {
       ['rejected of "x"', set({ rejected: "x" })],
       ["no rejected", () => undefined],
       ["a rejected getter that throws", throwing("rejected")],
+      ["a rejected that is a revoked Proxy", set({ rejected: revokedProxy() })],
     ];
 
     it.each(UNREADABLE)(
