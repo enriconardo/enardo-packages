@@ -1,5 +1,5 @@
 ---
-status: draft
+status: done
 type: feature
 packages: ["@enardo/email", "@enardo/email-nodemailer", "@enardo/errors"]
 branch: feature/email/send-errors
