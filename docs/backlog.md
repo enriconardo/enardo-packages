@@ -35,6 +35,7 @@ In the order approved.
      - nodemailer writes an object header value with `prepared: true` as raw text, for every header but those it formats (`FORMATTED_HEADERS`), and `Subject` is not one of them. Through the adapter, `subject: { prepared: true, value: "Hi\r\nBcc: attacker@evil.test\r\nReply-To: attacker@evil.test\r\n…" }` puts a `Bcc` and a `Reply-To` header into the message, and a body of the attacker's; the envelope does not change (probed by the second review of `fix/email-nodemailer/contract-compliance`, 2026-10-15, and again).
      - The types of `@enardo/email` refuse all three: only a caller the types do not reach can pass them. No caller does today: Cambusa's subjects are constant strings.
      - Options: refuse a `subject`, `text` or `html` that is not a string, as the adapter already refuses a recipient that is not an object, which closes both paths; or set `disableFileAccess` and `disableUrlAccess` in each message's data, which makes a body with `path` or `href` reject with `EFILEACCESS` or `EURLACCESS` (probed), unless the transporter's own options set them, and leaves the subject open.
+     - Since `feature/email/send-errors`, `InvalidEmailMessageError` and its `InvalidEmailMessageDetails` are `@enardo/email`'s: refusing a `subject`, `text` or `html` that is not a string adds a field and a reason to the contract, a minor of `@enardo/email`.
    - **Why:** a value the types refuse reads a file into the message, or writes raw headers (`Bcc`, `Reply-To`), through the adapter.
    - **From:** the first and second reviews of `fix/email-nodemailer/contract-compliance` (2026-10-14 and 2026-10-15); queued by the user at its checkpoint 2 (2026-10-15).
 4. **`chore/repo/evaluate-critic`**
@@ -125,6 +126,11 @@ In the order approved.
   - It also encodes each lone surrogate as U+FFFD, so `"pw\uD800"`, `"pw\uDC00"` and `"pw�"` match the same hash (probed by the review of `refactor/repo/split-contracts-from-adapters`). The README documents it; no test pins it.
   - Options: the adapter rejects a longer password, and one that is not well-formed (`String.prototype.isWellFormed`): a behavior change, and a new major. Or Cambusa caps the length and refuses such strings, in its own repo.
   - From the `critic`'s run on the spec of `refactor/repo/split-contracts-from-adapters` (2026-10-20), and its review.
+- **`@enardo/cqrs` sends the message of a native error to the client.**
+  - `CommandHandler`'s `mapErrorToString` returns `code` for a `BaseError`, and `message` for any other `Error`, as the response's `error`, which an HTTP layer such as Cambusa's api-server sends to the client.
+  - Before `feature/email/send-errors`, that message was nodemailer's: `getaddrinfo EAI_AGAIN smtp.internal.corp.test` for a host that does not resolve, and `Can't send mail - all recipients were rejected: 550 5.1.1 <anna.marker@example.test>: no such user` when the relay refused the recipient (probed through `CommandHandler` and `@enardo/logger` in its spec, 2026-10-20). That branch closes the email path; any other native error still reaches the client with its message.
+  - `QueryHandler` maps errors the same way (`packages/cqrs/src/query-handler.ts`).
+  - From the spec of `feature/email/send-errors` (2026-10-20); that branch's own item named it, and leaves with its merge.
 
 ## Dropped
 
