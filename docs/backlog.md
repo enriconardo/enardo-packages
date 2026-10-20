@@ -110,7 +110,7 @@ In the order approved.
   - `source-map-js` 1.2.1, and `brace-expansion` 1.1.18 and 5.0.9, through the dev tooling (`vitest`, `eslint`) and `bcrypt`'s build.
 
   `pnpm audit` ignores `--filter`: it always reports the whole lockfile (probed). A lockfile refresh within the current ranges cannot fix two of them: the web app pins `react-router` to exactly `8.1.0`, and `@mapbox/node-pre-gyp` 1.0.11 requires `tar ^6.1.11`, while every `tar` advisory covers all of 6.x. `proxy-addr` and `qs` are within range: express 5.2.1 asks for `proxy-addr ^2.0.7` and `qs ^6.14.0`, body-parser 2.3.0 for `qs ^6.15.2`. Whether `bcrypt` 6 drops `node-pre-gyp` is not probed. From the spec of `chore/repo/arch-review-skill` (2026-10-14), corrected by its review.
-  - The counts are of `en-monorepo`'s lockfile, before the split of `en-monorepo` (`chore/repo/split-repos`, 2026-10-16). Each repo has its own lockfile now, and re-runs `pnpm audit` on it: here, the paths through `password-hasher` and the dev tooling.
+  - The counts are of `en-monorepo`'s lockfile, before the split of `en-monorepo` (`chore/repo/split-repos`, 2026-10-16). Each repo has its own lockfile now, and re-runs `pnpm audit` on it: here, the paths through `password-hasher-bcrypt` and the dev tooling.
 - **Six READMEs name packages they do not depend on.**
   - Since `refactor/email/contract-docs`, the root `CLAUDE.md` says that a package's README never names a package it does not depend on: a README describes its own package, as if published alone.
   - `http-client` names `@enardo/logger`; `http-status`, `@enardo/http-client`; `transaction-manager`, `@enardo/transaction-manager-mongo`; `transaction-manager-mongo`, `@enardo/database-mongo`; `uow-repository`, `@enardo/transaction-manager-mongo` and `@enardo/uow-repository-mongo`; `uow-repository-mongo`, `@enardo/database-mongo`. Found on 2026-10-14 by a lookup of every `@enardo/*` and `@cambusa/*` name in a README against its package's `dependencies`, `devDependencies` and `peerDependencies`.
@@ -118,6 +118,11 @@ In the order approved.
   - From checkpoint 2 of `refactor/email/contract-docs` (2026-10-14).
 - **A manifest and README check in `pnpm verify`.** A script that checks each library package for `"files": ["dist"]`, `"sideEffects": false`, the standard scripts, `publishConfig.registry`, `catalog:` for the shared tooling, and a README that names only packages its package depends on. Today these are rules of the root `CLAUDE.md` that only a review checks. It would fail on the READMEs of *Six READMEs name packages they do not depend on*, so it lands with that item or after it. From the spec of `chore/repo/lean-workflow` (2026-10-16).
 - **The `critic`'s first run on an L task does not see its ADR.** The critic runs after the spec's commit, and the ADRs of this repo come later in the plan: ADR 0006 after its checkpoint 1, ADR 0007 in step 3 of its plan. ADR 0007's first version overstated what the user had said; the critic caught it only because, not existing yet at the spec's commit, it first ran after the ADR (93ade53). Drafting the ADR with the spec, or a run on the ADR, would close it. From the first review of `chore/repo/spec-critic` (2026-10-16).
+- **`BcryptPasswordHasher` reads only the first 72 bytes of a password.**
+  - bcrypt 5.1.1 ignores what follows them, counted in UTF-8: two passwords that share their first 72 bytes match the same hash. `@enardo/password-hasher-bcrypt`'s README documents it, and its tests pin it.
+  - Cambusa caps no password length: its routes take `z.string().min(1)` (`packages/api-contracts/src/routes/auth/register-user.route.ts`, `authenticate-user.route.ts`), and identity has no password policy.
+  - Options: the adapter rejects a longer password (a behavior change, and a new major), or Cambusa caps the length, in its own repo.
+  - From the `critic`'s run on the spec of `refactor/repo/split-contracts-from-adapters` (2026-10-20).
 
 ## Dropped
 
