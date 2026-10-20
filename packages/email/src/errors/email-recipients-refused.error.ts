@@ -1,5 +1,5 @@
 import { BaseError } from "@enardo/errors";
-import type { EmailErrorOptions } from "./email-error.types";
+import type { EmailErrorCause } from "./email-error.types";
 
 /** A recipient that the relay refused, by its position in `to`. */
 export interface RefusedEmailRecipient {
@@ -43,7 +43,7 @@ export class EmailRecipientsRefusedError extends BaseError {
    */
   constructor(
     refused: readonly [RefusedEmailRecipient, ...RefusedEmailRecipient[]],
-    options?: EmailErrorOptions,
+    options?: { cause?: EmailErrorCause },
   ) {
     const sorted = refused
       .map(({ index, retryable }) => ({ index, retryable }))

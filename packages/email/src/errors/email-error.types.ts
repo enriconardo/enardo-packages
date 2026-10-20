@@ -8,9 +8,3 @@
  * strings, and documents the fields.
  */
 export type EmailErrorCause = Readonly<Record<string, string | number>>;
-
-/** Options of the errors of `send`. */
-export interface EmailErrorOptions {
-  /** The identifiers of the driver's failure. */
-  cause?: EmailErrorCause;
-}

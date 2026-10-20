@@ -1,5 +1,5 @@
 import { BaseError } from "@enardo/errors";
-import type { EmailErrorOptions } from "./email-error.types";
+import type { EmailErrorCause } from "./email-error.types";
 
 /** The `details` of `EmailSendFailedError`. */
 export interface EmailSendFailedDetails extends Record<string, unknown> {
@@ -31,7 +31,10 @@ export class EmailSendFailedError extends BaseError {
   declare readonly details: EmailSendFailedDetails;
 
   /** @param details - Whether a later retry may succeed. */
-  constructor(details: EmailSendFailedDetails, options?: EmailErrorOptions) {
+  constructor(
+    details: EmailSendFailedDetails,
+    options?: { cause?: EmailErrorCause },
+  ) {
     super(
       details.retryable
         ? "Sending the email failed; a later retry may succeed"

@@ -1,5 +1,5 @@
 import { BaseError } from "@enardo/errors";
-import type { EmailErrorOptions } from "./email-error.types";
+import type { EmailErrorCause } from "./email-error.types";
 
 /** Which field of the message the email sender refused, and why. */
 export type InvalidEmailMessageDetails =
@@ -41,7 +41,7 @@ export class InvalidEmailMessageError extends BaseError {
   /** @param details - Which field was refused, and why. */
   constructor(
     details: InvalidEmailMessageDetails,
-    options?: EmailErrorOptions,
+    options?: { cause?: EmailErrorCause },
   ) {
     super(messageOf(details), {
       ...options,
