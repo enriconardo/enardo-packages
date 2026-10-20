@@ -47,6 +47,9 @@ Each is a plain `Error` (`name: "Error"`, no `cause`) with own fields `code`, `c
 | `getSocket` calls back with a string | | | | nodemailer rejects with the string |
 | more recipients than `transport.maxRecipients` (`1`, for two) | `EMAXRECIPIENTS` | | | the server sees no connection |
 
+- **Connections other than the one to the SMTP server** (found by the first review, run again here):
+  - an HTTP proxy (`transport.proxy`) that is down rejects with its socket's own error, `code: "ECONNREFUSED"`, no `command`; one whose host does not resolve, with `EAI_AGAIN` (no network). One that answers `503` gives `EPROXY`, `Invalid response from proxy: 503`, a code it also gives for a `407`, a malformed answer, or a missing socks module (`http-proxy-client`, `mailer`, read in the source);
+  - an OAuth2 token endpoint that refuses the connection gives `EAUTH`, `AUTH XOAUTH2`, `originalCode: "EFETCH"`. nodemailer sets `EFETCH` on every request it cannot complete (`setFetchCode`, read in the source), and `EOAUTH2` on a token answer it cannot use.
 - **The rejection shows no stage.** A server that closes the connection before its greeting, or after `EHLO`, `MAIL FROM`, `RCPT TO`, `DATA` or the data's final dot, gives the same `ECONNECTION`, `CONN`, `Connection closed unexpectedly`: nothing tells a message the relay never got from one it may have accepted.
 - **Addresses.** The server's answers echo addresses, and nodemailer copies them into `message` and `response`. `rejected`, and each entry of `rejectedErrors` (`message`, `response`, `recipient`), hold them too. As the `cause` of a `BaseError`, `toJSON()` keeps them all. The other fields hold none: `errno`, `syscall`, `hostname`, `address` and `port` describe the SMTP server.
 
@@ -91,7 +94,11 @@ Approved by the user at checkpoint 1 (2026-10-20), tier L, the refusal of LMTP (
 2. **A retryable failure is told apart from a permanent one**, by `retryable: boolean`: in `EmailSendFailedError`'s `details`, and on each refused recipient.
    - It says whether the same send, later and with nothing changed, may succeed. It does not say that a retry is safe: an `EmailSendFailedError` may follow a delivered message, which the adapter cannot tell (*The rejection shows no stage*).
    - SMTP draws the line in its replies: `4xx` is transient, `5xx` permanent. An app hands its mail to a relay, which queues it and retries the delivery itself, so a `4xx` reaches the app from that relay: a rate limit, too many recipients (`452`), a temporary local error.
-   - The adapter's rule for a failure: retryable on a `4xx` reply; with neither a `4xx` nor a `5xx` reply, on a connection that failed, timed out or was lost (`ECONNECTION`, `ESOCKET`, `ETIMEDOUT`, `EDNS`). A wrong host or port gives the codes of an outage (`ECONNREFUSED`, a TLS mismatch), so it counts as retryable: a caller bounds its retries anyway, while a transient failure taken for a permanent one loses the message.
+   - The adapter's rule for a failure: retryable on a `4xx` reply; with neither a `4xx` nor a `5xx` reply, on a connection that failed, timed out or was lost, to the relay or to anything nodemailer reaches on the way, read on `code` or on `originalCode`:
+     - nodemailer's codes of a connection: `ECONNECTION`, `ESOCKET`, `ETIMEDOUT`, `EDNS`, and `EFETCH`, a request it could not complete, such as the OAuth2 token one;
+     - the system's, which an HTTP proxy's socket gives as they are: `ECONNREFUSED`, `ECONNRESET`, `ENOTFOUND`, `EAI_AGAIN`, `EHOSTUNREACH`, `ENETUNREACH`, `EPIPE`.
+
+     A wrong host or port gives the codes of an outage (`ECONNREFUSED`, a TLS mismatch), so it counts as retryable: a caller bounds its retries anyway, while a transient failure taken for a permanent one loses the message. `EPROXY` and `ETLS` do not count: each mixes misconfigurations (a proxy that refuses its credentials, a missing socks module, a certificate) with outages. The user chose this rule after the first review (2026-10-20), over keeping nodemailer's four codes alone, and over a failure retryable unless known permanent.
    - For a refused recipient: retryable when its own reply is a `4xx`. A reply the adapter cannot read counts as permanent: with LMTP refused (*8*), only a rejection that the caller's own `getSocket` produces gets there.
    - Not chosen: no flag, which leaves the caller reading the cause.
 3. **The refused recipients are named by their index in `to`**: `details.refused` lists `{ index, retryable }` for each, once, in ascending order, with index 0 for a single recipient.
@@ -160,7 +167,7 @@ Approved by the user at checkpoint 1 (2026-10-20), tier L, the refusal of LMTP (
   - **A refusal** comes from `rejected` and `rejectedErrors`: the result's when `sendMail` resolves with `rejected` not empty, as today; the rejection's when it rejects with `code: "EENVELOPE"` and `command: "RCPT TO"`. Each address of `rejected` is matched to every index of `to` with that envelope form, and `send` rejects with `EmailRecipientsRefusedError`, listing each matched index once, in ascending order. An index is retryable when the entry of `rejectedErrors` whose `recipient` is its address has a `responseCode` from 400 to 499 (a number); without such an entry, it is not.
   - The fields of a value the sender does not control are read like its identifiers: each on its own, in a `try`. A refusal that cannot be read counts as any other rejection: a `rejected` that is not an array, or is empty; an entry of it that is not a string, or matches no index; a read that throws. A `rejectedErrors` that cannot be read leaves every index not retryable.
   - **Any other rejection** of nodemailer becomes `EmailSendFailedError`. Its `cause` holds `code`, `command` and `originalCode` when they are strings, and `responseCode` when it is a number, each read on its own, in a `try`, at the top level, as the logs read them today. It has no `cause` when none of them is present.
-  - **`retryable` of a failure**: false when `responseCode` is 500 to 599; true when it is 400 to 499; otherwise, true when `code` is `ECONNECTION`, `ESOCKET`, `ETIMEDOUT` or `EDNS`.
+  - **`retryable` of a failure**: false when `responseCode` is 500 to 599; true when it is 400 to 499; otherwise, true when `code` or `originalCode` is one of the connection codes of *Decisions* 2.
   - The logs of *Decisions* 7.
 - **`src/index.ts`**: `NodemailerEmailSender`, `NodemailerEmailSenderOptions`, `NodemailerSmtpOptions`, `InvalidEmailSenderOptionsError`, `InvalidEmailSenderOptionsReason`, `Logger`, `LoggerMetadata`.
 - **`package.json`**: version `2.0.0`. `@enardo/email` stays in `dependencies` (`workspace:^`, packed as `^2.0.0`).
@@ -245,11 +252,20 @@ Each case imports the contract's errors from `@enardo/email`, so a rejection wit
     | `code: "EMESSAGE"`, `command: "DATA"`, `responseCode: 554` | false |
     | `code: "EAUTH"`, `command: "API"` | false |
     | `code: "EPROTOCOL"`, `command: "CONN"` | false |
+    | `code: "ECONNREFUSED"`, and each other system code of *Decisions* 2 alone | true |
+    | `code: "EAUTH"`, `command: "AUTH XOAUTH2"`, `originalCode: "EFETCH"` | true |
+    | `code: "EAUTH"`, `command: "AUTH PLAIN"`, `originalCode: "ECONNRESET"` | true |
+    | `code: "EAUTH"`, `command: "AUTH XOAUTH2"`, `responseCode: 535`, `originalCode: "EFETCH"` | false |
+    | `code: "EPROXY"` | false |
+    | `code: "ETLS"`, `command: "CONN"` | false |
+    | `code: "EOAUTH2"` | false |
 66. **The cause keeps the identifiers only.** A rejection `Error` with the message `Message failed: 554 refused for <victim@example.test>`, `code: "EMESSAGE"`, `command: "DATA"`, `responseCode: 554`, `originalCode: "EX"`, `response` and `rejected` holding `victim@example.test`, and `hint: "victim"`: `cause` is strictly `{ code: "EMESSAGE", command: "DATA", responseCode: 554, originalCode: "EX" }`, and `JSON.stringify(error.toJSON())` holds no `victim`.
 67. **A `RCPT TO` rejection, read.** Through `getSocket`, an `Error` with `code: "EENVELOPE"`, `command: "RCPT TO"`, `responseCode: 550`, and, for `to` of `anna@example.test`:
     - `rejected: ["anna@example.test"]`, `rejectedErrors: [{ recipient: "anna@example.test", responseCode: 450 }]`: `EmailRecipientsRefusedError`, `{ refused: [{ index: 0, retryable: true }] }`;
     - the same `rejected`, with `rejectedErrors` of `[{ recipient: "anna@example.test", responseCode: "450" }]`, `[{ recipient: "other@example.test", responseCode: 450 }]`, `[]`, absent, or a getter that throws: `{ refused: [{ index: 0, retryable: false }] }`;
     - `rejected` of `["stranger@example.test"]`, `[7]`, `[]`, `"x"`, absent, or a getter that throws: `EmailSendFailedError`, `{ retryable: false }`, `cause` strictly `{ code: "EENVELOPE", command: "RCPT TO", responseCode: 550 }`.
+
+68. **A proxy that is down.** `transport` of the server's options with `proxy` at a port where nothing listens: `EmailSendFailedError`, `{ retryable: true }`, `cause` strictly `{ code: "ECONNREFUSED" }`; the server sees no connection.
 
 **On `main`**, the E cases and 57 to 67 fail, on missing exports, on nodemailer's own errors or on a count in `details`, and so do the changed cases, on their imports or on the old classes and `details`. Two parts pass, as checks of what stays: `lmtp: false` in 59, and 32. The `test-author` reports any other that passes, and why.
 
@@ -260,6 +276,7 @@ Each case imports the contract's errors from `@enardo/email`, so a rejection wit
 - LMTP checked on the options given rather than on nodemailer's copy (59, the URL with `lmtp: false`);
 - every `EENVELOPE` taken as permanent (62);
 - the `code` read before the `responseCode` (65, `554`);
+- the connection codes read on `code` alone (65, `EFETCH` and `ECONNRESET` as `originalCode`), or nodemailer's four alone (65, the system codes; 68);
 - nodemailer's error, or every field of it, as the cause (61, 66);
 - a `RCPT TO` rejection trusted without matching its recipients (67).
 
