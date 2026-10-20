@@ -13,8 +13,16 @@ export interface EmailSender {
    *
    * Rejects when the relay refuses the message or any of its recipients, and
    * when the relay's answer is lost: a rejected call may have reached some of
-   * its recipients, or all of them. What it rejects with is not part of the
-   * contract yet: each implementation documents its errors.
+   * its recipients, or all of them. It rejects with:
+   * - `InvalidEmailMessageError`, before anything is sent, for an empty `to`,
+   *   no sender, or an address the implementation refuses;
+   * - `EmailRecipientsRefusedError` when the relay refused recipients, each
+   *   named by its index in `to`;
+   * - `EmailSendFailedError` for any other failure, a refusal of recipients
+   *   it cannot name included;
+   * - or what a value of the caller's threw when read.
+   *
+   * None holds an address, name, subject or body, so they can be logged.
    *
    * Never modifies `message` or `options`.
    */
