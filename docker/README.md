@@ -18,18 +18,20 @@ The compose project has a fixed name, so a clone or a worktree of the repo would
 
 ### Another checkout's code
 
-It runs in a throwaway container of the dev image, with that checkout mounted in place of the repo:
+It runs in a throwaway container of the dev image, with a clone mounted in place of the repo:
 
 ```
 git -C <clone> branch main origin/main    # for pnpm verify, when the clone has no main
 docker run --rm --network enardo-packages_default -e PLAYWRIGHT_WS_ENDPOINT=ws://playwright:3000/ \
-  -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 -v <clone>:/workspaces/enardo-packages -w /workspaces/enardo-packages \
+  -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 -e npm_config_store_dir=/workspaces/enardo-packages/.pnpm-store \
+  -v <clone>:/workspaces/enardo-packages -w /workspaces/enardo-packages \
   enardo-packages-dev sh -c 'pnpm install --frozen-lockfile && pnpm verify'
 ```
 
 - **`<clone>` is an absolute path that exists**: Docker creates a missing one as a directory owned by root, which the host user cannot remove.
-- **The install stays in the clone**: `node_modules` and the pnpm store are the clone's, owned by the host user, so the next run reuses them. The first install takes about 30 s.
-- **The browser tests use the stack's `playwright` service**, through its network: the stack has to be up. That service mounts nothing.
+- **A clone, not a worktree**: a worktree's `.git` names its repository by a host path, which the container does not have (`fatal: not a git repository`).
+- **The install stays in the clone**: `node_modules` and the pnpm store, set as in the compose file, are the clone's, owned by the host user, so the next run reuses them. The first install takes about 40 s.
+- **The browser tests use the stack's `playwright` service**, through its network: the stack has to be up. That service mounts nothing. A `./dev.sh down` while such a container runs leaves the network behind (`Resource is still in use`, exit 0), and the next `up` reuses it.
 - **A clone made while the repo is on a branch has no local `main`**, which `pnpm verify` diffs against: hence the `git branch` line.
 
 ## Rebuilds
