@@ -10,14 +10,7 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-1. **`refactor/repo/split-contracts-from-adapters`**
-   - **What:** split `@enardo/password-hasher` and `@enardo/id-generator`, each into a contract package and a `<name>-<technology>` adapter (`password-hasher-bcrypt`, `id-generator-mongo`), as the ports-and-adapters rule of the root `CLAUDE.md` asks.
-     - Today `IPasswordHasher` and `BcryptPasswordHasher` share `password-hasher`, whose peer is `bcrypt`; `IdGenerator` and `ObjectIdGenerator` share `id-generator`, whose peer is `mongodb`.
-     - Alternatives, not chosen: an optional peer (`peerDependenciesMeta`), which keeps a technology in a contract package, against the rule; or a port owned by each bounded context, which structural typing allows, without a shared contract.
-   - **Why:** the bounded contexts import only the interfaces, with `import type`, and still depend on packages that require a driver. A deploy of the api-server with `autoInstallPeers` off already reports `@cambusa/identity` missing `bcrypt`, through `password-hasher`, although identity runs no `bcrypt` code (probed by the second review of `chore/repo/adapter-drivers`). Split, the bounded contexts stop depending on a native module for an interface, and contract and adapter can be developed and tested apart, as packages of their own repositories would be. It costs two small packages, which the user had kept together for simplicity before asking for the best practice (2026-10-13).
-   - **From:** the spec of `chore/repo/adapter-drivers` (2026-10-13); queued by the user at its checkpoint 2 (2026-10-13).
-   - **Since the split of `en-monorepo` (`chore/repo/split-repos`, 2026-10-16):** Cambusa installs these packages from the registry, in its own repo. It moves to the new packages once they are published.
-2. **`feature/email/send-errors`**
+1. **`feature/email/send-errors`**
    - **What:** an error type in `@enardo/email` for a failed send, extending `BaseError` (a dependency on `@enardo/errors` only), which adapters throw in place of their driver's errors, with the driver's error as `cause`. The README states what `send` rejects with.
      - The spec decides whether a retryable failure is told apart from a permanent one, and probes what the cause carries into a serialized error.
      - Since `refactor/email/contract-docs`, `send` rejects when the relay refuses any recipient, although the others may have received the message. The spec decides whether the error names the refused recipients, so that a caller can retry those only.
@@ -28,7 +21,7 @@ In the order approved.
      - Test-first, as public API of an `@enardo/*` package.
    - **Why:** the contract says nothing of what `send` rejects with, and the adapter lets nodemailer's own `Error` through (`code: "ESOCKET"`, `"EDNS"`, `command: "CONN"`, probed on 2026-10-14). A caller that retries must know the driver's codes, the technology the port hides. The native error also reaches the HTTP client: with the SMTP server unreachable, the unprotected `POST /resend-verification-email` answers `getaddrinfo ENOTFOUND smtp.internal.corp.test` (probed through identity's handler and `CommandHandler` on 2026-10-14). This item closes the email path only: `@enardo/cqrs` turns the message of any native error into the client's error code. `@enardo/database` and `@enardo/uow-repository` already give their adapters contract errors.
    - **From:** the architectural review of `@enardo/email` (2026-10-14); queued by the user (2026-10-14).
-3. **`fix/email-nodemailer/non-string-content`**
+2. **`fix/email-nodemailer/non-string-content`**
    - **What:** `@enardo/email-nodemailer` stops passing a `subject`, `text` or `html` that is not a string to nodemailer as it is.
      - nodemailer reads an object body as content to resolve: `{ path }` reads a file into the message, `{ href }` fetches a URL. Through the adapter, `html: { path: "/etc/hostname" }` and `text: { path: "/etc/os-release" }` put those files into the message (probed by the first review of `fix/email-nodemailer/contract-compliance`, 2026-10-14, and again).
      - nodemailer writes an object header value with `prepared: true` as raw text, for every header but those it formats (`FORMATTED_HEADERS`), and `Subject` is not one of them. Through the adapter, `subject: { prepared: true, value: "Hi\r\nBcc: attacker@evil.test\r\nReply-To: attacker@evil.test\r\n…" }` puts a `Bcc` and a `Reply-To` header into the message, and a body of the attacker's; the envelope does not change (probed by the second review of `fix/email-nodemailer/contract-compliance`, 2026-10-15, and again).
@@ -36,7 +29,7 @@ In the order approved.
      - Options: refuse a `subject`, `text` or `html` that is not a string, as the adapter already refuses a recipient that is not an object, which closes both paths; or set `disableFileAccess` and `disableUrlAccess` in each message's data, which makes a body with `path` or `href` reject with `EFILEACCESS` or `EURLACCESS` (probed), unless the transporter's own options set them, and leaves the subject open.
    - **Why:** a value the types refuse reads a file into the message, or writes raw headers (`Bcc`, `Reply-To`), through the adapter.
    - **From:** the first and second reviews of `fix/email-nodemailer/contract-compliance` (2026-10-14 and 2026-10-15); queued by the user at its checkpoint 2 (2026-10-15).
-4. **`chore/repo/evaluate-critic`**
+3. **`chore/repo/evaluate-critic`**
    - **When:** once `docs/critic-runs.md` logs five L specs. Until then, the next item goes first.
    - **What:** count the `critic`'s runs by trigger, and remove each trigger none of whose runs changed a decision; a trigger that had no run goes to the user. The critic goes when no trigger is left. The text-only count goes to the user with it.
    - **Why:** the critic guards against a drift seen twice, both times on an L spec of the workflow (ADR 0007), and a rule that is only ever added grew the workflow before (ADR 0005).
@@ -110,7 +103,7 @@ In the order approved.
   - `source-map-js` 1.2.1, and `brace-expansion` 1.1.18 and 5.0.9, through the dev tooling (`vitest`, `eslint`) and `bcrypt`'s build.
 
   `pnpm audit` ignores `--filter`: it always reports the whole lockfile (probed). A lockfile refresh within the current ranges cannot fix two of them: the web app pins `react-router` to exactly `8.1.0`, and `@mapbox/node-pre-gyp` 1.0.11 requires `tar ^6.1.11`, while every `tar` advisory covers all of 6.x. `proxy-addr` and `qs` are within range: express 5.2.1 asks for `proxy-addr ^2.0.7` and `qs ^6.14.0`, body-parser 2.3.0 for `qs ^6.15.2`. Whether `bcrypt` 6 drops `node-pre-gyp` is not probed. From the spec of `chore/repo/arch-review-skill` (2026-10-14), corrected by its review.
-  - The counts are of `en-monorepo`'s lockfile, before the split of `en-monorepo` (`chore/repo/split-repos`, 2026-10-16). Each repo has its own lockfile now, and re-runs `pnpm audit` on it: here, the paths through `password-hasher` and the dev tooling.
+  - The counts are of `en-monorepo`'s lockfile, before the split of `en-monorepo` (`chore/repo/split-repos`, 2026-10-16). Each repo has its own lockfile now, and re-runs `pnpm audit` on it: here, the paths through `password-hasher-bcrypt` and the dev tooling.
 - **Six READMEs name packages they do not depend on.**
   - Since `refactor/email/contract-docs`, the root `CLAUDE.md` says that a package's README never names a package it does not depend on: a README describes its own package, as if published alone.
   - `http-client` names `@enardo/logger`; `http-status`, `@enardo/http-client`; `transaction-manager`, `@enardo/transaction-manager-mongo`; `transaction-manager-mongo`, `@enardo/database-mongo`; `uow-repository`, `@enardo/transaction-manager-mongo` and `@enardo/uow-repository-mongo`; `uow-repository-mongo`, `@enardo/database-mongo`. Found on 2026-10-14 by a lookup of every `@enardo/*` and `@cambusa/*` name in a README against its package's `dependencies`, `devDependencies` and `peerDependencies`.
@@ -118,6 +111,12 @@ In the order approved.
   - From checkpoint 2 of `refactor/email/contract-docs` (2026-10-14).
 - **A manifest and README check in `pnpm verify`.** A script that checks each library package for `"files": ["dist"]`, `"sideEffects": false`, the standard scripts, `publishConfig.registry`, `catalog:` for the shared tooling, and a README that names only packages its package depends on. Today these are rules of the root `CLAUDE.md` that only a review checks. It would fail on the READMEs of *Six READMEs name packages they do not depend on*, so it lands with that item or after it. From the spec of `chore/repo/lean-workflow` (2026-10-16).
 - **The `critic`'s first run on an L task does not see its ADR.** The critic runs after the spec's commit, and the ADRs of this repo come later in the plan: ADR 0006 after its checkpoint 1, ADR 0007 in step 3 of its plan. ADR 0007's first version overstated what the user had said; the critic caught it only because, not existing yet at the spec's commit, it first ran after the ADR (93ade53). Drafting the ADR with the spec, or a run on the ADR, would close it. From the first review of `chore/repo/spec-critic` (2026-10-16).
+- **`BcryptPasswordHasher` reads only the first 72 bytes of a password.**
+  - bcrypt 5.1.1 ignores what follows them, counted in UTF-8: two passwords that share their first 72 bytes match the same hash. `@enardo/password-hasher-bcrypt`'s README documents it, and its tests pin it.
+  - Cambusa caps no password length: its routes take `z.string().min(1)` (`packages/api-contracts/src/routes/auth/register-user.route.ts`, `authenticate-user.route.ts`), and identity has no password policy.
+  - It also encodes each lone surrogate as U+FFFD, so `"pw\uD800"`, `"pw\uDC00"` and `"pw�"` match the same hash (probed by the review of `refactor/repo/split-contracts-from-adapters`). The README documents it; no test pins it.
+  - Options: the adapter rejects a longer password, and one that is not well-formed (`String.prototype.isWellFormed`): a behavior change, and a new major. Or Cambusa caps the length and refuses such strings, in its own repo.
+  - From the `critic`'s run on the spec of `refactor/repo/split-contracts-from-adapters` (2026-10-20), and its review.
 
 ## Dropped
 

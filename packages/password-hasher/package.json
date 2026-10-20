@@ -1,7 +1,7 @@
 {
   "name": "@enardo/password-hasher",
-  "version": "1.0.0",
-  "description": "Password hasher contracts and implementations.",
+  "version": "2.0.0",
+  "description": "Password hasher contract.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
@@ -22,27 +22,18 @@
     "clean": "rm -rf dist",
     "build": "tsdown src/index.ts --format esm --dts",
     "dev": "tsdown src/index.ts --format esm --dts --watch",
-    "lint": "eslint src __tests__",
-    "lint:fix": "eslint src __tests__ --fix",
-    "format": "prettier --write src __tests__",
-    "format:check": "prettier --check src __tests__",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@enardo/eslint-config": "workspace:^",
     "@enardo/typescript-config": "workspace:^",
-    "@types/bcrypt": "^5.0.2",
-    "@types/node": "catalog:",
-    "bcrypt": "^5.1.1",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "tsdown": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
-  },
-  "peerDependencies": {
-    "bcrypt": "^5.1.1"
+    "typescript": "catalog:"
   }
 }
