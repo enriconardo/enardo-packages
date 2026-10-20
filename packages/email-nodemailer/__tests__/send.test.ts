@@ -463,8 +463,40 @@ describe("send", () => {
   describe("65: the rule of retryable", () => {
     // [the fields of the rejection, its retryable]: a 4xx reply is
     // retryable, a 5xx one is not, whatever the code; without either, a
-    // connection that failed, timed out or was lost is.
+    // connection that failed, timed out or was lost is, to the relay or to
+    // what nodemailer reaches on the way (a proxy, an OAuth2 token endpoint),
+    // by its `code` or its `originalCode`.
+    const SYSTEM_CONNECTION_CODES = [
+      "ECONNREFUSED",
+      "ECONNRESET",
+      "ENOTFOUND",
+      "EAI_AGAIN",
+      "EHOSTUNREACH",
+      "ENETUNREACH",
+      "EPIPE",
+    ];
     const RULES: readonly (readonly [EmailErrorCause, boolean])[] = [
+      ...SYSTEM_CONNECTION_CODES.map((code) => [{ code }, true] as const),
+      [
+        { code: "EAUTH", command: "AUTH XOAUTH2", originalCode: "EFETCH" },
+        true,
+      ],
+      [
+        { code: "EAUTH", command: "AUTH PLAIN", originalCode: "ECONNRESET" },
+        true,
+      ],
+      [
+        {
+          code: "EAUTH",
+          command: "AUTH XOAUTH2",
+          responseCode: 535,
+          originalCode: "EFETCH",
+        },
+        false,
+      ],
+      [{ code: "EPROXY" }, false],
+      [{ code: "ETLS", command: "CONN" }, false],
+      [{ code: "EOAUTH2" }, false],
       [{ code: "ETIMEDOUT", command: "CONN" }, true],
       [{ code: "EDNS", command: "CONN", originalCode: "ENOTFOUND" }, true],
       [{ code: "ESOCKET", command: "CONN" }, true],
@@ -667,5 +699,21 @@ describe("send", () => {
         });
       },
     );
+  });
+
+  it("68: rejects with EmailSendFailedError, retryable, when the proxy is down, and opens no connection to the SMTP server", async () => {
+    const server = await idleServer();
+    const proxy = await startClosedSmtpServer();
+    const sender = new NodemailerEmailSender({
+      transport: {
+        ...server.transportOptions,
+        proxy: `http://127.0.0.1:${proxy.port}`,
+      },
+    });
+
+    const error = await rejectionOf(sender.send(MESSAGE), EmailSendFailedError);
+
+    expect(error.details).toStrictEqual({ retryable: true });
+    expect(error.cause).toStrictEqual({ code: "ECONNREFUSED" });
   });
 });

@@ -278,25 +278,46 @@ function causeOf(identifiers: Identifiers): EmailErrorCause | undefined {
   return Object.keys(identifiers).length > 0 ? { ...identifiers } : undefined;
 }
 
-// The connection failed, timed out or was lost: an outage, which a later send
+// A connection failed, timed out or was lost: an outage, which a later send
 // may get past. A wrong host or port gives the same codes.
+// - nodemailer's, on its socket to the relay, and EFETCH on a request it
+//   could not complete, such as the OAuth2 token one;
+// - the system's, which an HTTP proxy's socket rejects with as they are.
+// EPROXY and ETLS are left out: each covers misconfigurations (a proxy that
+// refuses its credentials, a missing socks module, a certificate) too.
 const CONNECTION_FAILURES = new Set([
   "ECONNECTION",
   "ESOCKET",
   "ETIMEDOUT",
   "EDNS",
+  "EFETCH",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "EPIPE",
 ]);
 
 // A reply of the relay decides: 5xx is permanent, 4xx transient. Without
-// one, a connection that failed is retryable, and anything else is not.
-function isRetryable({ code, responseCode }: Identifiers): boolean {
+// one, a connection that failed is retryable, by nodemailer's code or by the
+// one it replaced (`originalCode`, as `EAUTH` keeps `EFETCH`), and anything
+// else is not.
+function isRetryable({
+  code,
+  originalCode,
+  responseCode,
+}: Identifiers): boolean {
   if (responseCode !== undefined && responseCode >= 500 && responseCode < 600) {
     return false;
   }
   if (isTransientReply(responseCode)) {
     return true;
   }
-  return code !== undefined && CONNECTION_FAILURES.has(code);
+  return [code, originalCode].some(
+    (failure) => failure !== undefined && CONNECTION_FAILURES.has(failure),
+  );
 }
 
 function isTransientReply(responseCode: number | undefined): boolean {
