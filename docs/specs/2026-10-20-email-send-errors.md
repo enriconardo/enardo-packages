@@ -80,6 +80,8 @@ Each is a plain `Error` (`name: "Error"`, no `cause`) with own fields `code`, `c
 
 ## Decisions
 
+Approved by the user at checkpoint 1 (2026-10-20), tier L, the refusal of LMTP (*8*) included.
+
 1. **Three errors in the contract**, siblings, each extending `BaseError`. `send` rejects with one of them, or with what a value of the caller's threw when read:
    - `InvalidEmailMessageError` (`INVALID_EMAIL_MESSAGE`): an empty `to`, no sender, or an address the implementation refuses, found before anything is sent. It moves from the adapter with its `details`.
    - `EmailRecipientsRefusedError` (`EMAIL_RECIPIENTS_REFUSED`): the relay refused at least one recipient. One error whether it took the message for the others or refused them all: `details.refused` says which.
@@ -180,7 +182,7 @@ Each is a plain `Error` (`name: "Error"`, no `cause`) with own fields `code`, `c
 - `docs/backlog.md`:
   - in `fix/email-nodemailer/non-string-content`, a line: since `feature/email/send-errors`, `InvalidEmailMessageDetails` is `@enardo/email`'s, so refusing a `subject`, `text` or `html` that is not a string adds a field and a reason to the contract, a minor of `@enardo/email`;
   - in *To evaluate*, a new item: `@enardo/cqrs`'s `CommandHandler` puts the `message` of any `Error` that is not a `BaseError` in the response's `error`, which an HTTP layer like Cambusa's api-server sends to the client. Before this task, that was nodemailer's message, with the address of a refused recipient or the SMTP host (*Probes*). The item of this task recorded it, and leaves with it. From the spec of `feature/email/send-errors`;
-  - in *To evaluate*, a new item: `NodemailerEmailSender`'s constructor lets `createTransport`'s errors through, and the `TypeError` for a `url` that does not parse holds the URL in `input`, the SMTP password included (*Probes*, *The constructor*). From the `critic`'s second run on the spec of `feature/email/send-errors`;
+  - first in *Queued*, as the user asked at checkpoint 1, a new item, `fix/email-nodemailer/redact-transport-errors`: `NodemailerEmailSender`'s constructor lets `createTransport`'s errors through, and the `TypeError` for a `url` that does not parse holds the URL in `input`, the SMTP password included (*Probes*, *The constructor*). Committed at checkpoint 1, not in step 6;
   - this task's item removed, in a commit of its own.
 
 ## Test cases
