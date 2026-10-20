@@ -1,5 +1,5 @@
 ---
-status: draft
+status: done
 type: refactor
 packages: ["@enardo/password-hasher", "@enardo/password-hasher-bcrypt", "@enardo/id-generator", "@enardo/id-generator-mongo", repo]
 branch: refactor/repo/split-contracts-from-adapters
