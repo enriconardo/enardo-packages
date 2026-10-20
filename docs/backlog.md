@@ -114,8 +114,9 @@ In the order approved.
 - **`BcryptPasswordHasher` reads only the first 72 bytes of a password.**
   - bcrypt 5.1.1 ignores what follows them, counted in UTF-8: two passwords that share their first 72 bytes match the same hash. `@enardo/password-hasher-bcrypt`'s README documents it, and its tests pin it.
   - Cambusa caps no password length: its routes take `z.string().min(1)` (`packages/api-contracts/src/routes/auth/register-user.route.ts`, `authenticate-user.route.ts`), and identity has no password policy.
-  - Options: the adapter rejects a longer password (a behavior change, and a new major), or Cambusa caps the length, in its own repo.
-  - From the `critic`'s run on the spec of `refactor/repo/split-contracts-from-adapters` (2026-10-20).
+  - It also encodes each lone surrogate as U+FFFD, so `"pw\uD800"`, `"pw\uDC00"` and `"pw�"` match the same hash (probed by the review of `refactor/repo/split-contracts-from-adapters`). The README documents it; no test pins it.
+  - Options: the adapter rejects a longer password, and one that is not well-formed (`String.prototype.isWellFormed`): a behavior change, and a new major. Or Cambusa caps the length and refuses such strings, in its own repo.
+  - From the `critic`'s run on the spec of `refactor/repo/split-contracts-from-adapters` (2026-10-20), and its review.
 
 ## Dropped
 

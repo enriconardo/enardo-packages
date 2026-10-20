@@ -26,8 +26,8 @@ async function authenticate(passwordHasher: IPasswordHasher, password: string, p
 ## Contract
 
 - `hash` resolves to a string to store in place of the password.
-- `compare` resolves `true` when given the password the stored string was made from, and `false` for a password that differs from it within the length the implementation reads.
-- An implementation that reads only a prefix of a password says how long in its documentation. Past that length, two passwords that share the prefix match the same hash: a caller that accepts longer passwords caps them.
+- `compare` resolves `true` when given the password the stored string was made from, and `false` for a password the implementation reads as a different one.
+- An implementation that reads two different strings as the same password says when in its documentation: one that reads only a prefix of a password says how long, and one that encodes a password says how. A caller that accepts such passwords caps or refuses them.
 
 ## Contributing
 

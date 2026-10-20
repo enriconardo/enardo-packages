@@ -1,8 +1,9 @@
 /**
  * Hashes a password to store, and checks a password against a stored hash.
  *
- * An implementation may read only a prefix of a password: it then says how
- * long in its documentation, and a caller that accepts longer passwords caps
+ * An implementation may read two different strings as the same password, for
+ * instance when it reads only a prefix: it then says when in its
+ * documentation, and a caller that accepts such passwords caps or refuses
  * them.
  */
 export interface IPasswordHasher {
@@ -10,8 +11,7 @@ export interface IPasswordHasher {
   hash(password: string): Promise<string>;
   /**
    * Resolves `true` when `password` is the one `hashedPassword` was made from,
-   * and `false` for a password that differs from it within the length the
-   * implementation reads.
+   * and `false` for a password the implementation reads as a different one.
    */
   compare(password: string, hashedPassword: string): Promise<boolean>;
 }

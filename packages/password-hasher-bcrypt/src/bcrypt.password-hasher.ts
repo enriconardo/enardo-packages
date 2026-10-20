@@ -5,8 +5,8 @@ const DEFAULT_SALT_ROUNDS = 12;
 
 /**
  * Implements `IPasswordHasher` with bcrypt, which reads only the first 72
- * bytes of a password, counted in UTF-8: two passwords that share them match
- * the same hash.
+ * bytes of a password encoded in UTF-8, where each lone surrogate becomes
+ * U+FFFD: two passwords that share those bytes match the same hash.
  */
 export class BcryptPasswordHasher implements IPasswordHasher {
   private readonly saltRounds: number;

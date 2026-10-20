@@ -23,9 +23,12 @@ await passwordHasher.compare(password, passwordHash); // true
 
 - **`saltRounds`** (the constructor's argument, default `12`): bcrypt's cost. Each round more doubles the time `hash` takes, and `compare` against the hashes it makes.
 
-## Password length
+## How a password is read
 
-bcrypt reads only the first 72 bytes of a password, counted in UTF-8: 72 ASCII characters, fewer when some take more than one byte (`é` takes two). Two passwords that share their first 72 bytes match the same hash. A caller that accepts longer passwords caps them at 72 bytes, counting bytes, not characters.
+The password is encoded in UTF-8, and bcrypt reads the bytes. Two passwords match the same hash when their bytes do, so two different strings do in two cases:
+
+- **Length.** bcrypt reads only the first 72 bytes: 72 ASCII characters, fewer when some take more than one byte (`é` takes two). A caller that accepts longer passwords caps them at 72 bytes, counting bytes, not characters.
+- **Lone surrogates.** Each half of a UTF-16 surrogate pair that stands alone is encoded as U+FFFD, the replacement character: `"pw\uD800"`, `"pw\uDC00"` and `"pw�"` match the same hash. A caller that refuses a password that is not well-formed (`String.prototype.isWellFormed`) avoids it.
 
 ## Contributing
 
