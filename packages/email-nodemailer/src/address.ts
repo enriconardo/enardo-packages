@@ -26,3 +26,13 @@ const ADDRESS = new RegExp(`^${LOCAL_PART}@(?:${LABEL}\\.)*${LAST_LABEL}$`);
 export function isAcceptedAddress(address: string): boolean {
   return ADDRESS.test(address);
 }
+
+/**
+ * How nodemailer writes an accepted address into the envelope, and into the
+ * `rejected` of a refusal: the local part as given, the domain lowercased.
+ * The grammar above leaves it nothing else to change.
+ */
+export function envelopeFormOf(address: string): string {
+  const at = address.lastIndexOf("@");
+  return address.slice(0, at + 1) + address.slice(at + 1).toLowerCase();
+}

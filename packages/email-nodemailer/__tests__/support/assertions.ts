@@ -24,6 +24,24 @@ export async function rejectionOf<E>(
 }
 
 /**
+ * What `promise` rejects with, checked to be an instance of `errorClass`
+ * without printing it: a failed `toBeInstanceOf` formats the value it got,
+ * and a getter of it that throws would replace the failure with its own
+ * error. Fails when `promise` resolves.
+ */
+export async function unprintedRejectionOf<E>(
+  promise: Promise<unknown>,
+  errorClass: abstract new (...args: never[]) => E,
+): Promise<E> {
+  const reason = await reasonOf(promise);
+  expect(
+    reason instanceof errorClass,
+    `the rejection is an instance of ${errorClass.name}`,
+  ).toBe(true);
+  return reason as E;
+}
+
+/**
  * What `run` throws, checked to be an instance of `errorClass`. Fails when
  * `run` returns.
  */

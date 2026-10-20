@@ -2,32 +2,35 @@ import nodemailer from "nodemailer";
 import type { SendMailOptions, Transporter } from "nodemailer";
 import SMTPPool from "nodemailer/lib/smtp-pool";
 import SMTPTransport from "nodemailer/lib/smtp-transport";
+import {
+  EmailRecipientsRefusedError,
+  EmailSendFailedError,
+  InvalidEmailMessageError,
+} from "@enardo/email";
 import type {
+  EmailErrorCause,
   EmailMessage,
   EmailRecipient,
   EmailSender,
+  RefusedEmailRecipient,
   SendEmailOptions,
 } from "@enardo/email";
-import { isAcceptedAddress } from "./address";
-import {
-  EmailRecipientsRefusedError,
-  InvalidEmailMessageError,
-  InvalidEmailSenderOptionsError,
-} from "./errors";
-import {
-  createNoopLogger,
-  type Logger,
-  type LoggerMetadata,
-  withLoggerContext,
-} from "./logger";
+import { envelopeFormOf, isAcceptedAddress } from "./address";
+import { InvalidEmailSenderOptionsError } from "./errors";
+import { createNoopLogger, type Logger, withLoggerContext } from "./logger";
 
 /**
  * nodemailer's SMTP options, from which the sender creates its transporter.
  * A pool is refused: it keeps a connection open after a send, which nothing
- * would close.
+ * would close. So is LMTP, which hands the message to its final mailbox
+ * store rather than to a relay.
  */
-export type NodemailerSmtpOptions = Omit<SMTPTransport.Options, "pool"> & {
+export type NodemailerSmtpOptions = Omit<
+  SMTPTransport.Options,
+  "pool" | "lmtp"
+> & {
   pool?: false;
+  lmtp?: false;
 };
 
 /** Options of `NodemailerEmailSender`. */
@@ -53,8 +56,9 @@ export class NodemailerEmailSender implements EmailSender {
 
   /**
    * @throws {InvalidEmailSenderOptionsError} when there is no `transport`,
-   * when nodemailer would build from it a pool or anything but an SMTP
-   * transport, or when the address of `defaultFrom` is refused.
+   * when nodemailer would build from it a pool, anything but an SMTP
+   * transport, or one that speaks LMTP, or when the address of `defaultFrom`
+   * is refused.
    */
   constructor(options: NodemailerEmailSenderOptions) {
     this.transporter = transporterOf(options.transport);
@@ -78,10 +82,10 @@ export class NodemailerEmailSender implements EmailSender {
    *
    * @throws {InvalidEmailMessageError} (rejects) when `to` is empty, when
    * an address is refused, or when there is no sender.
-   * @throws {EmailRecipientsRefusedError} (rejects) when the relay took the
-   * message for some recipients only.
-   *
-   * When nodemailer rejects, `send` rejects with its error, as it is.
+   * @throws {EmailRecipientsRefusedError} (rejects) when the relay refused
+   * recipients, some or all.
+   * @throws {EmailSendFailedError} (rejects) for any other rejection of
+   * nodemailer, with its identifiers in `cause`.
    */
   send(message: EmailMessage, options?: SendEmailOptions): Promise<void>;
   // `options` holds `tags` only, which SMTP has nowhere to keep: the
@@ -89,6 +93,10 @@ export class NodemailerEmailSender implements EmailSender {
   async send(message: EmailMessage): Promise<void> {
     const mailOptions = this.toMailOptions(message);
     const recipientsCount = mailOptions.to.length;
+    // Taken before the send: nodemailer writes into the mailboxes it gets.
+    const envelope = mailOptions.to.map(({ address }) =>
+      envelopeFormOf(address),
+    );
 
     // Counts and flags only: no address, name, subject or body.
     this.logger.debug("Sending email.", {
@@ -97,28 +105,54 @@ export class NodemailerEmailSender implements EmailSender {
       hasTextBody: Boolean(mailOptions.text),
     });
 
-    let refused: number;
+    let info: SMTPTransport.SentMessageInfo;
     try {
-      // SMTPTransport lists every recipient the relay refused in `rejected`.
-      const info = await this.transporter.sendMail(mailOptions);
-      refused = info.rejected.length;
-    } catch (error) {
-      this.logger.warn("Email send failed.", {
-        recipientsCount,
-        ...identifiersOf(error),
-      });
-      throw error;
+      info = await this.transporter.sendMail(mailOptions);
+    } catch (rejection) {
+      // nodemailer rejects with the refusal when the relay refused every
+      // recipient, and resolves with it when it took the message for some.
+      const identifiers = identifiersOf(rejection);
+      const refusal =
+        identifiers.code === "EENVELOPE" && identifiers.command === "RCPT TO"
+          ? refusalOf(rejection, envelope)
+          : undefined;
+      throw refusal
+        ? this.refused(refusal, recipientsCount)
+        : this.failed(identifiers, recipientsCount);
     }
 
-    if (refused > 0) {
-      this.logger.warn("Email refused for some recipients.", {
-        recipientsCount,
-        refused,
-      });
-      throw new EmailRecipientsRefusedError(refused);
+    // SMTPTransport lists every recipient the relay refused in `rejected`.
+    if (info.rejected.length > 0) {
+      const refusal = refusalOf(info, envelope);
+      throw refusal
+        ? this.refused(refusal, recipientsCount)
+        : this.failed({}, recipientsCount);
     }
 
     this.logger.info("Email sent.", { recipientsCount });
+  }
+
+  private refused(
+    refusal: EmailRecipientsRefusedError,
+    recipientsCount: number,
+  ): EmailRecipientsRefusedError {
+    this.logger.warn("Email recipients refused.", {
+      recipientsCount,
+      refused: refusal.details.refused.length,
+    });
+    return refusal;
+  }
+
+  private failed(
+    identifiers: Identifiers,
+    recipientsCount: number,
+  ): EmailSendFailedError {
+    this.logger.warn("Email send failed.", { recipientsCount, ...identifiers });
+    const cause = causeOf(identifiers);
+    return new EmailSendFailedError(
+      { retryable: isRetryable(identifiers) },
+      cause && { cause },
+    );
   }
 
   // Every field of the message is read once, and the list of recipients is
@@ -202,16 +236,25 @@ function toMailbox(recipient: unknown, refuse: () => Error): Mailbox {
   return trimmed ? { name: trimmed, address } : { address };
 }
 
+/** nodemailer's identifiers of a failure: the logs and the cause carry them. */
+interface Identifiers {
+  code?: string;
+  command?: string;
+  responseCode?: number;
+  originalCode?: string;
+}
+
 // nodemailer's identifiers of a failure, never its message or its other
 // fields, which echo addresses. The rejection is a value the sender does not
 // control: each field is read on its own, and a read that throws, or a value
 // of another type, counts as missing. A throw here would replace the error
 // being reported.
-function identifiersOf(error: unknown): LoggerMetadata {
-  const identifiers: LoggerMetadata = {};
+function identifiersOf(error: unknown): Identifiers {
+  const identifiers: Identifiers = {};
   const code = readField(error, "code");
   const command = readField(error, "command");
   const responseCode = readField(error, "responseCode");
+  const originalCode = readField(error, "originalCode");
 
   if (typeof code === "string") {
     identifiers.code = code;
@@ -222,7 +265,116 @@ function identifiersOf(error: unknown): LoggerMetadata {
   if (typeof responseCode === "number") {
     identifiers.responseCode = responseCode;
   }
+  if (typeof originalCode === "string") {
+    identifiers.originalCode = originalCode;
+  }
   return identifiers;
+}
+
+// The cause of an EmailSendFailedError: the identifiers, when there are any.
+// A copy, since an interface has no index signature to match EmailErrorCause.
+function causeOf(identifiers: Identifiers): EmailErrorCause | undefined {
+  return Object.keys(identifiers).length > 0 ? { ...identifiers } : undefined;
+}
+
+// The connection failed, timed out or was lost: an outage, which a later send
+// may get past. A wrong host or port gives the same codes.
+const CONNECTION_FAILURES = new Set([
+  "ECONNECTION",
+  "ESOCKET",
+  "ETIMEDOUT",
+  "EDNS",
+]);
+
+// A reply of the relay decides: 5xx is permanent, 4xx transient. Without
+// one, a connection that failed is retryable, and anything else is not.
+function isRetryable({ code, responseCode }: Identifiers): boolean {
+  if (responseCode !== undefined && responseCode >= 500 && responseCode < 600) {
+    return false;
+  }
+  if (isTransientReply(responseCode)) {
+    return true;
+  }
+  return code !== undefined && CONNECTION_FAILURES.has(code);
+}
+
+function isTransientReply(responseCode: number | undefined): boolean {
+  return (
+    responseCode !== undefined && responseCode >= 400 && responseCode < 500
+  );
+}
+
+// The refusal in `source`, a result or a rejection of nodemailer: each
+// address of `rejected`, matched to every index of `to` with that envelope
+// form, retryable when its entry of `rejectedErrors` holds a 4xx. LMTP would
+// put a refusal after the data in `rejected` alone, so `rejected` decides who
+// was refused. `undefined` when the refusal cannot be read: an address that
+// is not a string, or names no recipient of `to`, would make the error lie
+// about who got the message.
+function refusalOf(
+  source: unknown,
+  envelope: readonly string[],
+): EmailRecipientsRefusedError | undefined {
+  const addresses = refusedAddressesOf(source);
+  if (!addresses?.every((address) => envelope.includes(address))) {
+    return undefined;
+  }
+
+  const replies = replyCodesOf(source);
+  const refused: RefusedEmailRecipient[] = [];
+  envelope.forEach((form, index) => {
+    if (addresses.includes(form)) {
+      refused.push({ index, retryable: isTransientReply(replies.get(form)) });
+    }
+  });
+
+  const [first, ...rest] = refused;
+  return first && new EmailRecipientsRefusedError([first, ...rest]);
+}
+
+// `rejected` of `source`, when it is a list of strings with at least one.
+function refusedAddressesOf(source: unknown): string[] | undefined {
+  const rejected = readField(source, "rejected");
+  if (!Array.isArray(rejected)) {
+    return undefined;
+  }
+
+  try {
+    const addresses: unknown[] = Array.from(rejected);
+    return addresses.length > 0 && addresses.every(isString)
+      ? addresses
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// The reply code of each refused address, from `rejectedErrors`: an entry's
+// `recipient` and `responseCode`, each read on its own. A list that cannot be
+// read gives none, which leaves every recipient not retryable.
+function replyCodesOf(source: unknown): Map<string, number> {
+  const entries = readField(source, "rejectedErrors");
+  const replies = new Map<string, number>();
+  if (!Array.isArray(entries)) {
+    return replies;
+  }
+
+  try {
+    for (const entry of Array.from(entries as unknown[])) {
+      const recipient = readField(entry, "recipient");
+      const responseCode = readField(entry, "responseCode");
+      if (typeof recipient === "string" && typeof responseCode === "number") {
+        replies.set(recipient, replies.get(recipient) ?? responseCode);
+      }
+    }
+  } catch {
+    return new Map();
+  }
+  return replies;
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
 }
 
 function readField(value: unknown, key: string): unknown {
@@ -269,14 +421,20 @@ function transporterOf(
   //   message to the relay the way `send` reports. A stream transport
   //   resolves without sending anything;
   // - `transport` itself, taken as the transporter: a `send` getter can
-  //   answer one way to the check above and another to nodemailer.
+  //   answer one way to the check above and another to nodemailer;
+  // - LMTP, from `lmtp` or a `url` with `?lmtp=true` (which wins over
+  //   `lmtp: false`), read on the transporter's own copy of the options. LMTP
+  //   delivers to a mailbox store with no queue behind it, and nodemailer
+  //   keeps the reply of a refusal after the data only when another
+  //   recipient was refused before.
   const created = nodemailer.createTransport(transport);
   if (created.transporter instanceof SMTPPool) {
     throw new InvalidEmailSenderOptionsError("pool");
   }
   if (
     !(created.transporter instanceof SMTPTransport) ||
-    created.transporter === transport
+    created.transporter === transport ||
+    created.transporter.options.lmtp
   ) {
     throw new InvalidEmailSenderOptionsError("not-smtp");
   }
