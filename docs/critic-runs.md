@@ -12,3 +12,4 @@ The runs of the `critic` (`.claude/agents/critic.md`), one row each, added by th
 | ---- | ------ | ------- | ------- | ------ | -------- | --------- |
 | 2026-10-19 | `chore/repo/dev-sh-refuses-clones` | L spec | challenge | 5 | 2 | 3 |
 | 2026-10-19 | `chore/repo/dev-sh-refuses-clones` | asked | challenge | 5 | 1 | 0 |
+| 2026-10-20 | `refactor/repo/split-contracts-from-adapters` | L spec | challenge | 4 | 3 | 1 |
