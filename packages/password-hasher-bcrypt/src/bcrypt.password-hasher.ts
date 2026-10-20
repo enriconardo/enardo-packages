@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import type { IPasswordHasher } from "~/password-hasher.interface";
+import type { IPasswordHasher } from "@enardo/password-hasher";
 
 const DEFAULT_SALT_ROUNDS = 12;
 
