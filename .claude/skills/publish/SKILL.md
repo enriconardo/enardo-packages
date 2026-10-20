@@ -38,3 +38,5 @@ A published version never changes: a change to a published package ships under a
 3. **Dry run**, from outside the repo: `pnpm publish <tarball> --dry-run` shows the registry each tarball goes to.
 
 4. **Publish**, once the user approves: `pnpm publish <tarball>`. A publish is outward-facing: the user approves each one.
+
+   A package goes after every `@enardo/*` package it depends on whose current version is not on the registry yet: `pack` wrote a range on that version, which resolves to nothing until it is published, and the dry run does not check it.
