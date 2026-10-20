@@ -1,5 +1,5 @@
 ---
-status: draft
+status: done
 type: chore
 packages: []
 branch: chore/repo/dev-sh-refuses-clones
