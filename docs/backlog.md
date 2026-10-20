@@ -10,18 +10,14 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-1. **`chore/repo/dev-sh-refuses-clones`**
-   - **What:** `./dev.sh` refuses to run from a checkout other than the one the dev container mounts, such as a clone in a scratch directory, instead of driving the shared container. How it tells them apart is the spec's: for example, its `ROOT_DIR` against the source of the container's `/workspaces/enardo-packages` mount (not probed).
-   - **Why:** the compose project has a fixed name, so `./dev.sh exec` in a clone runs in the running dev container, whose working tree is the real repo. The probes on clones that the root `CLAUDE.md` and the agents prescribe reach the real tree as soon as one calls `./dev.sh` without a stub: in the first review of `chore/repo/test-handoff-and-idle-verify`, a hook probe on a clone ran the real `pnpm verify` against the shared tree. It ran read-only checks only; a probe that writes would have written there.
-   - **From:** the first review of `chore/repo/test-handoff-and-idle-verify` (2026-10-16); queued by the user at its checkpoint 2 (2026-10-16).
-2. **`refactor/repo/split-contracts-from-adapters`**
+1. **`refactor/repo/split-contracts-from-adapters`**
    - **What:** split `@enardo/password-hasher` and `@enardo/id-generator`, each into a contract package and a `<name>-<technology>` adapter (`password-hasher-bcrypt`, `id-generator-mongo`), as the ports-and-adapters rule of the root `CLAUDE.md` asks.
      - Today `IPasswordHasher` and `BcryptPasswordHasher` share `password-hasher`, whose peer is `bcrypt`; `IdGenerator` and `ObjectIdGenerator` share `id-generator`, whose peer is `mongodb`.
      - Alternatives, not chosen: an optional peer (`peerDependenciesMeta`), which keeps a technology in a contract package, against the rule; or a port owned by each bounded context, which structural typing allows, without a shared contract.
    - **Why:** the bounded contexts import only the interfaces, with `import type`, and still depend on packages that require a driver. A deploy of the api-server with `autoInstallPeers` off already reports `@cambusa/identity` missing `bcrypt`, through `password-hasher`, although identity runs no `bcrypt` code (probed by the second review of `chore/repo/adapter-drivers`). Split, the bounded contexts stop depending on a native module for an interface, and contract and adapter can be developed and tested apart, as packages of their own repositories would be. It costs two small packages, which the user had kept together for simplicity before asking for the best practice (2026-10-13).
    - **From:** the spec of `chore/repo/adapter-drivers` (2026-10-13); queued by the user at its checkpoint 2 (2026-10-13).
    - **Since the split of `en-monorepo` (`chore/repo/split-repos`, 2026-10-16):** Cambusa installs these packages from the registry, in its own repo. It moves to the new packages once they are published.
-3. **`feature/email/send-errors`**
+2. **`feature/email/send-errors`**
    - **What:** an error type in `@enardo/email` for a failed send, extending `BaseError` (a dependency on `@enardo/errors` only), which adapters throw in place of their driver's errors, with the driver's error as `cause`. The README states what `send` rejects with.
      - The spec decides whether a retryable failure is told apart from a permanent one, and probes what the cause carries into a serialized error.
      - Since `refactor/email/contract-docs`, `send` rejects when the relay refuses any recipient, although the others may have received the message. The spec decides whether the error names the refused recipients, so that a caller can retry those only.
@@ -32,7 +28,7 @@ In the order approved.
      - Test-first, as public API of an `@enardo/*` package.
    - **Why:** the contract says nothing of what `send` rejects with, and the adapter lets nodemailer's own `Error` through (`code: "ESOCKET"`, `"EDNS"`, `command: "CONN"`, probed on 2026-10-14). A caller that retries must know the driver's codes, the technology the port hides. The native error also reaches the HTTP client: with the SMTP server unreachable, the unprotected `POST /resend-verification-email` answers `getaddrinfo ENOTFOUND smtp.internal.corp.test` (probed through identity's handler and `CommandHandler` on 2026-10-14). This item closes the email path only: `@enardo/cqrs` turns the message of any native error into the client's error code. `@enardo/database` and `@enardo/uow-repository` already give their adapters contract errors.
    - **From:** the architectural review of `@enardo/email` (2026-10-14); queued by the user (2026-10-14).
-4. **`fix/email-nodemailer/non-string-content`**
+3. **`fix/email-nodemailer/non-string-content`**
    - **What:** `@enardo/email-nodemailer` stops passing a `subject`, `text` or `html` that is not a string to nodemailer as it is.
      - nodemailer reads an object body as content to resolve: `{ path }` reads a file into the message, `{ href }` fetches a URL. Through the adapter, `html: { path: "/etc/hostname" }` and `text: { path: "/etc/os-release" }` put those files into the message (probed by the first review of `fix/email-nodemailer/contract-compliance`, 2026-10-14, and again).
      - nodemailer writes an object header value with `prepared: true` as raw text, for every header but those it formats (`FORMATTED_HEADERS`), and `Subject` is not one of them. Through the adapter, `subject: { prepared: true, value: "Hi\r\nBcc: attacker@evil.test\r\nReply-To: attacker@evil.test\r\n…" }` puts a `Bcc` and a `Reply-To` header into the message, and a body of the attacker's; the envelope does not change (probed by the second review of `fix/email-nodemailer/contract-compliance`, 2026-10-15, and again).
@@ -40,7 +36,7 @@ In the order approved.
      - Options: refuse a `subject`, `text` or `html` that is not a string, as the adapter already refuses a recipient that is not an object, which closes both paths; or set `disableFileAccess` and `disableUrlAccess` in each message's data, which makes a body with `path` or `href` reject with `EFILEACCESS` or `EURLACCESS` (probed), unless the transporter's own options set them, and leaves the subject open.
    - **Why:** a value the types refuse reads a file into the message, or writes raw headers (`Bcc`, `Reply-To`), through the adapter.
    - **From:** the first and second reviews of `fix/email-nodemailer/contract-compliance` (2026-10-14 and 2026-10-15); queued by the user at its checkpoint 2 (2026-10-15).
-5. **`chore/repo/evaluate-critic`**
+4. **`chore/repo/evaluate-critic`**
    - **When:** once `docs/critic-runs.md` logs five L specs. Until then, the next item goes first.
    - **What:** count the `critic`'s runs by trigger, and remove each trigger none of whose runs changed a decision; a trigger that had no run goes to the user. The critic goes when no trigger is left. The text-only count goes to the user with it.
    - **Why:** the critic guards against a drift seen twice, both times on an L spec of the workflow (ADR 0007), and a rule that is only ever added grew the workflow before (ADR 0005).

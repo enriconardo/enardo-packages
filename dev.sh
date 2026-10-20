@@ -128,6 +128,45 @@ require_docker() {
   fi
 }
 
+# The compose project has a fixed name, so a clone or a worktree of this repo
+# drives the same containers: from there, `exec` would run in the tree the
+# dev container mounts, and `up` would recreate it on the clone. The dev
+# container, running or stopped, must mount this checkout at its working
+# directory, the tree its commands run in; -ef compares the directories
+# themselves, so a symlink to this checkout passes. With no dev container
+# there is nothing to compare, and `up` creates one on this checkout.
+require_this_checkout() {
+  local ids id info project source
+  ids="$(compose ps -a -q "$DEV_SERVICE")"
+  for id in $ids; do
+    # The project first: its name holds no space, a path may.
+    info="$(docker inspect --format \
+      '{{index .Config.Labels "com.docker.compose.project"}} {{range .Mounts}}{{if eq .Destination $.Config.WorkingDir}}{{.Source}}{{end}}{{end}}' \
+      "$id")"
+    project="${info%% *}"
+    source="${info#* }"
+    if [[ "$source" -ef "$ROOT_DIR" ]]; then
+      continue
+    fi
+    {
+      if [[ -n "$source" ]]; then
+        echo "The dev container mounts $source, not this checkout ($ROOT_DIR)."
+      else
+        echo "The dev container mounts nothing at its working directory, so not this checkout ($ROOT_DIR)."
+      fi
+      echo "./dev.sh drives it only from the checkout it mounts. Another checkout's code runs in a throwaway container of the dev image: see docker/README.md."
+      # Only when no checkout can take it back: a hint that frees the stack
+      # would hand it to any checkout refused here, through its next `up`.
+      if [[ -z "$source" ]]; then
+        echo "Remove the stack with 'docker compose -p $project down'."
+      elif [[ ! -e "$source" ]]; then
+        echo "$source no longer exists: remove the stack with 'docker compose -p $project down'."
+      fi
+    } >&2
+    exit 1
+  done
+}
+
 require_running() {
   local service="$1"
   if [[ -n "$(compose ps -q "$service")" ]]; then
@@ -273,6 +312,7 @@ command_up() {
   done
 
   require_docker
+  require_this_checkout
   ensure_host_files
 
   # --build so that editing docker/dev/Dockerfile or docker/playwright/Dockerfile
@@ -302,6 +342,7 @@ command_down() {
   local subject="${1:-}"
 
   require_docker
+  require_this_checkout
 
   if [[ -z "$subject" ]]; then
     compose_all down
@@ -327,6 +368,7 @@ command_down() {
 
 command_logs() {
   require_docker
+  require_this_checkout
 
   if [[ "$#" -eq 0 ]]; then
     compose_all logs -f
@@ -354,6 +396,7 @@ case "$command" in
     ;;
   shell)
     require_docker
+    require_this_checkout
     open_shell "${1:-$DEV_SERVICE}"
     ;;
   exec)
@@ -362,6 +405,7 @@ case "$command" in
       exit 1
     fi
     require_docker
+    require_this_checkout
     require_running "$DEV_SERVICE"
     run_in_dev "$@"
     ;;
