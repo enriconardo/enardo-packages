@@ -9,8 +9,8 @@ import { afterAll, afterEach, expect } from "vitest";
 // - It records each message it receives: the envelope, from MAIL FROM and
 //   RCPT TO, and the raw message, from the data that follows DATA.
 // - It answers 550 to a RCPT TO at refused.test, 450 at deferred.test, and
-//   550 to a MAIL FROM at refused.test. Like a real relay, each refusal
-//   echoes the address.
+//   550 to a MAIL FROM at refused.test, 451 at deferred.test. Like a real
+//   relay, each refusal echoes the address.
 // - With `closeAfterData`, it closes the connection once the data of a
 //   message has arrived, without answering it.
 // - It never closes a connection otherwise, even after QUIT: a test sees
@@ -133,11 +133,13 @@ export async function startSmtpServer(
       } else if (verb.startsWith("MAIL FROM:")) {
         const address = addressOf(command);
         envelope = { from: address, to: [] };
-        reply(
-          domainIs(address, "refused.test")
-            ? `550 5.7.1 <${address}>: Sender address rejected`
-            : "250 2.1.0 Ok",
-        );
+        if (domainIs(address, "refused.test")) {
+          reply(`550 5.7.1 <${address}>: Sender address rejected`);
+        } else if (domainIs(address, "deferred.test")) {
+          reply(`451 4.3.0 <${address}>: Sender address deferred`);
+        } else {
+          reply("250 2.1.0 Ok");
+        }
       } else if (verb.startsWith("RCPT TO:")) {
         const address = addressOf(command);
         envelope?.to.push(address);
@@ -252,6 +254,16 @@ export async function startSmtpServer(
       });
     },
   };
+}
+
+/**
+ * A server started, then closed: its port is one where nothing listens, so a
+ * sender pointed at it gets a refused connection.
+ */
+export async function startClosedSmtpServer(): Promise<LocalSmtpServer> {
+  const server = await startSmtpServer();
+  await server.close();
+  return server;
 }
 
 /**

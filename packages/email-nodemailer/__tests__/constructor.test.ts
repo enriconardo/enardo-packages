@@ -592,4 +592,66 @@ describe("NodemailerEmailSender's constructor", () => {
       },
     );
   });
+
+  // The case of feature/email/send-errors: the sender refuses LMTP, which
+  // hands the message to a mailbox store rather than to a relay. The check
+  // reads nodemailer's copy of the options, so a url that turns LMTP on is
+  // refused too, whatever lmtp says beside it.
+
+  describe("59: LMTP", () => {
+    it("59: refuses transport: { lmtp: true }, in the types and at run time, and opens no connection", async () => {
+      const server = await idleServer();
+
+      const error = thrownBy(
+        () =>
+          new NodemailerEmailSender({
+            // @ts-expect-error the type of transport refuses LMTP
+            transport: { ...server.transportOptions, lmtp: true },
+          }),
+        InvalidEmailSenderOptionsError,
+      );
+
+      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
+      expect(error.details).toStrictEqual({ reason: "not-smtp" });
+    });
+
+    const LMTP_URLS: readonly (readonly [
+      string,
+      (url: string) => NodemailerSmtpOptions,
+    ])[] = [
+      ["transport: { url: …?lmtp=true }", (url) => ({ url })],
+      [
+        "transport: { url: …?lmtp=true, lmtp: false }",
+        (url) => ({ url, lmtp: false }),
+      ],
+      ["the URL string …?lmtp=true", (url) => url as never],
+    ];
+
+    it.each(LMTP_URLS)(
+      "59: refuses %s, and opens no connection",
+      async (_label, build) => {
+        const server = await idleServer();
+        const transport = build(`smtp://127.0.0.1:${server.port}/?lmtp=true`);
+
+        const error = thrownBy(
+          () => new NodemailerEmailSender({ transport }),
+          InvalidEmailSenderOptionsError,
+        );
+
+        expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
+        expect(error.details).toStrictEqual({ reason: "not-smtp" });
+      },
+    );
+
+    it("59: builds a sender from transport: { lmtp: false }, which sends", async () => {
+      const server = await startServer();
+      const sender = new NodemailerEmailSender({
+        transport: { ...server.transportOptions, lmtp: false },
+      });
+
+      await sender.send(MESSAGE);
+
+      expectMessageReached(server);
+    });
+  });
 });

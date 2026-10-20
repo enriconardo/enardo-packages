@@ -1,11 +1,8 @@
 import { setTimeout as delay } from "node:timers/promises";
+import { InvalidEmailMessageError } from "@enardo/email";
 import type { EmailMessage, EmailRecipient } from "@enardo/email";
 import { describe, expect, it } from "vitest";
-import {
-  InvalidEmailMessageError,
-  InvalidEmailSenderOptionsError,
-  NodemailerEmailSender,
-} from "~/index";
+import { InvalidEmailSenderOptionsError, NodemailerEmailSender } from "~/index";
 import { ADDRESS_MARKERS, rejectionOf, thrownBy } from "./support/assertions";
 import {
   createRandom,

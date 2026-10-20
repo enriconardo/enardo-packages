@@ -1,11 +1,20 @@
+import { EmailSendFailedError } from "@enardo/email";
 import type { EmailMessage } from "@enardo/email";
 import { describe, expect, it } from "vitest";
 import { NodemailerEmailSender } from "~/index";
-import type { NodemailerSmtpOptions } from "~/index";
-import { reasonOf } from "./support/assertions";
+import {
+  reasonOf,
+  rejectionOf,
+  unprintedRejectionOf,
+} from "./support/assertions";
 import { createRecordingLogger } from "./support/logger";
 import type { RecordingLogger } from "./support/logger";
-import { useIdleSmtpServers, useSmtpServers } from "./support/smtp-server";
+import { rejectingWith, withThrowingGetter } from "./support/rejections";
+import {
+  startClosedSmtpServer,
+  useIdleSmtpServers,
+  useSmtpServers,
+} from "./support/smtp-server";
 import type { LocalSmtpServer } from "./support/smtp-server";
 
 const RECIPIENT = { address: "anna@example.test" };
@@ -84,7 +93,7 @@ describe("logs", () => {
     ]);
   });
 
-  it("36: logs warn with nodemailer's identifiers when the relay refuses every recipient", async () => {
+  it("36: logs warn with the refused count when the relay refuses every recipient", async () => {
     const server = await startServer();
     const logger = createRecordingLogger();
 
@@ -101,16 +110,7 @@ describe("logs", () => {
         "Sending email.",
         { recipientsCount: 1, hasHtmlBody: false, hasTextBody: true },
       ],
-      [
-        "warn",
-        "Email send failed.",
-        {
-          recipientsCount: 1,
-          code: "EENVELOPE",
-          command: "RCPT TO",
-          responseCode: 550,
-        },
-      ],
+      ["warn", "Email recipients refused.", { recipientsCount: 1, refused: 1 }],
     ]);
   });
 
@@ -131,11 +131,7 @@ describe("logs", () => {
         "Sending email.",
         { recipientsCount: 2, hasHtmlBody: false, hasTextBody: true },
       ],
-      [
-        "warn",
-        "Email refused for some recipients.",
-        { recipientsCount: 2, refused: 1 },
-      ],
+      ["warn", "Email recipients refused.", { recipientsCount: 2, refused: 1 }],
     ]);
   });
 
@@ -195,9 +191,9 @@ describe("logs", () => {
       ["debug", "Sending email."],
       ["info", "Email sent."],
       ["debug", "Sending email."],
-      ["warn", "Email send failed."],
+      ["warn", "Email recipients refused."],
       ["debug", "Sending email."],
-      ["warn", "Email refused for some recipients."],
+      ["warn", "Email recipients refused."],
     ]);
     for (const call of [...logger.calls, ...logger.child.mock.calls]) {
       expect(JSON.stringify(call)).not.toMatch(
@@ -207,39 +203,30 @@ describe("logs", () => {
   });
 
   describe("40: reading the rejection", () => {
-    /**
-     * The options of a transport to `server` whose `getSocket` calls back
-     * with `rejection`: nodemailer then rejects the send with it, as it is.
-     */
-    function rejectingWith(
-      server: LocalSmtpServer,
-      rejection: unknown,
-    ): NodemailerSmtpOptions {
-      return {
-        ...server.transportOptions,
-        getSocket: (_options, callback) => {
-          callback(rejection as Error);
-        },
-      };
-    }
-
-    it("40: rejects with an Error whose code getter throws, and logs it without code", async () => {
+    it("40: rejects an Error whose code getter throws as EmailSendFailedError, and logs it without code", async () => {
       const logger = createRecordingLogger();
-      const error = Object.assign(new Error("relay down"), {
-        command: "RCPT TO",
-        responseCode: 550,
-      });
-      Object.defineProperty(error, "code", {
-        get(): never {
-          throw new Error("the read of code failed");
-        },
-      });
+      const rejection = withThrowingGetter(
+        Object.assign(new Error("relay down"), {
+          command: "RCPT TO",
+          responseCode: 550,
+        }),
+        "code",
+      );
       const sender = new NodemailerEmailSender({
-        transport: rejectingWith(await startServer(), error),
+        transport: rejectingWith(await startServer(), rejection),
         logger,
       });
 
-      await expect(reasonOf(sender.send(MESSAGE))).resolves.toBe(error);
+      const error = await unprintedRejectionOf(
+        sender.send(MESSAGE),
+        EmailSendFailedError,
+      );
+
+      expect(error.details).toStrictEqual({ retryable: false });
+      expect(error.cause).toStrictEqual({
+        command: "RCPT TO",
+        responseCode: 550,
+      });
 
       expect(logger.calls).toStrictEqual([
         [
@@ -262,7 +249,7 @@ describe("logs", () => {
         { code: 5, command: ["RCPT TO"], responseCode: "550" },
       ],
     ])(
-      "40: rejects with %s as it is, and logs recipientsCount only",
+      "40: rejects %s as EmailSendFailedError without a cause, and logs recipientsCount only",
       async (_label, rejection) => {
         const logger = createRecordingLogger();
         const sender = new NodemailerEmailSender({
@@ -270,7 +257,14 @@ describe("logs", () => {
           logger,
         });
 
-        await expect(reasonOf(sender.send(MESSAGE))).resolves.toBe(rejection);
+        const error = await rejectionOf(
+          sender.send(MESSAGE),
+          EmailSendFailedError,
+        );
+
+        expect(error.details).toStrictEqual({ retryable: false });
+        expect(error.cause).toBeUndefined();
+        expect(error.toJSON()).not.toHaveProperty("cause");
 
         expect(logger.calls).toStrictEqual([
           [
@@ -282,5 +276,30 @@ describe("logs", () => {
         ]);
       },
     );
+  });
+
+  it("63: logs warn with the cause's identifiers, originalCode included, when nothing listens on the port", async () => {
+    const logger = createRecordingLogger();
+    const closed = await startClosedSmtpServer();
+
+    await reasonOf(senderOnServer(closed, logger).send(MESSAGE));
+
+    expect(logger.calls).toStrictEqual([
+      [
+        "debug",
+        "Sending email.",
+        { recipientsCount: 1, hasHtmlBody: false, hasTextBody: true },
+      ],
+      [
+        "warn",
+        "Email send failed.",
+        {
+          recipientsCount: 1,
+          code: "ESOCKET",
+          command: "CONN",
+          originalCode: "ECONNREFUSED",
+        },
+      ],
+    ]);
   });
 });

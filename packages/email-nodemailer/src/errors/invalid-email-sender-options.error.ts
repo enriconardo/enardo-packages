@@ -6,7 +6,10 @@ export type InvalidEmailSenderOptionsReason =
   | "no-transport"
   /** nodemailer would build a pooled transporter from `transport`. */
   | "pool"
-  /** nodemailer would build from `transport` anything but an SMTP transport. */
+  /**
+   * nodemailer would build from `transport` anything but an SMTP transport,
+   * or one that speaks LMTP.
+   */
   | "not-smtp"
   /** The address of `defaultFrom` is refused. */
   | "default-from";
