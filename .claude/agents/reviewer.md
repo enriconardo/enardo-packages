@@ -50,7 +50,8 @@ These go among the suggestions, or among the backlog candidates when they deserv
 1. **Verdict**: `changes required` if there is a blocking finding, otherwise `ready to merge`.
 2. **Blocking findings**, most serious first: `file:line`, the defect, the scenario where it breaks, and the point of *What is blocking* it meets.
 3. **Suggestions**: at most five, one line each; code in the repo that already does this, or a simpler formulation, counts.
-4. **Backlog candidates**: defects the branch did not introduce, and non-blocking ones worth a branch, one line each.
-5. **Not verified**, short: each suspicion, and what would settle it.
+4. **Changes to the recorded suites**, on the first round: each one `scripts/test-handoff.sh diff` shows, one line, with the commit body's reason or "no reason".
+5. **Backlog candidates**: defects the branch did not introduce, and non-blocking ones worth a branch, one line each.
+6. **Not verified**, short: each suspicion, and what would settle it.
 
 Nothing else: no list of what you found sound.

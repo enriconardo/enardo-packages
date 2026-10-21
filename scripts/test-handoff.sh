@@ -10,9 +10,6 @@ set -euo pipefail
 #   record          the test-author, last: the changes under __tests__/
 #                   against HEAD, as refs/test-author/<branch>/<n>
 #   diff            the reviewer: how each recorded suite differs from HEAD
-#   changes         the checkpoint 2 report: each recorded suite's files
-#                   that the main agent changed since, with the commits
-#                   that changed them; its cases: test-handoff-cases.sh
 #   clear <branch>  integrate.sh: removes the branch's records
 #
 # A record is a commit outside refs/heads, so that a red suite never lands
@@ -23,7 +20,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 usage() {
-  echo "Usage: scripts/test-handoff.sh record | diff | changes | clear <branch>" >&2
+  echo "Usage: scripts/test-handoff.sh record | diff | clear <branch>" >&2
   exit 2
 }
 
@@ -98,61 +95,6 @@ diff_records() {
   done
 }
 
-# The changes to a suite's files made outside the test-author, step by
-# step: each commit since the record against its first parent, except a
-# commit made on a record's parent, the one that lands that suite, which
-# is compared with the record, the latest of a step's. The test-author's
-# own edits, parent to record, are then never a step, and every edit of
-# the main agent is one: a loosened assertion, a case dropped or thrown
-# away before its commit, a line inserted. Comparing with HEAD instead
-# could not tell a later suite's edit from the main agent's.
-list_changes() {
-  local branch ref parent file i unchanged
-  local -a refs files steps bases listed
-  local -A taken_on=()
-  branch="$(task_branch)"
-  mapfile -t refs < <(records_of "$branch")
-  if ((${#refs[@]} == 0)); then
-    echo "No suite recorded on $branch."
-    return
-  fi
-  for ref in "${refs[@]}"; do
-    taken_on["$(git rev-parse "$ref^")"]="$ref"
-  done
-  for ref in "${refs[@]}"; do
-    parent="$(git rev-parse "$ref^")"
-    mapfile -t files < <(git diff --name-only "$parent" "$ref")
-    echo "== Suite ${ref##*/}, written on $(git log -1 --format='%h %s' "$parent")"
-    mapfile -t steps < <(git rev-list --first-parent --reverse "$parent..HEAD")
-    bases=()
-    for i in "${!steps[@]}"; do
-      bases[i]="$(git rev-parse "${steps[i]}^")"
-      bases[i]="${taken_on[${bases[i]}]:-${bases[i]}}"
-    done
-    unchanged=1
-    for file in "${files[@]}"; do
-      if ((${#steps[@]} == 0)); then
-        git diff --quiet "$ref" HEAD -- "$file" && continue
-        unchanged=0
-        echo "$file"
-        echo "  not committed as recorded"
-        continue
-      fi
-      listed=()
-      for i in "${!steps[@]}"; do
-        git diff --quiet "${bases[i]}" "${steps[i]}" -- "$file" || listed+=("${steps[i]}")
-      done
-      ((${#listed[@]} > 0)) || continue
-      unchanged=0
-      echo "$file"
-      for i in "${listed[@]}"; do
-        git --no-pager log -1 --format='%h %s%n%b' "$i" | sed -e '${/^$/d}' -e '1s/^/  /' -e '2,$s/^./    &/'
-      done
-    done
-    ((unchanged == 0)) || echo "Unchanged in HEAD."
-  done
-}
-
 clear_records() {
   local ref
   records_of "$1" | while IFS= read -r ref; do
@@ -163,7 +105,6 @@ clear_records() {
 case "${1:-}" in
   record) (($# == 1)) || usage; record ;;
   diff) (($# == 1)) || usage; diff_records ;;
-  changes) (($# == 1)) || usage; list_changes ;;
   clear)
     # An empty name would match the records of every branch.
     if (($# != 2)) || [[ -z "$2" ]]; then usage; fi

@@ -54,7 +54,7 @@ Run `./dev.sh exec pnpm verify` again, then report, one line for what passed and
 
 - verify's result;
 - each test case of the spec and the test that covers it, from the test-author's reports and the session's own tests;
-- the test-author's tests changed since handoff, with the commits that changed them: `scripts/test-handoff.sh changes`;
+- the changes to the test-author's suites since handoff, each with its reason, from the reviewer's first round;
 - the reviewer's findings by round, and their fixes;
 - the departures from the spec, with their reasons;
 - the README changes;

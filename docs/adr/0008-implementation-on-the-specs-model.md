@@ -27,7 +27,7 @@ Claude Code 2.1.306, probed on the transcripts' API requests:
 2. **The brief names the implementation's model and effort**, `sonnet/medium`, or `opus/high` when risk or uncertainty is `high`; another value needs a reason. The spec keeps them as `implementer`, with its `tier`.
 3. **After checkpoint 1 the user sets that model and effort in the interface, then `/clear` and `/implement <spec>`.** The skill checks its model against `implementer` and stops on a mismatch. At the next intake the `spec` skill checks that the session runs on Opus.
 4. **The fresh session implements by itself**: each plan step, each red verify, each review round's findings, the README in the commit of its public API change. It stops for the user on a decision the spec does not take, a review round from the fourth on, two fixes in a row that leave the same check red, an action outside the repo, and a departure from the spec.
-5. **The gate before checkpoint 2** is verify green and a last review round without a blocking finding; the report is assembled from data (verify, the cases and their tests, `scripts/test-handoff.sh changes`, the findings by round).
+5. **The gate before checkpoint 2** is verify green and a last review round without a blocking finding; the report is assembled from data (verify, the cases and their tests, the changes to the test-author's suites that the reviewer's first round lists, the findings by round).
 6. **Publishing and follow-ups go in a session of their own**, after the integration, on the user's model.
 7. **No `Stop` hook.** `pnpm verify` runs where the steps name it: the S path's verify step, `/implement` before each review round and checkpoint 2, and `integrate.sh` before the merge, which stays the mechanical gate.
 

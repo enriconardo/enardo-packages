@@ -81,7 +81,7 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
 8. **The checkpoint 2 report is assembled from data**:
    - verify's result;
    - each case and the test that covers it, from the test-author's reports and the session's own tests;
-   - the test-author's tests changed since handoff, with the commits that changed them;
+   - the changes to the test-author's suites since handoff, each with its reason, from the reviewer's first round, which reads `scripts/test-handoff.sh diff`;
    - the reviewer's findings by round, and their fixes;
    - departures from the spec, with their reasons;
    - the README changes;
@@ -89,6 +89,7 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
    - `git diff --stat main...HEAD`, the full diff being the user's to read.
 
    One line for what passed, detail for the exceptions.
+   - Not taken: a `changes` subcommand of `scripts/test-handoff.sh` that tells the main agent's commits from the test-author's (the user, after four review rounds). Each round found a history that hid a changed test: a record holds the whole tree, and suites overlap on a file. The reviewer already reads `diff`, and blocks on a change without a reason.
 9. **The critic keeps ADR 0007's triggers, and reads code** (the user, from the *Probes*). Only its effort changes: `xhigh`, set in its definition as the reviewer's (decision 10), since a session left on `sonnet/medium` would run it at `medium` (critic, fourth run; the user).
 10. **The reviewer stays on Opus**, the last check before the merge.
     - **Effort:** `xhigh`, that of the sessions measured, set in its definition: an agent without the key runs at the session's live effort (*Probes*), `medium` in a session on `sonnet/medium`.
@@ -103,11 +104,10 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
 
 ## Changes
 
-- **`scripts/test-handoff.sh`** gains `changes`: for each recorded suite, the files that differ in `HEAD`, and the commits since the record that touched them (hash, subject, body).
 - **`scripts/stop-hook.sh`** and **`.claude/settings.json`**, which holds only the hook, are removed.
 - **`.claude/agents/test-author.md`:** `effort: medium`, still on Opus; its description says it runs in the background, and the session waits for its notification, in place of the foreground run.
 - **`.claude/agents/critic.md`:** `effort: xhigh`.
-- **`.claude/agents/reviewer.md`:** `effort: xhigh`, and point 6 of *What is blocking*, as decision 10.
+- **`.claude/agents/reviewer.md`:** `effort: xhigh`, point 6 of *What is blocking*, as decision 10, and the changes to the recorded suites in its first round's output, for decision 8.
 - **`.claude/skills/implement/SKILL.md`** (new), `model: inherit`. The input is the argument, or the spec the branch's first commit adds. The steps:
   1. **The model:** decision 4's check against `implementer`.
   2. **Each plan step:** the test-author first for a test-first step, and its notification awaited, then the code, in green commits. A public API change carries its README in the same commit, from the spec's decisions. The test-author and the reviewer are launched without `model` or `effort`.
@@ -130,12 +130,11 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
 
 Run on a clone of the repo, as the scripts of earlier workflow tasks were; a model and an effort are read in the transcript's API requests (`model`, `output_config.effort`).
 
-1. `test-handoff.sh changes`: a record, then a commit that changes one of its tests → the file, and the commit's hash, subject and body; an untouched suite → "unchanged"; two suites sharing a file, each landed as recorded → both "unchanged".
-2. A test-author run → its requests record `claude-opus-5-5` and `medium`.
-3. `/implement` on a spec with `implementer: sonnet/medium`, in a session set to Sonnet at `medium` → it goes on, and its requests record `claude-sonnet-5-5` and `medium`; in a session on Opus → it stops and asks for the switch.
-4. A reviewer run and a critic run from a session on `sonnet/medium` → their requests record `claude-opus-5-5` and `xhigh`.
-5. The `spec` skill in a session on Sonnet → it asks for the switch before the triage.
-6. `pnpm verify` → `check-context-size.sh` passes with the new `CLAUDE.md`.
+1. A test-author run → its requests record `claude-opus-5-5` and `medium`.
+2. `/implement` on a spec with `implementer: sonnet/medium`, in a session set to Sonnet at `medium` → it goes on, and its requests record `claude-sonnet-5-5` and `medium`; in a session on Opus → it stops and asks for the switch.
+3. A reviewer run and a critic run from a session on `sonnet/medium` → their requests record `claude-opus-5-5` and `xhigh`.
+4. The `spec` skill in a session on Sonnet → it asks for the switch before the triage.
+5. `pnpm verify` → `check-context-size.sh` passes with the new `CLAUDE.md`.
 
 ## Risks
 
@@ -163,7 +162,6 @@ Run on a clone of the repo, as the scripts of earlier workflow tasks were; a mod
 Tooling, tested after: each step runs its cases on a clone before its commit. The task itself is implemented after checkpoint 1 under the current `CLAUDE.md`, since `/implement` does not exist yet.
 
 1. **Probe the overrides**: done, results in *Probes*.
-2. **`test-handoff.sh changes`**: case 1.
-3. **The agent definitions and the hook's removal**: case 2.
-4. **The `implement` skill and the `spec` skill**: cases 3 to 5, in sessions the user opens on each model.
-5. **Root `CLAUDE.md`, ADR 0008, the ADR index, ADR 0005's status**: case 6.
+2. **The agent definitions and the hook's removal**: case 1.
+3. **The `implement` skill and the `spec` skill**: cases 2 to 4, in sessions the user opens on each model.
+4. **Root `CLAUDE.md`, ADR 0008, the ADR index, ADR 0005's status**: case 5.
