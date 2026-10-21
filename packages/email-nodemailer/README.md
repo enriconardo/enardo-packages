@@ -41,7 +41,7 @@ await emailSender.send({
   - LMTP (`lmtp: true`, or a `url` with `?lmtp=true`, which wins over `lmtp: false`): it hands the message to its final mailbox store, with no queue behind it, and nodemailer would not always keep the reply of a recipient it refuses. The types refuse `lmtp: true` too;
   - anything nodemailer would not read as options: a transport object (an object with a `send` function, an `SMTPTransport` instance included), or a value that is neither an object nor an `smtp:` or `smtps:` URL, in any case. The sender refuses these before nodemailer sees them, so nodemailer writes nothing into your object, unless a `send` getter, or a Proxy, answers the sender and nodemailer differently. A `direct:` URL is refused too: nodemailer 10 sends it to `localhost:587`.
 
-  An error nodemailer itself throws while it reads the options, such as for a `url` it cannot parse, or for legacy SES options (`ECONFIG`), passes through the constructor as it is.
+  An error nodemailer throws while it reads the options, such as for a `url` it cannot parse, or for legacy SES options (`ECONFIG`), becomes an `InvalidEmailSenderOptionsError` with the reason `transport-options`. Its `cause` holds the `name` and `code` of what nodemailer threw, each only when it is a string, and nothing else: the error's message and fields can hold the URL, password included.
 - **`defaultFrom`**: the sender of a message without `from`. Its address is checked by the constructor, which throws when it is refused (see [Addresses](#addresses)).
 - **`logger`**: see [Logs](#logs).
 
@@ -97,9 +97,9 @@ It refuses some valid addresses too:
 
 | Class | `code` | `details` |
 | --- | --- | --- |
-| `InvalidEmailSenderOptionsError` | `INVALID_EMAIL_SENDER_OPTIONS` | `{ reason: "no-transport" \| "pool" \| "not-smtp" \| "default-from" }`; `not-smtp` covers LMTP too |
+| `InvalidEmailSenderOptionsError` | `INVALID_EMAIL_SENDER_OPTIONS` | `{ reason: "no-transport" \| "pool" \| "not-smtp" \| "default-from" \| "transport-options" }`; `not-smtp` covers LMTP too |
 
-It extends `BaseError` of `@enardo/errors`. Its message and `details` hold no address.
+It extends `BaseError` of `@enardo/errors`. Its message and `details` hold no address. For `transport-options`, the `cause` is `{ name, code }` of the error nodemailer threw, each left out when missing or not a string, and absent when both are.
 
 ## Logs
 
