@@ -42,12 +42,14 @@ Taken with the user at intake (2026-10-21).
 
 - **The adapter refuses a `subject`, `text` or `html` that is not a string**, with `InvalidEmailMessageError`, before anything is sent. A `typeof` check, not a list of the object shapes nodemailer reads: it closes the file, URL and raw-header paths, and the next one nodemailer adds. Not chosen: `disableFileAccess` and `disableUrlAccess` in the message, which leave the subject open, and which the transporter's own options override.
 - **`html` is absent only when `undefined`**, as `from` and `replyTo`: `null` is refused. `subject` and `text` are required by the types, so `undefined` is refused too: today it sends a message with no subject, or an empty body.
-- **The contract gets the reason**: `{ field: "subject" | "text" | "html"; reason: "type" }` in `InvalidEmailMessageDetails`, and `EmailSender.send`'s JSDoc lists it among the refusals. A minor of `@enardo/email` (`2.1.0`), chosen by the user: a new case of an existing error, although an exhaustive `switch` on `reason` without `default` stops compiling.
+- **The contract gets the reason**: `{ field: "subject" | "text" | "html"; reason: "type" }` in `InvalidEmailMessageDetails`, and `EmailSender.send`'s JSDoc lists it among the refusals.
+- **A major of `@enardo/email`, `3.0.0`.** A new member of a union the caller receives makes an exhaustive `switch` on `reason` without `default` stop compiling, Cambusa's style; the rule of ADR 0004 applies as written. Chosen by the user after the `critic`'s first run, in place of the minor taken at intake. Not chosen: a minor with a written promise that `details` may gain values in a minor, which would have needed an ADR.
+- **A major of `@enardo/email-nodemailer`, `4.0.0`.** Its range on `@enardo/email` moves to `^3.0.0`: an app still on `@enardo/email` 2 would get two copies, and `instanceof` on the contract's errors would fail across them. It also refuses values the README says it passes as they are.
 - **Order of the checks:** `to`, `from`, `replyTo`, then `subject`, `text`, `html`: the first refused field is reported, as today.
 
 ## Open questions
 
-- **The version of `@enardo/email-nodemailer`.** The README says today that `subject`, `text` and `html` are passed as they are, and the change refuses values that used to be sent. Proposed: a minor, `3.1.0`: the types never accepted them, the README already asks to keep them strings, and it needs `@enardo/email` `2.1.0`. The alternative is a major, `4.0.0`, as `3.0.0` was for changing documented behavior.
+None.
 
 ## Changes
 
@@ -56,14 +58,14 @@ Taken with the user at intake (2026-10-21).
 - **`src/errors/invalid-email-message.error.ts`**: the member `{ readonly field: "subject" | "text" | "html"; readonly reason: "type" }`, with the JSDoc `The value of \`field\` is not a string.`, and its message in `messageOf`: `` `The email sender refuses ${field}: not a string` ``. Neither holds the value.
 - **`src/email-sender.ts`**: the `InvalidEmailMessageError` bullet adds `or a \`subject\`, \`text\` or \`html\` that is not a string (\`html\` is absent only when \`undefined\`)`.
 - **`README.md`**: the row of `InvalidEmailMessageError` adds the `details` and the case; *Implementations* adds: reject a `subject`, `text` or `html` that is not a string, `html` being absent only when `undefined`.
-- **`package.json`**: version `2.1.0`.
+- **`package.json`**: version `3.0.0`.
 
 `@enardo/email-nodemailer`:
 
 - **`src/nodemailer-email-sender.ts`**: `toMailOptions` checks `subject`, `text` and `html` after the mailboxes, with `typeof … !== "string"` (`html` skipped when `undefined`), and throws `InvalidEmailMessageError({ field, reason: "type" })`. The values it checked are the ones it passes. A comment says why: nodemailer reads an object body as a file or a URL, and an object subject with `prepared` as raw header text. `send`'s `@throws` names the case.
-- **`README.md`**: *Recipients the types refuse* says the content is checked too, in place of the sentences on passing it as it is; the table of `send` gets the row `subject`, `text` or `html` not a string (`html` absent only when `undefined`) → `InvalidEmailMessageError`, `{ field, reason: "type" }`, not sent, not logged. It says that the package needs `@enardo/email` `2.1.0` or later, and that an app that depends on `@enardo/email` itself updates it with the adapter: with two copies installed, `instanceof` on the contract's errors fails (not probed whether pnpm keeps two copies when the app's lockfile holds `2.0.0`).
+- **`README.md`**: *Recipients the types refuse* says the content is checked too, in place of the sentences on passing it as it is; the table of `send` gets the row `subject`, `text` or `html` not a string (`html` absent only when `undefined`) → `InvalidEmailMessageError`, `{ field, reason: "type" }`, not sent, not logged. It says that the package needs `@enardo/email` 3, and that an app that depends on `@enardo/email` itself updates it with the adapter: with two copies installed, `instanceof` on the contract's errors fails.
 - **`CLAUDE.md`**: *Sending*, the first bullet adds a `subject`, `text` or `html` that is not a string, and why (the file, URL and raw-header paths); the opening and *Tests* point to this spec, case 78 on.
-- **`package.json`**: version per the open question.
+- **`package.json`**: version `4.0.0`; the `workspace:^` on `@enardo/email` publishes as `^3.0.0`.
 - **`docs/backlog.md`**: the item leaves, in a commit of its own.
 
 ## Test cases
@@ -93,7 +95,7 @@ Taken with the user at intake (2026-10-21).
 ## Plan
 
 1. **Test-first**: the `test-author` writes the `@enardo/email` cases and cases 78–84 from this spec. Run before the change, the contract's fail on the message (`messageOf` returns `undefined`); 78, 79 and 82–84 fail (the message is sent, or `EmailSendFailedError`); 80 and 81 pass.
-2. `@enardo/email`: the reason, its message, the contract's JSDoc and README, version `2.1.0`; committed with its tests. → `[@enardo/email] feat: add the type reason to invalid messages`.
+2. `@enardo/email`: the reason, its message, the contract's JSDoc and README, version `3.0.0`; committed with its tests. → `[@enardo/email] feat: add the type reason to invalid messages`.
 3. The check in `toMailOptions`, after building `@enardo/email`; every case green, the existing ones untouched. Committed with cases 78–84, so that no commit is red. → `[@enardo/email-nodemailer] fix: refuse content that is not a string`.
 4. README, package `CLAUDE.md`, version. → `docs:` / `build:`.
 5. The backlog item leaves. → `[repo] docs: …`.
