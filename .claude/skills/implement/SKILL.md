@@ -17,7 +17,7 @@ Read it, and the `CLAUDE.md` of each package it touches. The spec's decisions we
 
 ## 1. The model
 
-The spec's front matter names `implementer: <model>/<effort>`. Compare its model with the one this session runs on, which the system prompt names. On a mismatch, or with no `implementer`, stop and ask the user to set that model and effort in the interface, then go on at their answer, after checking again. The session does not see its effort: name it in the message.
+The spec's front matter names `implementer: <model>/<effort>`. Compare its model with the one this session runs on, which the system prompt names. On a mismatch, stop and ask the user to set that model and effort in the interface, then go on at their answer, after checking again. With no `implementer`, ask the user for the values first. The session does not see its effort: name it in the message.
 
 ## 2. Each plan step
 
