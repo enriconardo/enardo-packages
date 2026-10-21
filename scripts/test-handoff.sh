@@ -10,6 +10,8 @@ set -euo pipefail
 #   record          the test-author, last: the changes under __tests__/
 #                   against HEAD, as refs/test-author/<branch>/<n>
 #   diff            the reviewer: how each recorded suite differs from HEAD
+#   changes         the checkpoint 2 report: each recorded suite's files
+#                   that differ in HEAD, with the commits that changed them
 #   clear <branch>  integrate.sh: removes the branch's records
 #
 # A record is a commit outside refs/heads, so that a red suite never lands
@@ -20,7 +22,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 usage() {
-  echo "Usage: scripts/test-handoff.sh record | diff | clear <branch>" >&2
+  echo "Usage: scripts/test-handoff.sh record | diff | changes | clear <branch>" >&2
   exit 2
 }
 
@@ -95,6 +97,37 @@ diff_records() {
   done
 }
 
+list_changes() {
+  local branch ref file commit
+  local -a refs files changed commits
+  branch="$(task_branch)"
+  mapfile -t refs < <(records_of "$branch")
+  if ((${#refs[@]} == 0)); then
+    echo "No suite recorded on $branch."
+    return
+  fi
+  for ref in "${refs[@]}"; do
+    mapfile -t files < <(git diff --name-only "$ref^" "$ref")
+    echo "== Suite ${ref##*/}, written on $(git log -1 --format='%h %s' "$ref^")"
+    mapfile -t changed < <(git diff --name-only "$ref" HEAD -- "${files[@]}")
+    if ((${#changed[@]} == 0)); then
+      echo "Unchanged in HEAD."
+      continue
+    fi
+    for file in "${changed[@]}"; do
+      echo "$file"
+      # A commit that leaves the file as recorded, such as the one that
+      # lands the suite with its implementation, changed nothing in it.
+      mapfile -t commits < <(git log --format=%H "$ref^..HEAD" -- "$file")
+      for commit in "${commits[@]}"; do
+        if ! git diff --quiet "$ref" "$commit" -- "$file"; then
+          git --no-pager log -1 --format='%h %s%n%b' "$commit" | sed -e '${/^$/d}' -e '1s/^/  /' -e '2,$s/^./    &/'
+        fi
+      done
+    done
+  done
+}
+
 clear_records() {
   local ref
   records_of "$1" | while IFS= read -r ref; do
@@ -105,6 +138,7 @@ clear_records() {
 case "${1:-}" in
   record) (($# == 1)) || usage; record ;;
   diff) (($# == 1)) || usage; diff_records ;;
+  changes) (($# == 1)) || usage; list_changes ;;
   clear)
     # An empty name would match the records of every branch.
     if (($# != 2)) || [[ -z "$2" ]]; then usage; fi
