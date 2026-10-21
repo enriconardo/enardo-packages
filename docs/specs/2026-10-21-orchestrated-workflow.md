@@ -17,7 +17,7 @@ From a discussion with the user (2026-10-21): a task costs too much of the user'
 - After its merge, split-contracts' session published and edited cambusa's backlog: 20 calls, 492k, 76% of it rereading a 170k–200k context.
 - Every subagent runs on Opus at the session's effort, `xhigh`, whatever its job.
 
-The user also asked for tiers judged by impact, risk, uncertainty and reversibility, judging that the current table, by what a consumer sees and how many packages change, made some past tasks L too generously; and for the steps between the two checkpoints to run without them.
+The user also asked that impact, risk, uncertainty and reversibility weigh in the tier, and for the steps between the two checkpoints to run without them.
 
 ## Probes
 
@@ -31,8 +31,9 @@ The user also asked for tiers judged by impact, risk, uncertainty and reversibil
 
 ## Decisions
 
-1. **Triage rates four criteria**, each `low`, `medium` or `high` with a reason: impact (the modules, users, data and public contracts touched), risk (security, privacy, data correctness, compatibility, regressions), uncertainty (ambiguous requirements, code or dependencies not well known), reversibility (`high` when it is low: persisted data, an exposed secret; a breaking change is not, a later version fixes it). The number of files is a hint, not a rule, and impact is at least `medium` when a consumer sees the change. **S** when all four are `low`; **L** when one is `high`, or the change is to the workflow or the dev environment; **M** otherwise. A few lines in authentication or a data migration can be L, and the security fixes queued in the backlog become L, each with a critic run.
-   - Not taken: the current table, alone or as the floor (critic). The user judges that it made some past tasks L too generously. The workflow and the dev environment, where critic runs changed decisions, stay L by name.
+1. **Triage rates four criteria**, each `low`, `medium` or `high` with a reason: impact (the modules, users, data and public contracts touched), risk (security, privacy, data correctness, compatibility, regressions), uncertainty (ambiguous requirements, code or dependencies not well known), reversibility (`high` when it is low: persisted data, an exposed secret; a breaking change is not, a later version fixes it). The number of files is a hint, not a rule. The current table stays as the floor, and a rating of `high` makes the task L. A few lines in authentication or a data migration can be L, and the security fixes queued in the backlog become L, each with a critic run.
+   - Not taken: the ratings alone, with the workflow and the dev environment L by name. Of the six L tasks since ADR 0005, split-contracts alone would have become M, and its critic run changed 3 decisions.
+   - Not taken: the current table alone (critic). The ratings would only pick the model, and a few lines in authentication would stay M.
    - Not taken: the discussion's first draft, with L for low reversibility or a decision that outlives the task. Split-contracts and send-errors would have been M, without the critic runs that changed 7 of their decisions.
    - Not taken: a triage subagent. It would read the same code the spec then reads, from a cold start, and the user confirms the tier anyway.
 2. **The brief.** The intake message gives one line per criterion, the open decisions, the tier, and the implementer's model and effort. The spec's front matter keeps `tier` and `implementer` (`<model>/<effort>`), so that both survive the `/clear`. The default is `sonnet/medium`, `opus/high` when risk or uncertainty is `high`.
@@ -60,7 +61,8 @@ The user also asked for tiers judged by impact, risk, uncertainty and reversibil
    - Not taken: resuming a run. It goes to the background, where the `Stop` hook blocks on red tests.
    - Not taken: a docs subagent, a cold start for about one call of output.
    - Not taken: the spec's author writing the README. The text would be duplicated in a record frozen at the merge.
-6. **The test-author stays on Opus, at medium effort**, set in its definition.
+6. **The test-author stays on Opus, at medium effort**, set in its definition, since the session may run on other models. The user takes it as an experiment toward this task's goal, measured on the next tasks; the critic and the reviewer keep the session's effort.
+   - Not taken: the session's effort, as for the critic and the reviewer (critic, second run). Nothing measured says a lower effort keeps its findings, and the user chooses to try.
    - Not taken: Sonnet (critic). It saves little, the test-author used 7% of the input tokens in en-monorepo (ADR 0005) and 10% of send-errors. It is the independent check that ADR 0006 protects, and with a Sonnet implementer the reviewer would be the only Opus run on the code.
 7. **The gate before checkpoint 2:** verify green, and the reviewer's last round without a blocking finding. Otherwise the implementer runs again, and the user sees nothing, except a finding that needs a decision the spec does not take, which goes to the user before the run.
    - Not taken: `scripts/check-cases.sh`, a script that checks that every case of the spec maps to a test that passed (critic). No case has been seen slipping past the reviewer, who blocks on a missing or vacuous one, and the map would come from the agents it checks. It comes when a case slips.
@@ -129,6 +131,7 @@ Run on a clone of the repo, as the scripts of earlier workflow tasks were.
 
 - **The orchestrator could read code anyway**, and its context would grow again. Only the skill's rule stops it; the next tasks' transcripts show whether it holds.
 - **An implementer on Sonnet may need more review rounds**, each an Opus run. The next M and L tasks measure it.
+- **A test-author at medium effort may miss cases**: the reviewer's findings on its suites show it.
 - **The first run of `/implement` from start to end** is the next M or L task. Its transcripts are measured as these were.
 - **The weights are one price list.** How the user's budget counts Sonnet against Opus is unknown: the saving of a Sonnet run shows only on the user's usage meter.
 
