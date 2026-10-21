@@ -11,8 +11,8 @@ set -euo pipefail
 #                   against HEAD, as refs/test-author/<branch>/<n>
 #   diff            the reviewer: how each recorded suite differs from HEAD
 #   changes         the checkpoint 2 report: each recorded suite's files
-#                   whose change HEAD no longer holds, with the commits
-#                   that touched them; its cases: test-handoff-cases.sh
+#                   that the main agent changed since, with the commits
+#                   that changed them; its cases: test-handoff-cases.sh
 #   clear <branch>  integrate.sh: removes the branch's records
 #
 # A record is a commit outside refs/heads, so that a red suite never lands
@@ -98,35 +98,18 @@ diff_records() {
   done
 }
 
-# Whether a file still holds a suite's change to it: the lines the suite
-# added are all in HEAD's version, in their order. A loosened assertion, a
-# dropped case or a test thrown away before its commit breaks the sequence;
-# a later suite that adds cases to the file does not. Blank lines are left
-# out. A suite that only removed lines, or the file, compares whole.
-kept_in_head() {
-  local ref="$1" file="$2"
-  if ! git cat-file -e "$ref:$file" 2>/dev/null; then
-    if git cat-file -e "HEAD:$file" 2>/dev/null; then
-      return 1
-    fi
-    return 0
-  fi
-  if ! git diff --unified=0 "$ref^" "$ref" -- "$file" | grep -q '^+[^+]*[^[:space:]+]'; then
-    git diff --quiet "$ref" HEAD -- "$file"
-    return
-  fi
-  # i starts at 0: unset, it would index wanted[""], not wanted[0].
-  awk 'BEGIN { i = 0 }
-       NR == FNR { if ($0 ~ /[^[:space:]]/) wanted[n++] = $0; next }
-       i < n && $0 == wanted[i] { i++ }
-       END { exit (i < n) }' \
-    <(git diff --unified=0 "$ref^" "$ref" -- "$file" | sed -n '/^+++ /d; s/^+//p') \
-    <(git show "HEAD:$file" 2>/dev/null)
-}
-
+# The changes to a suite's files made outside the test-author, step by
+# step: each commit since the record against its first parent, except a
+# commit made on a record's parent, the one that lands that suite, which
+# is compared with the record, the latest of a step's. The test-author's
+# own edits, parent to record, are then never a step, and every edit of
+# the main agent is one: a loosened assertion, a case dropped or thrown
+# away before its commit, a line inserted. Comparing with HEAD instead
+# could not tell a later suite's edit from the main agent's.
 list_changes() {
-  local branch ref file commit unchanged
-  local -a refs files commits
+  local branch ref parent file i unchanged
+  local -a refs files steps bases listed
+  local -A taken_on=()
   branch="$(task_branch)"
   mapfile -t refs < <(records_of "$branch")
   if ((${#refs[@]} == 0)); then
@@ -134,22 +117,36 @@ list_changes() {
     return
   fi
   for ref in "${refs[@]}"; do
-    mapfile -t files < <(git diff --name-only "$ref^" "$ref")
-    echo "== Suite ${ref##*/}, written on $(git log -1 --format='%h %s' "$ref^")"
+    taken_on["$(git rev-parse "$ref^")"]="$ref"
+  done
+  for ref in "${refs[@]}"; do
+    parent="$(git rev-parse "$ref^")"
+    mapfile -t files < <(git diff --name-only "$parent" "$ref")
+    echo "== Suite ${ref##*/}, written on $(git log -1 --format='%h %s' "$parent")"
+    mapfile -t steps < <(git rev-list --first-parent --reverse "$parent..HEAD")
+    bases=()
+    for i in "${!steps[@]}"; do
+      bases[i]="$(git rev-parse "${steps[i]}^")"
+      bases[i]="${taken_on[${bases[i]}]:-${bases[i]}}"
+    done
     unchanged=1
     for file in "${files[@]}"; do
-      kept_in_head "$ref" "$file" && continue
+      if ((${#steps[@]} == 0)); then
+        git diff --quiet "$ref" HEAD -- "$file" && continue
+        unchanged=0
+        echo "$file"
+        echo "  not committed as recorded"
+        continue
+      fi
+      listed=()
+      for i in "${!steps[@]}"; do
+        git diff --quiet "${bases[i]}" "${steps[i]}" -- "$file" || listed+=("${steps[i]}")
+      done
+      ((${#listed[@]} > 0)) || continue
       unchanged=0
       echo "$file"
-      # Every commit since the record that touched the file, the one that
-      # landed the suite included: telling them apart from history alone
-      # hid changes, since a record holds the whole tree.
-      mapfile -t commits < <(git log --format=%H "$ref^..HEAD" -- "$file")
-      if ((${#commits[@]} == 0)); then
-        echo "  not committed as recorded"
-      fi
-      for commit in "${commits[@]}"; do
-        git --no-pager log -1 --format='%h %s%n%b' "$commit" | sed -e '${/^$/d}' -e '1s/^/  /' -e '2,$s/^./    &/'
+      for i in "${listed[@]}"; do
+        git --no-pager log -1 --format='%h %s%n%b' "$i" | sed -e '${/^$/d}' -e '1s/^/  /' -e '2,$s/^./    &/'
       done
     done
     ((unchanged == 0)) || echo "Unchanged in HEAD."

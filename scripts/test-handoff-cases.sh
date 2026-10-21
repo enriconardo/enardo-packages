@@ -56,6 +56,18 @@ expect_not() {
   fi
 }
 
+expect_count() {
+  local count
+  count="$(grep -c -- "$2" <<<"$out" || true)"
+  if ((count == $3)); then
+    echo "ok   $1"
+  else
+    echo "FAIL $1: $count, not $3"
+    printf '%s\n' "$out" | sed 's/^/     /'
+    failed=1
+  fi
+}
+
 record() {
   "$T" record >/dev/null
 }
@@ -78,6 +90,7 @@ out="$("$T" changes)"
 expect "a loosened test is listed with its commit" "$(commit_line '\[p\] test: loosen a')"
 expect "and the commit's body" "^    The reason."
 expect "an untouched suite is unchanged" "Unchanged in HEAD."
+expect_not "the commit landing a suite as recorded is not listed" "$(commit_line '\[p\] feat: land a')"
 
 fresh
 echo one >p/__tests__/a.test.ts
@@ -91,6 +104,7 @@ record
 commit "[q] feat: step three"
 out="$("$T" changes)"
 expect_not "suites sharing a file, landed as recorded, list nothing" "$(commit_line)"
+expect_count "and print three unchanged suites" "^Unchanged in HEAD.$" 3
 
 fresh
 echo 'toThrow(Foo)' >p/__tests__/a.test.ts
@@ -154,5 +168,39 @@ git checkout -q test/repo/x
 git merge -q --no-edit main
 out="$("$T" changes)"
 expect "a merge of main leaves a suite unchanged" "Unchanged in HEAD."
+
+fresh
+printf "it('empty')\n  toThrow(ValidationError)\n" >p/__tests__/a.test.ts
+record
+printf "it('empty')\n  toThrow()\n" >p/__tests__/a.test.ts
+commit "[p] feat: create users"
+printf "it('blank')\n  toThrow(ValidationError)\n" >>p/__tests__/a.test.ts
+commit "[p] test: reject a blank name"
+out="$("$T" changes)"
+expect "a loosened line repeated by a later test is listed" "$(commit_line '\[p\] feat: create users')"
+
+fresh
+printf "it('send')\n  rejects(DeliveryError)\n" >p/__tests__/a.test.ts
+record
+printf "it('send')\n  mockRejected(DeliveryError)\n  rejects(DeliveryError)\n" >p/__tests__/a.test.ts
+commit "[p] feat: send welcome"
+out="$("$T" changes)"
+expect "a line inserted into a recorded test is listed" "$(commit_line '\[p\] feat: send welcome')"
+
+fresh
+echo "toEqual({ id: '1' })" >p/__tests__/a.test.ts
+record
+commit "[p] feat: step one"
+printf "toEqual({ id: '1', name: 'a' })\nit('b')\n" >p/__tests__/a.test.ts
+record
+commit "[p] feat: step two"
+out="$("$T" changes)"
+expect_not "a later suite that edits an earlier one's line is no change" "$(commit_line)"
+
+fresh
+echo one >p/__tests__/a.test.ts
+record
+out="$("$T" changes)"
+expect "a suite recorded and not committed yet says so" "^  not committed as recorded"
 
 exit "$failed"
