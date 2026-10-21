@@ -50,6 +50,8 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
    - *Risks*, when risk is `medium` or `high`.
 
    No rollback section: a published version never changes, and a data rollback goes in *Plan*.
+
+   At checkpoint 1 the session also proposes the lessons of the spec phase, in the learn step's form, since the `/clear` would lose them. The approved ones are committed on the branch before it; one in the form of code is reviewed with the rest of the task.
    - Not taken: an architect subagent. It cannot ask the user, and send-errors had four interventions of the user before its approval.
 4. **`/clear` at checkpoint 1, then `/implement <spec>`: the new session implements on the spec's model.**
    - **Dispatch.** `/implement`, with model `inherit`, reads `implementer` in the spec's front matter and launches one of two variants through the Skill tool: `implement-sonnet` (`sonnet`, `medium`) or `implement-opus` (`opus`, `high`). Each variant is its front matter and a pointer to the shared steps.
@@ -112,11 +114,12 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
   5. **Checkpoint 2:** the report of decision 8, and the learn step's proposals.
   6. **On the go-ahead:** the spec's `done` commit and `integrate.sh`, then stop. Publishing goes in a new session.
   7. **After each message of the user:** the variant is launched again, if plan step 1 shows the override ends there.
-- **`.claude/skills/spec/SKILL.md`:** the template of decisions 2 and 3, and the brief in the intake message.
+- **`.claude/skills/spec/SKILL.md`:** the template of decisions 2 and 3, the brief in the intake message, and the lessons proposed at checkpoint 1.
 - **Root `CLAUDE.md`**, within 12 000 bytes:
   - *Workflow*'s tier table becomes decision 1;
   - M and L read branch → spec → ⏸ 1 → `/clear`, `/implement` → ⏸ 2 → integrate;
   - the detail of the implementation, review and checkpoint 2 moves to the skill's steps;
+  - the learn step proposes at checkpoints 1 and 2;
   - publishing goes in a session of its own.
 - **`docs/adr/0008-implementation-on-the-specs-model.md`** (new); the ADR index; ADR 0005's status.
 
