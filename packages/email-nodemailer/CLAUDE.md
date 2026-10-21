@@ -1,6 +1,6 @@
 # @enardo/email-nodemailer
 
-The nodemailer implementation of `@enardo/email`'s `EmailSender`. The public contract is in [README.md](./README.md); this file holds the rules for changing the package. The reasons behind them, and the probes, are in `docs/specs/2026-10-14-nodemailer-contract-compliance.md`, and for the errors of `send` and LMTP in `docs/specs/2026-10-20-email-send-errors.md`.
+The nodemailer implementation of `@enardo/email`'s `EmailSender`. The public contract is in [README.md](./README.md); this file holds the rules for changing the package. The reasons behind them, and the probes, are in `docs/specs/2026-10-14-nodemailer-contract-compliance.md`, for the errors of `send` and LMTP in `docs/specs/2026-10-20-email-send-errors.md`, and for the constructor's `transport-options` refusal in `docs/specs/2026-10-21-nodemailer-redact-transport-errors.md`.
 
 ## Layout
 
@@ -47,6 +47,7 @@ __tests__/support/               the SMTP server (and its idle servers), header 
   - `created.transporter.options.lmtp` refuses LMTP, on nodemailer's own copy of the options, where a `url` with `?lmtp=true` wins over `lmtp: false`. LMTP delivers to a mailbox store with no queue behind it, and nodemailer keeps the reply of a refusal after the data only when another recipient was refused before. A caller's `getSocket` can still turn it on after the check; a refusal then still shows in `rejected`;
   - `created.transporter === transport` refuses a transport object that nodemailer took as it is. The check before `createTransport` refuses every object with a `send` method, so only a `send` getter, or a Proxy, that answers the two reads differently gets here; such an object has `mailer` and an `error` listener by then. On an `SMTPPool` subclass it gets `pool` instead, from the check before it.
 - **What nodemailer would not read as options is refused before `createTransport`** (`isTransportOptions`, nodemailer's own rule but for `direct:`): an object with a `send` function, or a value that is neither an object nor an `smtp:` or `smtps:` URL, in any case. nodemailer's rule also takes a `direct:` URL as options, then sends to `localhost:587`, so the sender refuses it. `Mail` writes `mailer` into a transport object it takes, and listens to its `error`: refused afterwards, the caller's object would stay changed, and wired to an orphan `Mail` that throws on its next `error`. The identity check after `createTransport` stays, for a `send` getter that answers differently to the two reads.
+- **Nothing `createTransport` throws passes through.** The constructor throws `InvalidEmailSenderOptionsError` (`transport-options`) with the thrown value's `name` and `code`, each when a string, read with `readField`. Never its `message`, `input` or `stack`: its errors hold the URL, password included.
 - **`transport` reaches `createTransport` as it is, never as a copy.** `createTransport` reads `url`, `pool` and the transport flags through the prototype chain, and a spread lost them: a class instance with a `url` getter went to `localhost:587`, in the second review.
 
 ## Logs
@@ -60,4 +61,4 @@ __tests__/support/               the SMTP server (and its idle servers), header 
 - **Nothing sent.** A test that expects nothing to be sent points its sender at an idle server of its own; each file checks once, after its tests, that no idle server saw a connection.
 - **Names** are compared exactly with the ones given, after decoding the header's encoded words: a mailbox sent as a string with an escaped name loses its line breaks, and fails.
 - **Node only.** The package runs nowhere else, so the tests import `node:*` freely and have no browser project.
-- **Entry point only.** The tests import the package from `~/index`, and the contract's errors from `@enardo/email`. Each case carries its number in the spec that wrote it: 1 to 56 in `2026-10-14-nodemailer-contract-compliance.md`, 57 on in `2026-10-20-email-send-errors.md`.
+- **Entry point only.** The tests import the package from `~/index`, and the contract's errors from `@enardo/email`. Each case carries its number in the spec that wrote it: 1 to 56 in `2026-10-14-nodemailer-contract-compliance.md`, 57 to 68 in `2026-10-20-email-send-errors.md`, 69 on in `2026-10-21-nodemailer-redact-transport-errors.md`.

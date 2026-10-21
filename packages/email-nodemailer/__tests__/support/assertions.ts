@@ -63,3 +63,23 @@ export function thrownBy<E>(
  * may hold them.
  */
 export const ADDRESS_MARKERS = /attacker|victim|evil/i;
+
+/**
+ * What `run` throws, checked to be an instance of `errorClass` without
+ * printing it: see `unprintedRejectionOf`. Fails when `run` returns.
+ */
+export function unprintedThrownBy<E>(
+  run: () => unknown,
+  errorClass: abstract new (...args: never[]) => E,
+): E {
+  try {
+    run();
+  } catch (error) {
+    expect(
+      error instanceof errorClass,
+      `the thrown value is an instance of ${errorClass.name}`,
+    ).toBe(true);
+    return error as E;
+  }
+  throw new Error("Expected the call to throw, but it returned");
+}

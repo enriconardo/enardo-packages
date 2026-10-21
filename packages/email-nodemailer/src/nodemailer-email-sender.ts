@@ -58,7 +58,8 @@ export class NodemailerEmailSender implements EmailSender {
    * @throws {InvalidEmailSenderOptionsError} when there is no `transport`,
    * when nodemailer would build from it a pool, anything but an SMTP
    * transport, or one that speaks LMTP, or when the address of `defaultFrom`
-   * is refused.
+   * is refused, or when nodemailer throws while it reads `transport` (the
+   * `cause` holds its `name` and `code` only).
    */
   constructor(options: NodemailerEmailSenderOptions) {
     this.transporter = transporterOf(options.transport);
@@ -272,7 +273,7 @@ function identifiersOf(error: unknown): Identifiers {
   return identifiers;
 }
 
-// The cause of an EmailSendFailedError: the identifiers, when there are any.
+// The cause of an error of the sender: the identifiers, when there are any.
 // A copy, since an interface has no index signature to match EmailErrorCause.
 function causeOf(identifiers: Identifiers): EmailErrorCause | undefined {
   return Object.keys(identifiers).length > 0 ? { ...identifiers } : undefined;
@@ -451,7 +452,23 @@ function transporterOf(
   //   delivers to a mailbox store with no queue behind it, and nodemailer
   //   keeps the reply of a refusal after the data only when another
   //   recipient was refused before.
-  const created = nodemailer.createTransport(transport);
+  let created: Transporter<SMTPTransport.SentMessageInfo>;
+  try {
+    created = nodemailer.createTransport(transport);
+  } catch (error) {
+    // Never the error itself: an option error of nodemailer's can hold the URL,
+    // password included (`input` of the URL parser's TypeError).
+    const name = readField(error, "name");
+    const code = readField(error, "code");
+    const cause = causeOf({
+      ...(typeof name === "string" && { name }),
+      ...(typeof code === "string" && { code }),
+    });
+    throw new InvalidEmailSenderOptionsError(
+      "transport-options",
+      cause && { cause },
+    );
+  }
   if (created.transporter instanceof SMTPPool) {
     throw new InvalidEmailSenderOptionsError("pool");
   }
