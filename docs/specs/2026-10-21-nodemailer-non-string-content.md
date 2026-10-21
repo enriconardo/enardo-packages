@@ -55,13 +55,13 @@ Taken with the user at intake (2026-10-21).
 
 - **`src/errors/invalid-email-message.error.ts`**: the member `{ readonly field: "subject" | "text" | "html"; readonly reason: "type" }`, with the JSDoc `The value of \`field\` is not a string.`, and its message in `messageOf`: `` `The email sender refuses ${field}: not a string` ``. Neither holds the value.
 - **`src/email-sender.ts`**: the `InvalidEmailMessageError` bullet adds `or a \`subject\`, \`text\` or \`html\` that is not a string (\`html\` is absent only when \`undefined\`)`.
-- **`README.md`**: the row of `InvalidEmailMessageError` adds the `details` and the case.
+- **`README.md`**: the row of `InvalidEmailMessageError` adds the `details` and the case; *Implementations* adds: reject a `subject`, `text` or `html` that is not a string, `html` being absent only when `undefined`.
 - **`package.json`**: version `2.1.0`.
 
 `@enardo/email-nodemailer`:
 
 - **`src/nodemailer-email-sender.ts`**: `toMailOptions` checks `subject`, `text` and `html` after the mailboxes, with `typeof … !== "string"` (`html` skipped when `undefined`), and throws `InvalidEmailMessageError({ field, reason: "type" })`. The values it checked are the ones it passes. A comment says why: nodemailer reads an object body as a file or a URL, and an object subject with `prepared` as raw header text. `send`'s `@throws` names the case.
-- **`README.md`**: *Recipients the types refuse* says the content is checked too, in place of the sentences on passing it as it is; the table of `send` gets the row `subject`, `text` or `html` not a string (`html` absent only when `undefined`) → `InvalidEmailMessageError`, `{ field, reason: "type" }`, not sent, not logged.
+- **`README.md`**: *Recipients the types refuse* says the content is checked too, in place of the sentences on passing it as it is; the table of `send` gets the row `subject`, `text` or `html` not a string (`html` absent only when `undefined`) → `InvalidEmailMessageError`, `{ field, reason: "type" }`, not sent, not logged. It says that the package needs `@enardo/email` `2.1.0` or later, and that an app that depends on `@enardo/email` itself updates it with the adapter: with two copies installed, `instanceof` on the contract's errors fails (not probed whether pnpm keeps two copies when the app's lockfile holds `2.0.0`).
 - **`CLAUDE.md`**: *Sending*, the first bullet adds a `subject`, `text` or `html` that is not a string, and why (the file, URL and raw-header paths); the opening and *Tests* point to this spec, case 78 on.
 - **`package.json`**: version per the open question.
 - **`docs/backlog.md`**: the item leaves, in a commit of its own.
