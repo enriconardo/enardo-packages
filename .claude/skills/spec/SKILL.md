@@ -1,10 +1,27 @@
 ---
 name: spec
-description: Write the spec of an M or L task of this repo (root `CLAUDE.md`, Workflow), before checkpoint 1. Holds the template, the rules for probing the facts a spec states, the questions for designing its test cases, and how to weigh the `critic`'s report on it. Not for S tasks, which have no spec.
+description: The intake of a change to this repo, and the spec of an M or L task up to checkpoint 1 (root `CLAUDE.md`, Workflow). Holds the model check and the brief of the intake, the template, the rules for probing the facts a spec states, the questions for designing its test cases, how to weigh the `critic`'s report, and checkpoint 1. An S task stops after the brief: it has no spec.
 argument-hint: "<slug>"
 ---
 
-# Writing a spec
+# Intake and spec
+
+## Intake
+
+- **The model first.** The session runs on Opus, which the system prompt names. On another model, a session left on an implementation's, ask the user to switch it in the interface before the triage.
+- **The brief**, in the intake message:
+  - one line per criterion, `low`, `medium` or `high` with its reason; a `high` makes the task L, whatever the root `CLAUDE.md`'s tier table says, and the number of files is a hint, not a rule:
+    - **impact:** the modules, users, data and public contracts touched;
+    - **risk:** security, privacy, data correctness, compatibility, regressions;
+    - **uncertainty:** ambiguous requirements, code or dependencies not well known;
+    - **reversibility:** `high` when it is low, such as persisted data or an exposed secret; a breaking change is not, a later version fixes it;
+  - the open decisions;
+  - the tier;
+  - for M and L, the model and effort of the implementation: `sonnet/medium`, or `opus/high` when risk or uncertainty is `high`. Another value needs a reason.
+
+The user confirms or changes the tier and the values.
+
+## The spec
 
 The spec goes in `docs/specs/YYYY-MM-DD-<slug>.md`, today's date, and is the first commit of the task's branch. It is as short as the task allows: an M task is often a page or two. It describes what will change and why, not the history of the work: review follow-ups go in commit messages, and the spec changes after checkpoint 1 only when a decision does, with the user's approval. After the merge it is never edited.
 
@@ -14,6 +31,8 @@ The spec goes in `docs/specs/YYYY-MM-DD-<slug>.md`, today's date, and is the fir
 ---
 status: draft
 type: <feature | fix | refactor | chore | docs | test>
+tier: <M | L>
+implementer: <sonnet/medium | opus/high>
 packages: ["@enardo/<name>"]
 branch: <type>/<scope>/<description>
 ---
@@ -27,10 +46,15 @@ The problem, where it comes from (a backlog item, a review, the user, a discussi
 ## Probes
 
 - <what was run, where> → <what it gave>
+- <the code to reuse> → `<file>:<line>`
 
 ## Decisions
 
 The choices taken with the user, and the options not taken.
+
+## Open questions
+
+What awaits the user at checkpoint 1; none once approved.
 
 ## Changes
 
@@ -40,14 +64,18 @@ What changes, package by package or file by file.
 
 Numbered, one behavior each, with the input and the expected outcome.
 
+## Risks
+
+When risk is `medium` or `high`: what could go wrong, and what shows it.
+
 ## Out of scope
 
 ## Plan
 
-The steps, each ending green and committed; which ones are test-first.
+The steps, each ending green and committed; which ones are test-first. A data rollback goes here: a published version never changes, so there is no rollback section.
 ```
 
-At the merge, `status` becomes `done`.
+`tier` and `implementer` survive the `/clear` of checkpoint 1. At the merge, `status` becomes `done`.
 
 ## Probing
 
@@ -86,3 +114,12 @@ When step 2 of the root `CLAUDE.md`'s *Workflow* calls for the `critic`, after t
 - **Log the run** in `docs/critic-runs.md`, as its header says, once the user has answered the objections brought to them.
 
 A proposal outside a spec (a rule of the learn step, a discussion), when the user asks: the same, written in the spec's form in your scratchpad, one file per version (`<slug>-v<n>.md`). A re-run gets the previous version's path in place of a commit. The row goes on the current task's branch, whether the proposal is kept or dropped; with no task, in an S task of its own, right after the user's answers.
+
+## Checkpoint 1
+
+- **The spec and its open questions** go to the user, who approves it before any production code.
+- **The lessons of the spec phase**, proposed in the learn step's form (root `CLAUDE.md`, *Workflow*), since the `/clear` loses them. The approved ones are committed on the branch before the `/clear`; one in the form of code is reviewed with the rest of the task.
+- **Then end with the three steps**, filled in:
+  1. set the model and effort of `implementer` in the interface;
+  2. `/clear`;
+  3. `/implement <the spec's path>`.

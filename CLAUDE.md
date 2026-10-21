@@ -46,7 +46,7 @@ Every command that touches `node_modules` runs in the `dev` container. The host 
 - Every `tsconfig.json` and `eslint.config.js` uses a preset of `@enardo/typescript-config` or `@enardo/eslint-config`. A package may override an option or a rule, with a comment saying why; an override two packages need moves into the preset.
 - The compiler is strict (`noUncheckedIndexedAccess` included) and ESLint type-aware, so `lint` depends on the upstream builds. Fix findings, don't suppress them; in production code an unchecked index gets a real check, not `!`.
 - Packages are consumed through their `dist/`: after changing one, build it and its consumers' dependencies (`pnpm exec turbo run build --filter=<consumer>...`) before checking the consumers.
-- `pnpm verify` runs shellcheck, the playwright version check and the context-size check, then `format:check`, `lint`, `typecheck` and `test` on the packages changed against `main` and their dependents (`verify:all`: every package). A `Stop` hook runs `pnpm verify` at the end of each turn, unless nothing differs from `main`: a red state blocks finishing.
+- `pnpm verify` runs shellcheck, the playwright version check and the context-size check, then `format:check`, `lint`, `typecheck` and `test` on the packages changed against `main` and their dependents (`verify:all`: every package). It runs at the steps that name it (the S path, the `implement` skill), and `integrate.sh` runs it before the merge.
 - **A cached result is only as fresh as turbo's key.** A task whose outcome depends on something outside it (a running container, a passed-through variable, a file no `inputs` or `globalDependencies` names) gets an uncached check of its own, or a rule saying what to re-run.
 
 ## Publishing
@@ -88,22 +88,22 @@ Packages go to the private registry `https://npm.enriconardo.com` (`publishConfi
 
 ## Workflow
 
-The main agent proposes a tier at intake; the user confirms or changes it. A question or discussion is no task until it leads to a change. A task that turns out bigger changes tier, and the user is told.
+At intake the main agent, on Opus, gives the `spec` skill's brief and proposes a tier; the user confirms or changes it. A question or discussion is no task until it leads to a change. A task that turns out bigger changes tier, and the user is told.
+
+The table is the floor: a `high` among the brief's four ratings makes the task L.
 
 | Tier | What | Steps |
 | --- | --- | --- |
 | S | nothing a consumer sees changes (public API, documented behavior, dependency ranges), or docs, config, tooling only; one package or area | branch → change → verify → ⏸ 2 → integrate. No spec (the intent goes in the commit body), no subagent |
-| M | what a consumer sees changes | branch → spec → ⏸ 1 → tests → implement → verify → review → ⏸ 2 → integrate |
-| L | a new package, a change across packages, the dev environment or the workflow | as M, with an ADR for a decision that outlives the task |
+| M | what a consumer sees changes | branch → spec → ⏸ 1 → model, `/clear`, `/implement` → ⏸ 2 → integrate |
+| L | a new package, a change across packages, the dev environment or the workflow; a `high` rating | as M, with an ADR for a decision that outlives the task |
 
 1. **Branch**: `scripts/task-start.sh <branch>`, from an up-to-date `main`.
 2. **Spec**: with the `spec` skill, as the branch's first commit; then the `critic`, on an L spec or an M spec whose *Why* says it or a decision comes from a discussion with the user, and again after the user changes a decision it judged.
-3. **⏸ Checkpoint 1**: the user approves the spec before any production code.
-4. **Implement** in small steps, each green and committed. Production code of a test-first step waits for the `test-author`'s report.
-5. **Review** with the `reviewer`, round after round while one finds a blocking defect. A later change to code gets a round, to docs only not. From the fourth round on, ask the user before each. A fix looks for the other paths through the same mechanism. Follow-ups go in commit messages, not in the spec.
-6. **⏸ Checkpoint 2**: the summary and the diff; wait for the go-ahead.
-7. **Integrate**, when verify is green (dependents included) and the README follows the public API: the spec `done`, then `scripts/integrate.sh` (verify, `merge --no-ff`, branch deleted). No PRs.
-8. **Learn**, for a problem that could recur and costs more than its rule costs to read: propose it, on the task's branch. Prefer a check, script, hook or lint rule; else the agent, skill or package `CLAUDE.md` it applies to; this file only for what every task needs. The rule, not its story. `scripts/check-context-size.sh` caps this file at 12 000 bytes and each agent at 6 000: a new rule merges with or replaces an old one.
+3. **⏸ Checkpoint 1**: the user approves the spec before any production code, then sets the model and effort of its `implementer`, `/clear`, and `/implement <spec>`.
+4. **Implement, review, ⏸ checkpoint 2**: the `implement` skill, in that fresh session. An S task: verify, then the summary and the diff, and wait for the go-ahead.
+5. **Integrate**, when verify is green (dependents included) and the README follows the public API: the spec `done`, then `scripts/integrate.sh` (verify, `merge --no-ff`, branch deleted). No PRs. Publishing and follow-ups go in a session of their own, on the user's model.
+6. **Learn**, at checkpoints 1 and 2, for a problem that could recur and costs more than its rule costs to read: propose it, on the task's branch. Prefer a check, script, hook or lint rule; else the agent, skill or package `CLAUDE.md` it applies to; this file only for what every task needs. The rule, not its story. `scripts/check-context-size.sh` caps this file at 12 000 bytes and each agent at 6 000: a new rule merges with or replaces an old one.
 
 Roles: the main agent holds the intent; the `critic` starts from the spec alone, the `test-author` from the spec and the `reviewer` from the spec and the diff, in fresh contexts, so they don't share the author's blind spots; `pnpm verify` cannot talk itself into accepting a failure.
 
