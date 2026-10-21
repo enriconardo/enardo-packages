@@ -12,6 +12,7 @@ branch: chore/repo/orchestrated-workflow
 From a discussion with the user (2026-10-21): a task costs too much of the user's token budget; `refactor/repo/split-contracts-from-adapters` took about 80% of a five-hour window, by the user's estimate. Measured on the session transcripts, with tokens weighted by API price (input 1, cache write 1.25, cache read 0.1, output 5):
 
 - split-contracts cost about 2.3M weighted tokens, `feature/email/send-errors` about 10M.
+- By phase, split-contracts spent about 0.9M up to checkpoint 1 (intake, spec, critic), 0.9M from there to the merge (implementation 550k, review 290k, integration 60k), and 0.5M on the publish after it.
 - Most of it is the main session's context, reread on every call. In split-contracts it was 41k at the first call, 130k at checkpoint 1 and 203k at the end; in send-errors it reached 490k, and the main session's cache reads alone weighed about 4.5M.
 - After its merge, split-contracts' session published and edited cambusa's backlog: 20 calls, 492k, 76% of it rereading a 170k–200k context.
 - Every subagent runs on Opus at the session's effort, `xhigh`, whatever its job.
@@ -45,13 +46,15 @@ The user also asked for tiers judged by impact, risk, uncertainty and reversibil
    Test cases are numbered `N.` at the start of a line, continuously across subheadings, since a script reads them (decision 7). No rollback section: a published version never changes, and a data rollback goes in *Plan*.
    - Not taken: an architect subagent. It cannot ask the user, and send-errors had four interventions of the user before its approval.
 4. **`/clear` at checkpoint 1, then `/implement <spec>`.** The skill makes the new main session the orchestrator. It reads the spec, the subagents' reports and the scripts' output, never the code.
+   - **What it edits:** the docs that belong to no package. The spec after a decision of the user, the backlog's items, and the rules of the learn step, which it proposes at checkpoint 2.
+   - **Estimated cost, on split-contracts' 0.9M from checkpoint 1 to the merge:** about 0.6M for this flow, and about the same for a fresh session that implements by itself, since both start the context over. The difference is that this flow puts the implementation's output on the brief's model and effort without the user. A rough estimate, from the calls and contexts measured.
    - Not taken: a `/clear` after the triage. The triage's reading is the spec's input: 73k at split-contracts' intake question, 41k of it fixed.
    - Not taken: implementing in the spec's session, whose context every call rereads.
    - Not taken: a fresh session that implements by itself. The model would be the user's choice in the interface for every step, not the brief's.
 5. **An `implementer` subagent**:
    - **Tools:** Read, Grep, Glob, Edit, Write and Bash.
    - **Model and effort:** the orchestrator passes those of `implementer` on every run.
-   - **One run per piece of work:** each plan step, and each fix of a red verify, a red gate or a review finding, is a new foreground run, never a resumed one.
+   - **One run per piece of work:** each plan step, each fix of a red verify or a red gate, and each review round's findings, all in one run, is a new foreground run, never a resumed one. Two runs in a row that leave the same check red go to the user.
    - **Stops:** an action outside the repo, or a departure from the spec, ends the run with a report, and the orchestrator asks the user.
    - **README:** it writes the README in the same commit as the public API change, from the spec's decisions.
    - Not taken: resuming a run. It goes to the background, where the `Stop` hook blocks on red tests.
@@ -100,6 +103,7 @@ The user also asked for tiers judged by impact, risk, uncertainty and reversibil
     - each commit green, and never pushed;
     - a test-author test changes only where it is wrong, with the reason in the commit body;
     - the tests of review follow-ups are written first and seen failing;
+    - a fix looks for the other paths through the same mechanism, and follow-ups go in commit messages (from the root `CLAUDE.md`'s steps that move to the skill);
     - the README goes in the same commit as the public API change;
     - `check-cases.sh add` for the cases it covers;
     - stop and report on an action outside the repo or a departure from the spec;
@@ -157,10 +161,12 @@ Run on a clone of the repo, as the scripts of earlier workflow tasks were.
 - **The orchestrator could read code anyway**, and its context would grow again. Only the skill's rule stops it; the next tasks' transcripts show whether it holds.
 - **An implementer on Sonnet may need more review rounds**, each an Opus run. The next M and L tasks measure it.
 - **The first run of `/implement` from start to end** is the next M or L task. Its transcripts are measured as these were.
+- **The weights are one price list.** How the user's budget counts Sonnet against Opus is unknown: the saving of a Sonnet run shows only on the user's usage meter.
 
 ## Out of scope
 
 - **The critic** (decision 9).
+- **The effort of the critic and the reviewer**, which keep the session's. They are the independent judgments, and nothing measured says a lower effort keeps their findings.
 - **The main session's model and effort, and the claude.ai connectors:** the user's environment.
 - **A script that measures a session's cost.**
 - **The README gaps found in the discussion:** four packages without one, and exports that their README does not name.
