@@ -97,14 +97,15 @@ diff_records() {
   done
 }
 
-# A commit that leaves a file as some suite wrote it changed nothing of the
-# test-author's: the one that lands a suite with its implementation, or a
-# later suite that adds cases to an earlier one's file. Only a record that
-# changed the file counts: each record holds the whole tree, with the other
-# suites' files as committed when it was taken.
+# A commit that leaves a file as this suite or a later one wrote it changed
+# nothing of this suite's: the one that lands a suite with its
+# implementation, or a later suite that adds cases to its file. An earlier
+# suite does not count: back to its version, the file lost a later suite's
+# cases. Nor does a record that left the file alone: each record holds the
+# whole tree, with the other suites' files as committed when it was taken.
 as_recorded() {
-  local file="$1" commit="$2" ref
-  for ref in "${refs[@]}"; do
+  local file="$1" commit="$2" from="$3" ref
+  for ref in "${refs[@]:from}"; do
     if ! git diff --quiet "$ref^" "$ref" -- "$file" &&
       git diff --quiet "$ref" "$commit" -- "$file"; then
       return 0
@@ -114,7 +115,7 @@ as_recorded() {
 }
 
 list_changes() {
-  local branch ref file commit unchanged
+  local branch ref file commit unchanged i
   local -a refs files changed commits listed
   branch="$(task_branch)"
   mapfile -t refs < <(records_of "$branch")
@@ -122,16 +123,24 @@ list_changes() {
     echo "No suite recorded on $branch."
     return
   fi
-  for ref in "${refs[@]}"; do
+  for i in "${!refs[@]}"; do
+    ref="${refs[i]}"
     mapfile -t files < <(git diff --name-only "$ref^" "$ref")
     echo "== Suite ${ref##*/}, written on $(git log -1 --format='%h %s' "$ref^")"
     mapfile -t changed < <(git diff --name-only "$ref" HEAD -- "${files[@]}")
     unchanged=1
     for file in "${changed[@]}"; do
-      listed=()
       mapfile -t commits < <(git log --format=%H "$ref^..HEAD" -- "$file")
+      # Changed, and no commit touched it: thrown away before any commit.
+      if ((${#commits[@]} == 0)); then
+        unchanged=0
+        echo "$file"
+        echo "  not committed as recorded"
+        continue
+      fi
+      listed=()
       for commit in "${commits[@]}"; do
-        as_recorded "$file" "$commit" || listed+=("$commit")
+        as_recorded "$file" "$commit" "$i" || listed+=("$commit")
       done
       ((${#listed[@]} > 0)) || continue
       unchanged=0
