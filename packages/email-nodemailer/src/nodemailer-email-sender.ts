@@ -460,13 +460,14 @@ function transporterOf(
     // password included (`input` of the URL parser's TypeError).
     const name = readField(error, "name");
     const code = readField(error, "code");
-    const cause: EmailErrorCause = {
+    const cause = causeOf({
       ...(typeof name === "string" && { name }),
       ...(typeof code === "string" && { code }),
-    };
-    throw new InvalidEmailSenderOptionsError("transport-options", {
-      cause: Object.keys(cause).length > 0 ? cause : undefined,
     });
+    throw new InvalidEmailSenderOptionsError(
+      "transport-options",
+      cause && { cause },
+    );
   }
   if (created.transporter instanceof SMTPPool) {
     throw new InvalidEmailSenderOptionsError("pool");

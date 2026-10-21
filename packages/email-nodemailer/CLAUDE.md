@@ -1,6 +1,6 @@
 # @enardo/email-nodemailer
 
-The nodemailer implementation of `@enardo/email`'s `EmailSender`. The public contract is in [README.md](./README.md); this file holds the rules for changing the package. The reasons behind them, and the probes, are in `docs/specs/2026-10-14-nodemailer-contract-compliance.md`, and for the errors of `send` and LMTP in `docs/specs/2026-10-20-email-send-errors.md`.
+The nodemailer implementation of `@enardo/email`'s `EmailSender`. The public contract is in [README.md](./README.md); this file holds the rules for changing the package. The reasons behind them, and the probes, are in `docs/specs/2026-10-14-nodemailer-contract-compliance.md`, for the errors of `send` and LMTP in `docs/specs/2026-10-20-email-send-errors.md`, and for the constructor's `transport-options` refusal in `docs/specs/2026-10-21-nodemailer-redact-transport-errors.md`.
 
 ## Layout
 
@@ -61,4 +61,4 @@ __tests__/support/               the SMTP server (and its idle servers), header 
 - **Nothing sent.** A test that expects nothing to be sent points its sender at an idle server of its own; each file checks once, after its tests, that no idle server saw a connection.
 - **Names** are compared exactly with the ones given, after decoding the header's encoded words: a mailbox sent as a string with an escaped name loses its line breaks, and fails.
 - **Node only.** The package runs nowhere else, so the tests import `node:*` freely and have no browser project.
-- **Entry point only.** The tests import the package from `~/index`, and the contract's errors from `@enardo/email`. Each case carries its number in the spec that wrote it: 1 to 56 in `2026-10-14-nodemailer-contract-compliance.md`, 57 on in `2026-10-20-email-send-errors.md`.
+- **Entry point only.** The tests import the package from `~/index`, and the contract's errors from `@enardo/email`. Each case carries its number in the spec that wrote it: 1 to 56 in `2026-10-14-nodemailer-contract-compliance.md`, 57 to 68 in `2026-10-20-email-send-errors.md`, 69 on in `2026-10-21-nodemailer-redact-transport-errors.md`.
