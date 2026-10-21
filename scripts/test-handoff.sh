@@ -97,9 +97,22 @@ diff_records() {
   done
 }
 
+# A commit that leaves a file as some suite recorded it changed nothing of
+# the test-author's: the one that lands a suite with its implementation, or
+# a later suite that adds cases to an earlier one's file.
+as_recorded() {
+  local file="$1" commit="$2" ref
+  for ref in "${refs[@]}"; do
+    if git diff --quiet "$ref" "$commit" -- "$file"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 list_changes() {
-  local branch ref file commit
-  local -a refs files changed commits
+  local branch ref file commit unchanged
+  local -a refs files changed commits listed
   branch="$(task_branch)"
   mapfile -t refs < <(records_of "$branch")
   if ((${#refs[@]} == 0)); then
@@ -110,21 +123,21 @@ list_changes() {
     mapfile -t files < <(git diff --name-only "$ref^" "$ref")
     echo "== Suite ${ref##*/}, written on $(git log -1 --format='%h %s' "$ref^")"
     mapfile -t changed < <(git diff --name-only "$ref" HEAD -- "${files[@]}")
-    if ((${#changed[@]} == 0)); then
-      echo "Unchanged in HEAD."
-      continue
-    fi
+    unchanged=1
     for file in "${changed[@]}"; do
-      echo "$file"
-      # A commit that leaves the file as recorded, such as the one that
-      # lands the suite with its implementation, changed nothing in it.
+      listed=()
       mapfile -t commits < <(git log --format=%H "$ref^..HEAD" -- "$file")
       for commit in "${commits[@]}"; do
-        if ! git diff --quiet "$ref" "$commit" -- "$file"; then
-          git --no-pager log -1 --format='%h %s%n%b' "$commit" | sed -e '${/^$/d}' -e '1s/^/  /' -e '2,$s/^./    &/'
-        fi
+        as_recorded "$file" "$commit" || listed+=("$commit")
+      done
+      ((${#listed[@]} > 0)) || continue
+      unchanged=0
+      echo "$file"
+      for commit in "${listed[@]}"; do
+        git --no-pager log -1 --format='%h %s%n%b' "$commit" | sed -e '${/^$/d}' -e '1s/^/  /' -e '2,$s/^./    &/'
       done
     done
+    ((unchanged == 0)) || echo "Unchanged in HEAD."
   done
 }
 
