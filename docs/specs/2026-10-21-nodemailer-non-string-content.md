@@ -63,8 +63,7 @@ None.
 `@enardo/email-nodemailer`:
 
 - **`src/nodemailer-email-sender.ts`**: `toMailOptions` checks `subject`, `text` and `html` after the mailboxes, with `typeof … !== "string"` (`html` skipped when `undefined`), and throws `InvalidEmailMessageError({ field, reason: "type" })`. The values it checked are the ones it passes. A comment says why: nodemailer reads an object body as a file or a URL, and an object subject with `prepared` as raw header text. `send`'s `@throws` names the case.
-- **`README.md`**: *Recipients the types refuse* says the content is checked too, in place of the sentences on passing it as it is; the table of `send` gets the row `subject`, `text` or `html` not a string (`html` absent only when `undefined`) → `InvalidEmailMessageError`, `{ field, reason: "type" }`, not sent, not logged. It says that the package needs `@enardo/email` 3, and that an app that depends on `@enardo/email` itself updates it with the adapter: with two copies installed, `instanceof` on the contract's errors fails.
-- **`CLAUDE.md`**: *Sending*, the first bullet adds a `subject`, `text` or `html` that is not a string, and why (the file, URL and raw-header paths); the opening and *Tests* point to this spec, case 78 on.
+- **`README.md`**: *Recipients the types refuse* says the content is checked too, in place of the sentences on passing it as it is; the table of `send` gets the row `subject`, `text` or `html` not a string (`html` absent only when `undefined`) → `InvalidEmailMessageError`, `{ field, reason: "type" }`, not sent, not logged.- **`CLAUDE.md`**: *Sending*, the first bullet adds a `subject`, `text` or `html` that is not a string, and why (the file, URL and raw-header paths); the opening and *Tests* point to this spec, case 78 on.
 - **`package.json`**: version `4.0.0`; the `workspace:^` on `@enardo/email` publishes as `^3.0.0`.
 - **`docs/backlog.md`**: the item leaves, in a commit of its own.
 
