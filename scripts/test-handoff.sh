@@ -97,13 +97,16 @@ diff_records() {
   done
 }
 
-# A commit that leaves a file as some suite recorded it changed nothing of
-# the test-author's: the one that lands a suite with its implementation, or
-# a later suite that adds cases to an earlier one's file.
+# A commit that leaves a file as some suite wrote it changed nothing of the
+# test-author's: the one that lands a suite with its implementation, or a
+# later suite that adds cases to an earlier one's file. Only a record that
+# changed the file counts: each record holds the whole tree, with the other
+# suites' files as committed when it was taken.
 as_recorded() {
   local file="$1" commit="$2" ref
   for ref in "${refs[@]}"; do
-    if git diff --quiet "$ref" "$commit" -- "$file"; then
+    if ! git diff --quiet "$ref^" "$ref" -- "$file" &&
+      git diff --quiet "$ref" "$commit" -- "$file"; then
       return 0
     fi
   done
