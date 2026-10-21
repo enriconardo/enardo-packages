@@ -39,6 +39,7 @@ Stop for the user on:
 - a finding that needs a decision the spec does not take, before the fix;
 - each review round from the fourth on, before it;
 - two fixes in a row that leave the same check red, naming the check;
+- two review rounds in a row with a blocking finding on the same mechanism: whether the mechanism is needed, before a third fix;
 - an action outside the repo: a publish, a container to recreate, another repository;
 - a departure from the spec, with its reason: the spec changes only with the user's approval.
 
