@@ -10,7 +10,11 @@ argument-hint: "<slug>"
 
 - **The model first.** The session runs on Opus, which the system prompt names. On another model, a session left on an implementation's, ask the user to switch it in the interface before the triage.
 - **The brief**, in the intake message:
-  - one line per criterion of the root `CLAUDE.md`'s tier table, `low`, `medium` or `high` with its reason;
+  - one line per criterion, `low`, `medium` or `high` with its reason; a `high` makes the task L, whatever the root `CLAUDE.md`'s tier table says, and the number of files is a hint, not a rule:
+    - **impact:** the modules, users, data and public contracts touched;
+    - **risk:** security, privacy, data correctness, compatibility, regressions;
+    - **uncertainty:** ambiguous requirements, code or dependencies not well known;
+    - **reversibility:** `high` when it is low, such as persisted data or an exposed secret; a breaking change is not, a later version fixes it;
   - the open decisions;
   - the tier;
   - for M and L, the model and effort of the implementation: `sonnet/medium`, or `opus/high` when risk or uncertainty is `high`. Another value needs a reason.

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Keeps the files that every session loads within a budget (root CLAUDE.md,
-# Workflow, step 8): the root CLAUDE.md, which every session and subagent
+# Workflow, step 6): the root CLAUDE.md, which every session and subagent
 # reads, and each agent definition. A new rule merges with an old one or
 # replaces it, instead of growing them. `pnpm verify` runs this outside
 # turbo, on every call.

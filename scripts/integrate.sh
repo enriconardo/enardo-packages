@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Integrates the current branch into main (root CLAUDE.md, Workflow, step 7),
+# Integrates the current branch into main (root CLAUDE.md, Workflow, step 5),
 # after checkpoint 2: refuses a branch name too long for merge subjects, a
 # dirty tree, a spec that is not done and a main the branch does not contain,
 # runs `pnpm verify`, merges with --no-ff and deletes the branch and the
