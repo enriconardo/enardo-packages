@@ -15,7 +15,7 @@ From a discussion with the user (2026-10-21): a task costs too much of the user'
 - By phase, split-contracts spent about 0.9M up to checkpoint 1 (intake, spec, critic), 0.9M from there to the merge (implementation 550k, review 290k, integration 60k), and 0.5M on the publish after it. send-errors spent about 3.9M up to checkpoint 1 and 6.3M from there to the merge, 3.3M of it the main session rereading a 366k–490k context.
 - Most of it is the main session's context, reread on every call. In split-contracts it was 41k at the first call, 130k at checkpoint 1 and 203k at the end; in send-errors it reached 490k, and the main session's cache reads alone weighed about 4.5M.
 - After its merge, split-contracts' session published and edited cambusa's backlog: 20 calls, 492k, 76% of it rereading a 170k–200k context.
-- Every subagent runs on Opus at the session's effort, `xhigh`, whatever its job.
+- Every subagent runs on Opus at the session's effort, `xhigh` in the sessions measured, whatever its job.
 
 The user also asked that impact, risk, uncertainty and reversibility weigh in the tier, and for the steps between the two checkpoints to run without them.
 
@@ -24,14 +24,14 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
 - Transcripts, first call of each run, 2026-10-16 to 2026-10-21 → main session 40.9k–41.7k; `critic`, `reviewer` and `test-author` (four to six tools) 10.2k–11.2k; `general-purpose` (every tool) 31.9k–33.2k.
 - Transcripts of the subagents → each message records `model` and `effort`: the critic and the reviewer of split-contracts ran on `claude-opus-5-5` at `xhigh`, the session's effort, with no `effort` in their definitions.
 - Transcript of session 3c539fd8 → an `Agent` call with `model: "haiku"` ran a `general-purpose` agent on `claude-haiku-5-5`: the call's `model` overrides the definition's.
-- `effort` in an agent's front matter → **not probed**: the `Agent` tool's description says that a definition sets an agent's effort, without naming the key. Plan step 1 probes it.
-- The installed Claude Code 2.1.306 binary, the schema of a skill's front matter →
-  - **`model`:** "Model override (`haiku`, `sonnet`, `opus`, `fable`, or a full ID). Use `inherit` to match the parent conversation".
-  - **`effort`:** "`low`, `medium`, `high`, `max`, or an integer".
-  - **Other keys:** `context` (`inline`, or `fork` for a subagent), `user-invocable`, `disable-model-invocation`.
-  - **The Skill tool** takes `skill` and `args` only, and its result has "Resolved model the skill turn runs on when a frontmatter model override took effect".
-  - **Not probed:** whether an override takes effect when the model launches the skill, and how long it lasts. Plan step 1 probes both.
-- A skill written during a session, launched through the Skill tool in that session → "Unknown skill": skills load when a session starts.
+- The installed Claude Code 2.1.306 binary, the schema of a skill's front matter → `model` ("`haiku`, `sonnet`, `opus`, `fable`, or a full ID. Use `inherit` to match the parent conversation"), `effort` ("`low`, `medium`, `high`, `max`, or an integer"), `user-invocable`, `disable-model-invocation`, `context`.
+- Plan step 1, session 9d66493f: the user launched a skill with `model: inherit`, which launched through the Skill tool one with `model: sonnet`, `effort: medium`, `user-invocable: false`, which launched three agents on `opus`. The API requests' `model` and `output_config.effort` →
+  - **The skill's `model`:** no effect. Every request stayed on `claude-opus-5-5`, while the system prompt named Sonnet 5.5.
+  - **The skill's `effort`:** `medium` from the skill's launch, back to the session's `high` at the next turn, a subagent's notification.
+  - **An agent's `effort`:** `medium` and `xhigh` ran as set; an agent without the key ran at the override's `medium`, the live effort.
+  - **The `Agent` tool:** every run in the background, with no foreground option.
+- The binary and its settings schema → `/model` and `/effort <level>` set the session's model and effort by hand; `modelSettings.<model>.effortLevel` persists an effort per model.
+- Skills and agents written during this session → listed in it right away: they load mid-session.
 - The 18 specs implemented since 2026-10-02, here and in en-monorepo, user messages between checkpoint 1 and the first review → implementation stopped for the user twice, both for an action outside the repo: a publish (split-repos) and recreating the dev container (browser-tests). Never for a design decision.
 - `docs/critic-runs.md` and the commits that weigh each run → all 5 runs changed 1 to 4 decisions; the main findings came from reading code and library sources: LMTP's refusals in nodemailer, the SMTP password leak, bcrypt's 72-byte limit.
 - `wc -c CLAUDE.md` → 11 954 bytes, against a budget of 12 000.
@@ -43,7 +43,7 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
    - Not taken: the current table alone (critic). The ratings would only pick the model, and a few lines in authentication would stay M.
    - Not taken: the discussion's first draft, with L for low reversibility or a decision that outlives the task. Split-contracts and send-errors would have been M, without the critic runs that changed 7 of their decisions.
    - Not taken: a triage subagent. It would read the same code the spec then reads, from a cold start, and the user confirms the tier anyway.
-2. **The brief.** The intake message gives one line per criterion, the open decisions, the tier, and the model and effort of the implementation. The spec's front matter keeps `tier` and `implementer` (`<model>/<effort>`), so that both survive the `/clear`. The default is `sonnet/medium`, `opus/high` when risk or uncertainty is `high`. These are the only two values, one per skill variant (decision 4). The dispatch asks the user for any other value, or for a spec without one.
+2. **The brief.** The intake message gives one line per criterion, the open decisions, the tier, and the model and effort of the implementation. The spec's front matter keeps `tier` and `implementer` (`<model>/<effort>`), so that both survive the `/clear`. The default is `sonnet/medium`, `opus/high` when risk or uncertainty is `high`; another value needs a reason in the brief.
 3. **The spec stays in the main session**, written in discussion with the user. The template gains:
    - *Open questions*, what awaits the user at checkpoint 1;
    - in *Probes*, the code to reuse with `file:line`;
@@ -53,20 +53,16 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
 
    At checkpoint 1 the session also proposes the lessons of the spec phase, in the learn step's form, since the `/clear` would lose them. The approved ones are committed on the branch before it; one in the form of code is reviewed with the rest of the task.
    - Not taken: an architect subagent. It cannot ask the user, and send-errors had four interventions of the user before its approval.
-4. **`/clear` at checkpoint 1, then `/implement <spec>`: the new session implements on the spec's model.**
-   - **Dispatch.** `/implement`, with model `inherit`, reads `implementer` in the spec's front matter and launches one of two variants through the Skill tool: `implement-sonnet` (`sonnet`, `medium`) or `implement-opus` (`opus`, `high`). Each variant is its front matter and a pointer to the shared steps.
-     - A skill's `model` and `effort` are fixed in its front matter, and the Skill tool takes only a name and arguments (*Probes*).
-     - So the choice among variants is how the model gets picked for each task, without the user.
+4. **After checkpoint 1 the user sets the spec's model by hand, then `/clear` and `/implement <spec>`.**
+   - **At checkpoint 1** the session ends with the three steps, with the values of `implementer`: `/model` and `/effort`, `/clear`, `/implement <spec>`.
+   - **`/implement`**, with model `inherit`, compares the model it runs on with `implementer`. On a mismatch it stops and names the commands. The session does not see its effort: the checkpoint's steps name it.
    - **The session implements by itself.** The test-author and the reviewer run as subagents, as today; the code, the fixes and the README are the session's.
-   - **If the override lasts only until the user's next message,** the session launches its variant again before going on.
-   - **Fallback:** if plan step 1 shows that the override does not take effect when the model launches the skill, the spec is amended with the user for the orchestrator of its earlier version (172b6ef to a0113ed).
-     - The session coordinates and never reads the code.
-     - An `implementer` subagent with Read, Grep, Glob, Edit, Write and Bash takes each plan step and each fix in a new foreground run, on the model and effort the session passes.
-   - **Estimated cost, on split-contracts' 0.9M from checkpoint 1 to the merge:** about 0.6M for this flow, and about the same for the orchestrator, since both start the context over. This flow has no cold start per step; the orchestrator keeps the session's context small. A rough estimate, from the calls and contexts measured.
+   - **After the integration** the session reminds the user to set back their model and effort, since the next session, a publish or a task's intake, starts on the current ones.
+   - **Estimated cost, on split-contracts' 0.9M from checkpoint 1 to the merge:** about 0.6M, since the session starts the context over. A rough estimate, from the calls and contexts measured.
+   - Not taken: a skill variant per model, `implement-sonnet` and `implement-opus`, launched by `/implement` (d222f6a to 0524247). A skill's `model` has no effect when the model launches it, and its `effort` lasts one turn (plan step 1, *Probes*).
+   - Not taken: an orchestrator that never reads the code, with an `implementer` subagent per plan step and fix on the model it passes (172b6ef to a0113ed). It picks the model without the user, at the price of an agent more, an exception to ADR 0005's "no new subagents", and a cold start per step and review round, for about the same estimated cost. The user prefers the switch by hand.
    - Not taken: a `/clear` after the triage. The triage's reading is the spec's input: 73k at split-contracts' intake question, 41k of it fixed.
    - Not taken: implementing in the spec's session, whose context every call rereads.
-   - Not taken: a fresh session on a model the user sets by hand, and in stages (critic). The user prefers to automate now, and the variants pick the model without them.
-   - Not taken: the orchestrator first. It needs one agent more, though two skills fewer, and an exception to ADR 0005's "no new subagents". It adds a cold start for every step and review round, for about the same estimated cost. It stays as the fallback.
 5. **The work between the checkpoints.**
    - **Who works:** the session works each plan step, each red verify and each review round's findings.
    - **When it stops for the user:** two fixes in a row that leave the same check red, a departure from the spec, and an action outside the repo.
@@ -74,8 +70,8 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
    - **Docs and learn step:** the learn step, the spec's amendments after a decision of the user, and the backlog's items stay with the session, as today.
    - Not taken: a docs subagent, a cold start for about one call of output.
    - Not taken: the spec's author writing the README. The text would be duplicated in a record frozen at the merge.
-6. **The test-author stays on Opus, at medium effort**, set in its definition, since the session may run on other models. The user takes it as an experiment toward this task's goal, measured on the next tasks; the critic and the reviewer keep the session's effort.
-   - Not taken: the session's effort, as for the critic and the reviewer (critic, second run). Nothing measured says a lower effort keeps its findings, and the user chooses to try.
+6. **The test-author stays on Opus, at medium effort**, set in its definition, since the session may run on other models. The user takes it as an experiment toward this task's goal, measured on the next tasks; the critic keeps the session's effort.
+   - Not taken: the session's effort, as for the critic (critic, second run). Nothing measured says a lower effort keeps its findings, and the user chooses to try.
    - Not taken: Sonnet (critic). It saves little, the test-author used 7% of the input tokens in en-monorepo (ADR 0005) and 10% of send-errors. It is the independent check that ADR 0006 protects, and with an implementation on Sonnet the reviewer would be the only Opus run on the code.
 7. **The gate before checkpoint 2:** verify green, and the reviewer's last round without a blocking finding. Otherwise the session fixes and checks again, and the user sees nothing, except a finding that needs a decision the spec does not take, which goes to the user before the fix.
    - Not taken: `scripts/check-cases.sh`, a script that checks that every case of the spec maps to a test that passed (critic). No case has been seen slipping past the reviewer, who blocks on a missing or vacuous one, and the map would come from the agents it checks. It comes when a case slips.
@@ -93,7 +89,7 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
    One line for what passed, detail for the exceptions.
 9. **The critic is unchanged** (the user, from the *Probes*): ADR 0007's triggers, and it reads code.
 10. **The reviewer stays on Opus**, the last check before the merge.
-    - **Effort:** today's, `xhigh`, set in its definition, so that a variant's override does not lower it.
+    - **Effort:** `xhigh`, that of the sessions measured, set in its definition: an agent without the key runs at the session's live effort (*Probes*), `medium` in a session on `sonnet/medium`.
     - **No override at launch:** the steps launch the test-author and the reviewer without `model` or `effort`.
     - **README:** point 6 of *What is blocking* also names a public API change that its README does not describe.
 11. **Publish and follow-ups go in a session of their own**, after the integration.
@@ -102,22 +98,20 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
 ## Changes
 
 - **`scripts/test-handoff.sh`** gains `changes`: for each recorded suite, the files that differ in `HEAD`, and the commits since the record that touched them (hash, subject, body).
-- **`.claude/agents/test-author.md`:** medium effort, still on Opus.
+- **`.claude/agents/test-author.md`:** `effort: medium`, still on Opus.
 - **`.claude/agents/reviewer.md`:** `effort: xhigh`, and point 6 of *What is blocking*, as decision 10.
-- **`.claude/skills/implement/SKILL.md`** (new), `model: inherit`: the dispatch of decision 4. The input is the argument, or the spec the branch's first commit adds; the variant is the one `implementer` names.
-- **`.claude/skills/implement-sonnet/SKILL.md` and `implement-opus/SKILL.md`** (new): their `model` and `effort`, `user-invocable: false`, and the instruction to follow the shared steps for the spec in their arguments.
-- **`.claude/skills/implement/steps.md`** (new), the shared steps:
-  1. **Each plan step:** the test-author first for a test-first step, then the code, in green commits. A public API change carries its README in the same commit, from the spec's decisions. The test-author and the reviewer are launched without `model` or `effort`.
-  2. **Then:** `pnpm verify` and the reviewer. A red verify or a round with a blocking finding is fixed, the tests of review follow-ups first, each fix looking for the other paths through the same mechanism.
-  3. **The user decides:** a finding that needs a decision the spec does not take; each review round from the fourth on; two fixes in a row that leave the same check red; an action outside the repo; a departure from the spec. When the session stops on a red check, the `Stop` hook blocks it once: it names the check and stops again.
-  4. **Follow-ups** go in commit messages.
-  5. **Checkpoint 2:** the report of decision 8, and the learn step's proposals.
-  6. **On the go-ahead:** the spec's `done` commit and `integrate.sh`, then stop. Publishing goes in a new session.
-  7. **After each message of the user:** the variant is launched again, if plan step 1 shows the override ends there.
-- **`.claude/skills/spec/SKILL.md`:** the template of decisions 2 and 3, the brief in the intake message, and the lessons proposed at checkpoint 1.
+- **`.claude/skills/implement/SKILL.md`** (new), `model: inherit`. The input is the argument, or the spec the branch's first commit adds. The steps:
+  1. **The model:** decision 4's check against `implementer`.
+  2. **Each plan step:** the test-author first for a test-first step, then the code, in green commits. A public API change carries its README in the same commit, from the spec's decisions. The test-author and the reviewer are launched without `model` or `effort`.
+  3. **Then:** `pnpm verify` and the reviewer. A red verify or a round with a blocking finding is fixed, the tests of review follow-ups first, each fix looking for the other paths through the same mechanism.
+  4. **The user decides:** a finding that needs a decision the spec does not take; each review round from the fourth on; two fixes in a row that leave the same check red; an action outside the repo; a departure from the spec. When the session stops on a red check, the `Stop` hook blocks it once: it names the check and stops again.
+  5. **Follow-ups** go in commit messages.
+  6. **Checkpoint 2:** the report of decision 8, and the learn step's proposals.
+  7. **On the go-ahead:** the spec's `done` commit and `integrate.sh`; then the reminder of decision 4, and stop. Publishing goes in a new session.
+- **`.claude/skills/spec/SKILL.md`:** the template of decisions 2 and 3, the brief in the intake message, the lessons proposed at checkpoint 1, and the checkpoint's three steps of decision 4.
 - **Root `CLAUDE.md`**, within 12 000 bytes:
   - *Workflow*'s tier table becomes decision 1;
-  - M and L read branch → spec → ⏸ 1 → `/clear`, `/implement` → ⏸ 2 → integrate;
+  - M and L read branch → spec → ⏸ 1 → model, `/clear`, `/implement` → ⏸ 2 → integrate;
   - the detail of the implementation, review and checkpoint 2 moves to the skill's steps;
   - the learn step proposes at checkpoints 1 and 2;
   - publishing goes in a session of its own.
@@ -125,19 +119,19 @@ The user also asked that impact, risk, uncertainty and reversibility weigh in th
 
 ## Test cases
 
-Run on a clone of the repo, as the scripts of earlier workflow tasks were.
+Run on a clone of the repo, as the scripts of earlier workflow tasks were; a model and an effort are read in the transcript's API requests (`model`, `output_config.effort`).
 
 1. `test-handoff.sh changes`: a record, then a commit that changes one of its tests → the file, and the commit's hash, subject and body; an untouched suite → "unchanged".
-2. A test-author run → its transcript records `claude-opus-5-5` and `medium` on every message.
-3. In a new session, `/implement` on a spec with `implementer: sonnet/medium` → the messages after the variant's launch record `claude-sonnet-5-5` and `medium`; with `opus/high` → `claude-opus-5-5` and `high`.
-4. The same, with a message of the user in the middle → the messages after it record the variant's model and effort again.
-5. A reviewer run from `implement-sonnet` → its transcript records `claude-opus-5-5` and `xhigh`.
-6. `pnpm verify` → `check-context-size.sh` passes with the new `CLAUDE.md`.
+2. A test-author run → its requests record `claude-opus-5-5` and `medium`.
+3. `/implement` on a spec with `implementer: sonnet/medium`, in a session set to Sonnet at `medium` → it goes on, and its requests record `claude-sonnet-5-5` and `medium`; in a session on Opus → it stops and names the commands.
+4. A reviewer run from a session on `sonnet/medium` → its requests record `claude-opus-5-5` and `xhigh`.
+5. `pnpm verify` → `check-context-size.sh` passes with the new `CLAUDE.md`.
 
 ## Risks
 
 - **The session's context grows during the implementation**, from the fresh start to the merge. The next tasks' transcripts show how far.
-- **A session that forgets to launch its variant again** runs on the session's model, if the override ends at the user's message. The transcripts show it.
+- **A switch forgotten:** `/implement`'s check stops a session on the wrong model, not one on the wrong effort, which the transcripts show.
+- **A switch back forgotten:** the next session, a task's intake or a publish, runs on Sonnet. The reminder after the integration is the only guard.
 - **An implementation on Sonnet may need more review rounds**, each an Opus run. The next M and L tasks measure it.
 - **A test-author at medium effort may miss cases**: the reviewer's findings on its suites show it.
 - **The first run of `/implement` from start to end** is the next M or L task. Its transcripts are measured as these were.
@@ -146,31 +140,20 @@ Run on a clone of the repo, as the scripts of earlier workflow tasks were.
 ## Out of scope
 
 - **The critic** (decision 9).
-- **A lower effort for the critic and the reviewer.** The critic keeps the session's, the reviewer today's `xhigh` (decision 10). They are the independent judgments, and nothing measured says a lower effort keeps their findings.
+- **A lower effort for the critic and the reviewer.** The critic keeps the session's, the reviewer `xhigh` (decision 10). They are the independent judgments, and nothing measured says a lower effort keeps their findings.
 - **The main session's model and effort, and the claude.ai connectors:** the user's environment.
 - **A script that measures a session's cost.**
 - **The README gaps found in the discussion:** four packages without one, and exports that their README does not name.
+- **Subagents in the background only** (plan step 1): the test-author's definition asks for a foreground run, since in the background the `Stop` hook blocks on its red tests. A backlog item.
 - **The S path**, unchanged.
 - **`chore/repo/evaluate-critic`**, which counts the critic's runs by trigger. Its `L spec` rows from this task on count L by decision 1.
 
 ## Plan
 
-Tooling, tested after: each step runs its cases on a clone before its commit. The task itself is implemented after checkpoint 1 in a fresh session, under the current `CLAUDE.md`, since `/implement` does not exist yet.
+Tooling, tested after: each step runs its cases on a clone before its commit. The task itself is implemented after checkpoint 1 under the current `CLAUDE.md`, since `/implement` does not exist yet.
 
-1. **Probe the overrides**, in a session the user opens after the throwaway files exist, since skills and agents load when a session starts.
-   - **Files:**
-     - a skill with a variant's front matter (`model: sonnet`, `effort: medium`, `user-invocable: false`), launched by the model from a second skill;
-     - an agent with `effort: medium`, and one with `effort: xhigh`;
-     - one with no `effort`, launched from the first skill.
-   - **What the transcripts show:**
-     - whether the skill's override takes effect;
-     - whether it holds after a message of the user;
-     - whether the agent's key works, `xhigh` included;
-     - what an agent without the key inherits under the override.
-   - **Afterwards:** the files are removed, and the results go in the next commit's body.
-   - **If the skill's override does not take effect:** stop, and amend the spec with the user for the fallback of decision 4.
-   - **If the agent's key, or `xhigh`, does not work:** the steps pass `effort` on every run of the test-author and the reviewer.
+1. **Probe the overrides**: done, results in *Probes*.
 2. **`test-handoff.sh changes`**: case 1.
 3. **The test-author and reviewer definitions**: case 2.
-4. **The `implement` skills and the `spec` skill**: cases 3–5, in a session the user opens.
-5. **Root `CLAUDE.md`, ADR 0008, the ADR index, ADR 0005's status**: case 6.
+4. **The `implement` skill and the `spec` skill**: cases 3 and 4, in sessions the user opens on each model.
+5. **Root `CLAUDE.md`, ADR 0008, the ADR index, ADR 0005's status**: case 5.
