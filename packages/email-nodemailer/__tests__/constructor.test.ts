@@ -4,7 +4,11 @@ import SMTPTransport from "nodemailer/lib/smtp-transport";
 import { describe, expect, it } from "vitest";
 import { InvalidEmailSenderOptionsError, NodemailerEmailSender } from "~/index";
 import type { NodemailerSmtpOptions } from "~/index";
-import { ADDRESS_MARKERS, thrownBy } from "./support/assertions";
+import {
+  ADDRESS_MARKERS,
+  thrownBy,
+  unprintedThrownBy,
+} from "./support/assertions";
 import { useIdleSmtpServers, useSmtpServers } from "./support/smtp-server";
 import type {
   LocalSmtpServer,
@@ -652,6 +656,165 @@ describe("NodemailerEmailSender's constructor", () => {
       await sender.send(MESSAGE);
 
       expectMessageReached(server);
+    });
+  });
+
+  // The cases of fix/email-nodemailer/redact-transport-errors: whatever
+  // createTransport throws becomes the sender's error, with the identifiers
+  // of the thrown value as its cause, and nothing else: nodemailer's option
+  // errors hold the URL, password included. The types refuse most of these
+  // values, so each goes through a cast.
+
+  describe("69-77: errors of createTransport", () => {
+    const SECRET = "s3cret";
+
+    /**
+     * Checks that `error` is the refusal of options nodemailer could not
+     * read, and that the secret is nowhere in it.
+     */
+    function expectTransportOptionsRefusal(
+      error: InvalidEmailSenderOptionsError,
+    ): void {
+      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
+      expect(error.details).toStrictEqual({ reason: "transport-options" });
+      expect(error.message).not.toContain(SECRET);
+      expect(error.stack ?? "").not.toContain(SECRET);
+      expect(JSON.stringify(error.toJSON())).not.toContain(SECRET);
+    }
+
+    /** A transport whose own `host` getter throws what `thrown` returns. */
+    function withThrowingHost(thrown: () => unknown): NodemailerSmtpOptions {
+      return {
+        get host(): string {
+          throw thrown();
+        },
+      };
+    }
+
+    const INVALID_URLS: readonly (readonly [string, NodemailerSmtpOptions])[] =
+      [
+        [
+          '69: the URL string "smtp://user:s3cret@[bad"',
+          "smtp://user:s3cret@[bad" as never,
+        ],
+        [
+          '70: transport: { url: "smtp://user:s3cret@[bad" }',
+          { url: "smtp://user:s3cret@[bad" },
+        ],
+        [
+          '71: transport: { url: "smtp://user:s3cret@ho st" }',
+          { url: "smtp://user:s3cret@ho st" },
+        ],
+      ];
+
+    it.each(INVALID_URLS)(
+      "%s: refuses a URL the parser refuses, with its name and code only",
+      (_label, transport) => {
+        const error = thrownBy(
+          () => new NodemailerEmailSender({ transport }),
+          InvalidEmailSenderOptionsError,
+        );
+
+        expectTransportOptionsRefusal(error);
+        expect(error.cause).toStrictEqual({
+          name: "TypeError",
+          code: "ERR_INVALID_URL",
+        });
+      },
+    );
+
+    it("72: refuses legacy SES options, with their name and code", () => {
+      const transport = { SES: { ses: {}, aws: {} } };
+
+      const error = thrownBy(
+        () =>
+          new NodemailerEmailSender({
+            transport: transport as NodemailerSmtpOptions,
+          }),
+        InvalidEmailSenderOptionsError,
+      );
+
+      expectTransportOptionsRefusal(error);
+      expect(error.cause).toStrictEqual({ name: "Error", code: "ECONFIG" });
+    });
+
+    it("73: refuses { SES: {} }, which a transport's constructor throws on, with its name and code", () => {
+      const transport = { SES: {} };
+
+      const error = thrownBy(
+        () =>
+          new NodemailerEmailSender({
+            transport: transport as NodemailerSmtpOptions,
+          }),
+        InvalidEmailSenderOptionsError,
+      );
+
+      expectTransportOptionsRefusal(error);
+      expect(error.cause).toStrictEqual({ name: "Error", code: "ECONFIG" });
+    });
+
+    it("74: refuses { service: 42 }, with a cause that leaves out the missing code", () => {
+      const transport = { service: 42 };
+
+      const error = thrownBy(
+        () =>
+          new NodemailerEmailSender({
+            transport: transport as unknown as NodemailerSmtpOptions,
+          }),
+        InvalidEmailSenderOptionsError,
+      );
+
+      expectTransportOptionsRefusal(error);
+      expect(error.cause).toStrictEqual({ name: "TypeError" });
+    });
+
+    it("75: a host getter that throws an error with a code that is not a string and an input: its name only", () => {
+      const transport = withThrowingHost(() =>
+        Object.assign(new Error(SECRET), { code: 42, input: SECRET }),
+      );
+
+      const error = thrownBy(
+        () => new NodemailerEmailSender({ transport }),
+        InvalidEmailSenderOptionsError,
+      );
+
+      expectTransportOptionsRefusal(error);
+      expect(error.cause).toStrictEqual({ name: "Error" });
+    });
+
+    it("76: a host getter that throws a string: no cause", () => {
+      const transport = withThrowingHost(() => SECRET);
+
+      const error = thrownBy(
+        () => new NodemailerEmailSender({ transport }),
+        InvalidEmailSenderOptionsError,
+      );
+
+      expectTransportOptionsRefusal(error);
+      expect(error.cause).toBeUndefined();
+      expect(Object.hasOwn(error.toJSON(), "cause")).toBe(false);
+    });
+
+    it("77: a host getter that throws an error whose code and name getters throw: no cause, and the sender's error still", () => {
+      const transport = withThrowingHost(() => {
+        const thrown = new Error(SECRET);
+        for (const key of ["code", "name"]) {
+          Object.defineProperty(thrown, key, {
+            get(): never {
+              throw new Error(`the ${key} getter, ${SECRET}`);
+            },
+          });
+        }
+        return thrown;
+      });
+
+      const error = unprintedThrownBy(
+        () => new NodemailerEmailSender({ transport }),
+        InvalidEmailSenderOptionsError,
+      );
+
+      expectTransportOptionsRefusal(error);
+      expect(error.cause).toBeUndefined();
     });
   });
 });
