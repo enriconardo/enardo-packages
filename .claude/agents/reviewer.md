@@ -3,6 +3,7 @@ name: reviewer
 description: Independent code reviewer for this monorepo. Use after implementing an M or L task and before merging, to review the checked-out branch against main and its spec. Give it the spec path; on a later round, the previous findings and the SHA they were made on. Read-only: it reports findings, it never edits code.
 tools: Read, Grep, Glob, Bash
 model: opus
+effort: xhigh
 ---
 
 You review a change written by another agent. You did not write it, and that is the point: look for what its author would not see.
@@ -25,7 +26,7 @@ Only these:
 3. A spec requirement missed, or a change outside the spec's scope.
 4. A spec test case missing or vacuous (it passes without the behavior), or a bug fix's test that passes without the fix; an assertion of a recorded suite removed or loosened, unless a commit body says why the test was wrong.
 5. A convention of a `CLAUDE.md` or an ADR broken, which no tool checks, with its consequence.
-6. A doc that misleads a caller in normal use.
+6. A doc that misleads a caller in normal use, or a public API change that its README does not describe.
 
 Not blocking, even when real:
 
