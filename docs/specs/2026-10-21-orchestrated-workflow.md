@@ -12,7 +12,7 @@ branch: chore/repo/orchestrated-workflow
 From a discussion with the user (2026-10-21): a task costs too much of the user's token budget; `refactor/repo/split-contracts-from-adapters` took about 80% of a five-hour window, by the user's estimate. Measured on the session transcripts, with tokens weighted by API price (input 1, cache write 1.25, cache read 0.1, output 5):
 
 - split-contracts cost about 2.3M weighted tokens, `feature/email/send-errors` about 10M.
-- By phase, split-contracts spent about 0.9M up to checkpoint 1 (intake, spec, critic), 0.9M from there to the merge (implementation 550k, review 290k, integration 60k), and 0.5M on the publish after it.
+- By phase, split-contracts spent about 0.9M up to checkpoint 1 (intake, spec, critic), 0.9M from there to the merge (implementation 550k, review 290k, integration 60k), and 0.5M on the publish after it. send-errors spent about 3.9M up to checkpoint 1 and 6.3M from there to the merge, 3.3M of it the main session rereading a 366k–490k context.
 - Most of it is the main session's context, reread on every call. In split-contracts it was 41k at the first call, 130k at checkpoint 1 and 203k at the end; in send-errors it reached 490k, and the main session's cache reads alone weighed about 4.5M.
 - After its merge, split-contracts' session published and edited cambusa's backlog: 20 calls, 492k, 76% of it rereading a 170k–200k context.
 - Every subagent runs on Opus at the session's effort, `xhigh`, whatever its job.
@@ -44,7 +44,8 @@ The user also asked for tiers judged by impact, risk, uncertainty and reversibil
    No rollback section: a published version never changes, and a data rollback goes in *Plan*.
    - Not taken: an architect subagent. It cannot ask the user, and send-errors had four interventions of the user before its approval.
 4. **`/clear` at checkpoint 1, then `/implement <spec>`.** The skill makes the new main session the orchestrator. It reads the spec, the subagents' reports and the scripts' output, never the code.
-   - **What it edits:** the docs that belong to no package. The spec after a decision of the user, the backlog's items, and the rules of the learn step, which it proposes at checkpoint 2.
+   - **What it edits:** the docs that belong to no package. The spec after a decision of the user, and the backlog's items.
+   - **The learn step:** it proposes the step's rules at checkpoint 2. Once the user approves one, it writes a rule of an agent, a skill or the root `CLAUDE.md` itself. A check, a script, a hook, a lint rule or a package `CLAUDE.md` goes to an implementer run.
    - **Estimated cost, on split-contracts' 0.9M from checkpoint 1 to the merge:** about 0.6M for this flow, and about the same for a fresh session that implements by itself, since both start the context over. The difference is that this flow puts the implementation's output on the brief's model and effort without the user. A rough estimate, from the calls and contexts measured.
    - Not taken: a `/clear` after the triage. The triage's reading is the spec's input: 73k at split-contracts' intake question, 41k of it fixed.
    - Not taken: implementing in the spec's session, whose context every call rereads.
@@ -61,7 +62,7 @@ The user also asked for tiers judged by impact, risk, uncertainty and reversibil
    - Not taken: the spec's author writing the README. The text would be duplicated in a record frozen at the merge.
 6. **The test-author stays on Opus, at medium effort**, set in its definition.
    - Not taken: Sonnet (critic). It saves little, the test-author used 7% of the input tokens in en-monorepo (ADR 0005) and 10% of send-errors. It is the independent check that ADR 0006 protects, and with a Sonnet implementer the reviewer would be the only Opus run on the code.
-7. **The gate before checkpoint 2:** verify green, and the reviewer's last round without a blocking finding. Otherwise the implementer runs again, and the user sees nothing.
+7. **The gate before checkpoint 2:** verify green, and the reviewer's last round without a blocking finding. Otherwise the implementer runs again, and the user sees nothing, except a finding that needs a decision the spec does not take, which goes to the user before the run.
    - Not taken: `scripts/check-cases.sh`, a script that checks that every case of the spec maps to a test that passed (critic). No case has been seen slipping past the reviewer, who blocks on a missing or vacuous one, and the map would come from the agents it checks. It comes when a case slips.
    - Not taken: a gate agent explaining why all is well, another cold start whose "all is well" proves nothing.
 8. **The checkpoint 2 report is assembled from data**:
@@ -71,13 +72,14 @@ The user also asked for tiers judged by impact, risk, uncertainty and reversibil
    - the reviewer's findings by round, and their fixes;
    - departures from the spec, with their reasons;
    - the README changes;
-   - backlog candidates and follow-ups.
+   - backlog candidates and follow-ups;
+   - `git diff --stat main...HEAD`. The full diff is the user's to read, not the orchestrator's.
 
    One line for what passed, detail for the exceptions.
 9. **The critic is unchanged** (the user, from the *Probes*): ADR 0007's triggers, and it reads code.
 10. **The reviewer stays on Opus**, the last check before the merge. Point 6 of *What is blocking* also names a public API change that its README does not describe.
 11. **Publish and follow-ups go in a session of their own**, after the integration.
-12. **ADR 0008** records 1, 2, 4, 5, 7 and 11. It supersedes ADR 0005's point 1 (the tiers) and, for the implementer, point 6's "no new subagents".
+12. **ADR 0008** records 1, 2, 4, 5, 7 and 11. It supersedes ADR 0005's point 1 (the tiers) and, for the implementer, point 6's "no new subagents". ADR 0006's "main agent" now reads as the implementer for the code, and ADR 0006's status says so.
 
 ## Changes
 
@@ -101,7 +103,7 @@ The user also asked for tiers judged by impact, risk, uncertainty and reversibil
 - **`.claude/skills/implement/SKILL.md`** (new), the orchestrator:
   1. The input is the argument, or the branch's spec.
   2. **Each plan step** runs a test-author then an implementer for a test-first step, an implementer otherwise.
-  3. **Then:** `pnpm verify` and the reviewer. A red verify or a round with a blocking finding goes to a new implementer run. The user is asked before each review round from the fourth on, and for each action outside the repo or departure from the spec.
+  3. **Then:** `pnpm verify` and the reviewer. A red verify or a round with a blocking finding goes to a new implementer run. A finding that needs a decision the spec does not take goes to the user first. The user is asked before each review round from the fourth on, and for each action outside the repo or departure from the spec.
   4. **Checkpoint 2:** the report of decision 8.
   5. **On the go-ahead:** the spec's `done` commit and `integrate.sh`, then stop.
   6. **Never read** `src/`, `__tests__/` or a diff of them.
@@ -112,7 +114,7 @@ The user also asked for tiers judged by impact, risk, uncertainty and reversibil
   - the detail of the implementation, review and checkpoint 2 moves to the skill;
   - publishing goes in a session of its own;
   - in *Testing* and *Roles*, the implementer takes the main agent's part in the code.
-- **`docs/adr/0008-orchestrated-implementation.md`** (new); the ADR index; ADR 0005's status.
+- **`docs/adr/0008-orchestrated-implementation.md`** (new); the ADR index; the status of ADRs 0005 and 0006.
 
 ## Test cases
 
