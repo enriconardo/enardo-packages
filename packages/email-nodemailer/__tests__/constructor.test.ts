@@ -792,6 +792,7 @@ describe("NodemailerEmailSender's constructor", () => {
 
       expectTransportOptionsRefusal(error);
       expect(error.cause).toBeUndefined();
+      expect(Object.hasOwn(error, "cause")).toBe(false);
       expect(Object.hasOwn(error.toJSON(), "cause")).toBe(false);
     });
 

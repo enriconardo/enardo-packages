@@ -55,9 +55,9 @@ export class InvalidEmailSenderOptionsError extends BaseError {
     options?: { cause?: EmailErrorCause },
   ) {
     super(MESSAGES[reason], {
+      ...options,
       code: "INVALID_EMAIL_SENDER_OPTIONS",
       details: { reason },
-      ...options,
     });
   }
 }

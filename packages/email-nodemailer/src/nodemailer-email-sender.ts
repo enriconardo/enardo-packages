@@ -273,7 +273,7 @@ function identifiersOf(error: unknown): Identifiers {
   return identifiers;
 }
 
-// The cause of an EmailSendFailedError: the identifiers, when there are any.
+// The cause of an error of the sender: the identifiers, when there are any.
 // A copy, since an interface has no index signature to match EmailErrorCause.
 function causeOf(identifiers: Identifiers): EmailErrorCause | undefined {
   return Object.keys(identifiers).length > 0 ? { ...identifiers } : undefined;
