@@ -11,7 +11,8 @@ set -euo pipefail
 #                   against HEAD, as refs/test-author/<branch>/<n>
 #   diff            the reviewer: how each recorded suite differs from HEAD
 #   changes         the checkpoint 2 report: each recorded suite's files
-#                   that differ in HEAD, with the commits that changed them
+#                   whose change HEAD no longer holds, with the commits
+#                   that touched them; its cases: test-handoff-cases.sh
 #   clear <branch>  integrate.sh: removes the branch's records
 #
 # A record is a commit outside refs/heads, so that a red suite never lands
@@ -97,55 +98,57 @@ diff_records() {
   done
 }
 
-# A commit that leaves a file as this suite or a later one wrote it changed
-# nothing of this suite's: the one that lands a suite with its
-# implementation, or a later suite that adds cases to its file. An earlier
-# suite does not count: back to its version, the file lost a later suite's
-# cases. Nor does a record that left the file alone: each record holds the
-# whole tree, with the other suites' files as committed when it was taken.
-as_recorded() {
-  local file="$1" commit="$2" from="$3" ref
-  for ref in "${refs[@]:from}"; do
-    if ! git diff --quiet "$ref^" "$ref" -- "$file" &&
-      git diff --quiet "$ref" "$commit" -- "$file"; then
-      return 0
+# Whether a file still holds a suite's change to it: the lines the suite
+# added are all in HEAD's version, in their order. A loosened assertion, a
+# dropped case or a test thrown away before its commit breaks the sequence;
+# a later suite that adds cases to the file does not. Blank lines are left
+# out. A suite that only removed lines, or the file, compares whole.
+kept_in_head() {
+  local ref="$1" file="$2"
+  if ! git cat-file -e "$ref:$file" 2>/dev/null; then
+    if git cat-file -e "HEAD:$file" 2>/dev/null; then
+      return 1
     fi
-  done
-  return 1
+    return 0
+  fi
+  if ! git diff --unified=0 "$ref^" "$ref" -- "$file" | grep -q '^+[^+]*[^[:space:]+]'; then
+    git diff --quiet "$ref" HEAD -- "$file"
+    return
+  fi
+  # i starts at 0: unset, it would index wanted[""], not wanted[0].
+  awk 'BEGIN { i = 0 }
+       NR == FNR { if ($0 ~ /[^[:space:]]/) wanted[n++] = $0; next }
+       i < n && $0 == wanted[i] { i++ }
+       END { exit (i < n) }' \
+    <(git diff --unified=0 "$ref^" "$ref" -- "$file" | sed -n '/^+++ /d; s/^+//p') \
+    <(git show "HEAD:$file" 2>/dev/null)
 }
 
 list_changes() {
-  local branch ref file commit unchanged i
-  local -a refs files changed commits listed
+  local branch ref file commit unchanged
+  local -a refs files commits
   branch="$(task_branch)"
   mapfile -t refs < <(records_of "$branch")
   if ((${#refs[@]} == 0)); then
     echo "No suite recorded on $branch."
     return
   fi
-  for i in "${!refs[@]}"; do
-    ref="${refs[i]}"
+  for ref in "${refs[@]}"; do
     mapfile -t files < <(git diff --name-only "$ref^" "$ref")
     echo "== Suite ${ref##*/}, written on $(git log -1 --format='%h %s' "$ref^")"
-    mapfile -t changed < <(git diff --name-only "$ref" HEAD -- "${files[@]}")
     unchanged=1
-    for file in "${changed[@]}"; do
-      mapfile -t commits < <(git log --format=%H "$ref^..HEAD" -- "$file")
-      # Changed, and no commit touched it: thrown away before any commit.
-      if ((${#commits[@]} == 0)); then
-        unchanged=0
-        echo "$file"
-        echo "  not committed as recorded"
-        continue
-      fi
-      listed=()
-      for commit in "${commits[@]}"; do
-        as_recorded "$file" "$commit" "$i" || listed+=("$commit")
-      done
-      ((${#listed[@]} > 0)) || continue
+    for file in "${files[@]}"; do
+      kept_in_head "$ref" "$file" && continue
       unchanged=0
       echo "$file"
-      for commit in "${listed[@]}"; do
+      # Every commit since the record that touched the file, the one that
+      # landed the suite included: telling them apart from history alone
+      # hid changes, since a record holds the whole tree.
+      mapfile -t commits < <(git log --format=%H "$ref^..HEAD" -- "$file")
+      if ((${#commits[@]} == 0)); then
+        echo "  not committed as recorded"
+      fi
+      for commit in "${commits[@]}"; do
         git --no-pager log -1 --format='%h %s%n%b' "$commit" | sed -e '${/^$/d}' -e '1s/^/  /' -e '2,$s/^./    &/'
       done
     done
