@@ -58,7 +58,7 @@ __tests__/support/          the helpers both kinds of test file share, beyond a 
   - Never name a DOM-only type alias (`BodyInit`, `HeadersInit`, `RequestInfo`): `@types/node` does not declare them. Derive the type from a global both runtimes declare, as `HttpBody = NonNullable<RequestInit["body"]>` does.
   - Every consumer has `skipLibCheck`. An unresolved name in the declarations turns into `any`, with no error anywhere.
 - **A stream body needs `duplex: "half"`.** Node's `fetch` rejects a `ReadableStream` or an async iterable without it, before sending anything. The DOM lib's `RequestInit` does not declare `duplex`; `FetchInit`, the client's own init type, does. Only a stream gets it: every other init stays as it was.
-- **Exported types are written out** (`isolatedDeclarations`). Without it, the build would emit the declarations through `tsconfig.json`, which has the DOM: an inferred type would come out with its DOM name, and neither runtime program would see it. With it, tsdown emits them from the source text (with Oxc), so they repeat what `src/` writes.
+- **Exported types are written out**: the two runtime programs require it (`isolatedDeclarations`, in their presets). An inferred type would be written by the build with the name its own program gives it, a DOM one (`BodyInit`) or a Node one (`NodeJS.Timeout`), and neither runtime program would see it. Written out, the build emits the same names as `src/`, so `tsconfig.json` needs no option.
 - **Node transport settings** (dispatcher, proxy) go through `fetchImpl`, never through an import.
 - **Wording**: "browser/Node" for the runtimes, "caller/responder" for the two roles in an HTTP exchange. "Client side" mixes them up.
 
@@ -70,7 +70,7 @@ __tests__/support/          the helpers both kinds of test file share, beyond a 
 | --- | --- | --- |
 | `tsconfig.browser.json` | Node globals, `node:*` and builtin imports | all of them after a `/// <reference types="node" />`: `@types/node` is a devDependency |
 | `tsconfig.node.json` | DOM globals, DOM-only type names | what `@types/node` declares and Node 24 lacks: `ErrorEvent`, `EventSource`, `QuotaExceededError`, Web Storage |
-| `isolatedDeclarations` | exported types left to inference | |
+| `isolatedDeclarations` (in both runtime programs) | exported types left to inference | |
 | lint `no-restricted-imports` | `undici`, `node:*`, builtin modules | a dynamic `import()` |
 | lint `no-restricted-globals` | globals of one runtime, also as `globalThis.<name>`; the globals Node 24 lacks | type positions, destructuring (`const { process } = globalThis`) |
 | the `browser` test project | what a browser does differently at run time, in Chromium, Firefox and WebKit, for the tests that need no Node | the `*.node.test.ts` tests; a browser's own `fetch`, since every test there stubs `fetchImpl`; browsers older than Playwright's builds |
@@ -83,7 +83,7 @@ Tests run under vitest, in two projects (`vitest.config.ts`):
 - **`node`** runs every test file.
 - **`browser`** runs every file but `*.node.test.ts`, in Chromium, Firefox and WebKit, through the `playwright` service (`docker/README.md`).
 
-This package is the example of the opt-in. Another package whose `src/` runs in browsers adds `@enardo/vitest-config` to its `devDependencies` and calls `browserProject()` in its `vitest.config.ts`; extends the two runtime presets of `@enardo/typescript-config` in `tsconfig.browser.json` and `tsconfig.node.json`, and adds `isolatedDeclarations` to its own `tsconfig.json` if it exports types (a local override until a second package needs it); and uses `runtimeNeutral` in `eslint.config.js`. Node-only tests go in `*.node.test.ts` files. Helpers that both kinds of test file use go in `__tests__/support/`, which imports nothing from `node:*`; a constant or a builder of a few lines may be repeated instead.
+This package is the example of the opt-in. Another package whose `src/` runs in browsers adds `@enardo/vitest-config` to its `devDependencies` and calls `browserProject()` in its `vitest.config.ts`; extends the two runtime presets of `@enardo/typescript-config` in `tsconfig.browser.json` and `tsconfig.node.json`, which hold `isolatedDeclarations`; and uses `runtimeNeutral` in `eslint.config.js`. Node-only tests go in `*.node.test.ts` files. Helpers that both kinds of test file use go in `__tests__/support/`, which imports nothing from `node:*`; a constant or a builder of a few lines may be repeated instead.
 
 **What runs where:**
 - **Stubs.** The tests that run in browsers stub `fetchImpl`.
