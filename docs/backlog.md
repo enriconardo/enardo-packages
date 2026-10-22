@@ -10,12 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-1. **`chore/repo/evaluate-critic`**
-   - **When:** once `docs/critic-runs.md` logs five L specs. Until then, the next item goes first.
-   - **What:** count the `critic`'s runs by trigger, and remove each trigger none of whose runs changed a decision; a trigger that had no run goes to the user. The critic goes when no trigger is left. The text-only count goes to the user with it.
-   - **Why:** the critic guards against a drift seen twice, both times on an L spec of the workflow (ADR 0007), and a rule that is only ever added grew the workflow before (ADR 0005).
-   - **From:** the critic's first run on the spec of `chore/repo/spec-critic` (2026-10-16); queued by the user (2026-10-16).
-
 ## To evaluate
 
 - **The M trigger of the `critic` is worded for the main agent to judge.** "A decision comes from a discussion with the user" covers, read as written, every M spec with a decision taken with the user, as the template defines *Decisions*; the main agent, whom ADR 0007 deems unable to tell when it has drifted, decides which qualify. Options: a condition it does not judge, such as the user saying at intake whether the spec gets a run, or every M spec with a decision marked as the user's. From the `critic`'s run on the spec of `chore/repo/evaluate-critic` (2026-10-22).
