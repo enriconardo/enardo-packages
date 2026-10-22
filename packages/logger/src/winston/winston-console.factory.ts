@@ -44,15 +44,25 @@ function createPrettyFormat(options: ConsoleLoggerOptions) {
 
   formats.push(
     winston.format.printf((info) => {
-      const { timestamp, level, message, context, stack, ...metadata } = info;
+      const { timestamp, level, message, ...rest } = info;
+      const { context, stack } = rest;
+      // `context` and `stack` leave the metadata only when printed in their
+      // own place: any other value stays in the suffix, as in the JSON format.
+      const hasContext = typeof context === "string" && context.length > 0;
+      const hasStack = typeof stack === "string";
+      const metadata = { ...rest };
+      if (hasContext || context === "") {
+        delete metadata.context;
+      }
+      if (hasStack) {
+        delete metadata.stack;
+      }
+
       const timePrefix = typeof timestamp === "string" ? `${timestamp} ` : "";
-      const contextPrefix =
-        typeof context === "string" && context.length > 0
-          ? `[${context}] `
-          : "";
+      const contextPrefix = hasContext ? `[${context}] ` : "";
       const metadataSuffix =
         Object.keys(metadata).length > 0 ? ` ${safeStringify(metadata)}` : "";
-      const stackSuffix = typeof stack === "string" ? `\n${stack}` : "";
+      const stackSuffix = hasStack ? `\n${stack}` : "";
 
       return `${timePrefix}${level}: ${contextPrefix}${String(message)}${metadataSuffix}${stackSuffix}`;
     }),

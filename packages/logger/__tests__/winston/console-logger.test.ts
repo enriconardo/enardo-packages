@@ -105,4 +105,35 @@ describe("createConsoleLogger", () => {
       expect(output.lines()).toEqual(["info: msg"]);
     });
   });
+
+  describe("context and stack in a pretty line", () => {
+    function pretty(): ReturnType<typeof createConsoleLogger> {
+      return createConsoleLogger({ format: "pretty", timestamp: false });
+    }
+
+    it("prints a context that is not a string in the metadata suffix", () => {
+      pretty().info("msg", { context: { a: 1 } });
+
+      expect(output.lines()).toEqual(['info: msg {"context":{"a":1}}']);
+    });
+
+    it("prints a stack that is not a string in the metadata suffix", () => {
+      pretty().info("msg", { stack: ["x"] });
+
+      expect(output.lines()).toEqual(['info: msg {"stack":["x"]}']);
+    });
+
+    it("prints nothing for an empty context, from a child or the call", () => {
+      pretty().child({ context: "" }).info("msg");
+      pretty().info("msg", { context: "" });
+
+      expect(output.lines()).toEqual(["info: msg", "info: msg"]);
+    });
+
+    it("prints a string context as the prefix and a string stack after the entry", () => {
+      pretty().info("msg", { context: "api", stack: "trace" });
+
+      expect(output.lines()).toEqual(["info: [api] msg\ntrace"]);
+    });
+  });
 });
