@@ -25,6 +25,7 @@ All in the dev container (Node 24.21.0), unless said otherwise.
 
 - `git grep "@enardo/env"` outside specs → no package of this repo depends on it. Cambusa calls the 1.x readers and `loadEnv` (`packages/config/src/`, `apps/web/src/lib/config.ts`), and its `docs/backlog.md` has no item about env: this backlog item is the only record of Cambusa's side.
 - `vite build` (Vite 8.2.2, from the lockfile) of a page logging `import.meta.env`, with a `.env` of `VITE_PORT=3000`, `VITE_EMPTY=`, `SECRET=x` → an object literal `{ BASE_URL: "/", DEV: false, MODE: "production", PROD: true, SSR: false, VITE_EMPTY: "", VITE_PORT: "3000" }`: `DEV`, `PROD`, `SSR` are booleans, the rest strings, `SECRET` is left out, an empty value is kept as `""`, and the object has `Object.prototype` (`Object.hasOwn(e, "toString")` is `false`).
+- `vite build` with `define: { "import.meta.env.BUILD_TIME": 1700000000000, "import.meta.env.FLAG": true }` → both land in the `import.meta.env` object, as the number `17e11` and the boolean `true`.
 - `process.env` → `Object.hasOwn(process.env, "PATH")` is `true`, `Object.hasOwn(process.env, "toString")` `false` while `"toString" in process.env` is `true`; assigning `3` or `undefined` stores the strings `"3"` and `"undefined"`.
 - `Number(s)` and `/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/` on `"3000" "-1.5" "+2" ".5" "5." "1e3" "1E-2" "-0" "007"` → all match, with the expected numbers (`-0` gives `-0`); `"1e999"` matches but gives `Infinity`; `" 1" "0x10" "0b1" "1_000" "Infinity" "NaN" ""` do not match (`Number` takes `" 1"`, `"0x10"`, `"0b1"`, `""` as 1, 16, 1, 0).
 - `tsc` with `vite/client` and `@types/node`, a parameter of `Readonly<Record<string, unknown>>` → accepts `import.meta.env` (with an augmented `interface ImportMetaEnv { readonly VITE_API_URL: string }`) and `process.env`; refuses an interface without an index signature (`TS2345`).
@@ -40,7 +41,7 @@ Taken with the user:
 - **Separate methods for a required variable**: `string`, `number`, `bool` return the value or `undefined`; `requireString`, `requireNumber`, `requireBool` return the value or throw. No default parameter and no overloads: the caller writes `env.number("PORT") ?? 3000`. `undefined`, not 1.x's `null`, so that `??` and optional fields take it as it is. Not taken: an options argument (`{ required: true }`, `{ default: 3000 }`), which needs overloads for the return type, and leaves `{ required: true, default: 3 }` to define.
 - **A malformed value throws**, in both variants: `EnvMalformedError`, code `ENV_MALFORMED`, `details: { key, expected }`, `expected` being `"string"`, `"number"` or `"boolean"`. **A missing required one throws** `EnvMissingError`, code `ENV_MISSING`, `details: { key }`. Neither holds the value, in its message, `details` or anywhere in its `toJSON()`: it can be a secret. Two sibling classes over `BaseError`, no `cause`.
 - **Unset** is a key that is not an own key of the source, or whose value is `undefined` or `""`.
-- **Values that are not strings**: `bool` takes a boolean as it is (Vite's `DEV`, `PROD`, `SSR`); any other value that is not a string is malformed for every reader (a number, `null`, an object; a boolean for `string` and `number`).
+- **Values that are not strings**: `bool` takes a boolean as it is (Vite's `DEV`, `PROD`, `SSR`), and `number` a finite number as it is (Vite's `define` of `import.meta.env.*`, *Probes*); any other value that is not a string is malformed (`NaN`, `Infinity`, `null`, an object; a number for `string` and `bool`, a boolean for `string` and `number`). Taken with the user after the critic's first run; at intake every non-string but a boolean was malformed.
 - **Numbers in decimal notation only**: the regex of *Probes* (sign, fraction, exponent) and a finite result; no whitespace, `0x`, `0b`, `0o`, `_`, `Infinity`, `NaN`.
 - **Remove** `loadEnv`, `LoadEnvOptions`, `env()`, `EnvValueType`, the 1.x `EnvSource` (`"node" | "vite"`) and dotenv, as if they had never been there (no deprecation, no absence test).
 - **Tests in browsers too**, through the presets of `feature/repo/runtime-neutral-presets`; a README with the one-file pattern and the `VITE_` prefix as the boundary of secrets; a package `CLAUDE.md`.
@@ -54,7 +55,7 @@ Taken here, for the critic and the user:
 
 ## Open questions
 
-- None beyond the three decisions taken here.
+- None beyond the three decisions taken here, and the place of `isolatedDeclarations` after the critic's first run.
 
 ## Changes
 
@@ -95,8 +96,8 @@ Taken here, for the critic and the user:
 
 **`number`**
 
-9. `"3000" "-1.5" "+2" ".5" "5." "1e3" "1E-2" "007" "0"` → `3000 -1.5 2 0.5 5 1000 0.01 7 0`.
-10. `" 1" "1 " "0x10" "0b1" "0o7" "1_000" "Infinity" "-Infinity" "NaN" "1e999" "abc" "1.2.3" "e3" "." "+" "1e"`, and the values `3`, `true`, `null` → `EnvMalformedError`, `{ key, expected: "number" }`, each.
+9. `"3000" "-1.5" "+2" ".5" "5." "1e3" "1E-2" "007" "0"` → `3000 -1.5 2 0.5 5 1000 0.01 7 0`; the values `3`, `-1.5`, `0` → themselves.
+10. `" 1" "1 " "0x10" "0b1" "0o7" "1_000" "Infinity" "-Infinity" "NaN" "1e999" "abc" "1.2.3" "e3" "." "+" "1e"`, and the values `NaN`, `Infinity`, `true`, `null`, `{}` → `EnvMalformedError`, `{ key, expected: "number" }`, each.
 11. `number` on unset (`{}`, `""`) → `undefined`.
 
 **`bool`**
@@ -144,3 +145,4 @@ Taken here, for the critic and the user:
 3. **`README.md`, `CLAUDE.md`, version and description.**
 4. **`@enardo/http-client`'s `CLAUDE.md`**: the condition of `isolatedDeclarations`.
 5. **The backlog item leaves.**
+6. **Handover to Cambusa**, at the integration: an entry in Cambusa's `docs/backlog.md`, *Work that `enardo-packages` hands over*, in the form of its `739e16f`, listing the changes of behavior from 1.x and Cambusa's side of this item (`import.meta.env` passed to the readers, a check of the public config in `vite.config.ts`). Agreed with the user.
