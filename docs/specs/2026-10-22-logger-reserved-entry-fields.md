@@ -13,8 +13,8 @@ branch: fix/logger/reserved-entry-fields
 
 From the first *Queued* item of `docs/backlog.md`, found by the architectural review of `@enardo/logger` (2026-10-22). The console formats treat three metadata fields in their own way, and the `LogMetadata` JSDoc names only `level` and `message` as reserved:
 
-- **`timestamp`.** A `timestamp` in the metadata, from the call, a child or the defaults, takes the place of the entry's time in both formats. With `timestamp: false`, the pretty format prints it as the entry's time. Root cause: the adapter copies every metadata field into the entry, and logform's `timestamp()` sets the time only when `info.timestamp` is falsy. The likely trigger is not a caller who means it, but a spread of a domain object or a payload that has a `timestamp` field (`logger.info("webhook", { ...event })`): the entry's time is replaced silently, and a collector puts the line in the wrong place.
-- **`context` and `stack`.** The pretty format takes both out of the metadata before printing the rest, and prints them only when they are strings (`context` only when not empty). Any other value is lost; the JSON format keeps it.
+- **`timestamp`.** A `timestamp` in the metadata, from the call, a child or the defaults, takes the place of the entry's time in both formats. With `timestamp: false`, the pretty format prints it as the entry's time. Root cause: the adapter copies every metadata field into the entry, and logform's `timestamp()` sets the time only when `info.timestamp` is falsy. The likely trigger is not a caller who means it, but a spread of a domain object or a payload that has a `timestamp` field (`logger.info("webhook", { ...event })`): the entry's time is replaced silently, and a collector puts the line in the wrong place. With `timestamp: false` nothing is replaced, but the field still reads as the line's time to whoever parses it (a collector, a reader of the pretty line), so the same rule holds there. In the pretty format, a `timestamp` that is truthy and not a string loses both the time and the field (`{ timestamp: 123 }` → `info: msg`, from the `critic`'s run).
+- **`context` and `stack`.** The pretty format takes both out of the metadata before printing the rest, and prints them only when they are strings (`context` only when not empty). Any other value is lost; the JSON format keeps it. An empty `context` is what `child({ context: "" })` sets, a typed call that means no context, and prints nothing (probed by the `critic`).
 
 No test checks the console logger's `level`, `timestamp` and `format` options: an implementation that ignores `level` passes the suite.
 
@@ -43,12 +43,12 @@ Taken with the user at intake:
   - refusing the key in the type of `LogMetadata` (`{ timestamp?: never }`): it warns only typed callers, a payload typed `unknown` or parsed from JSON still reaches the logger, so the runtime drop is needed anyway; and it is a new major for a case no consumer has;
   - keeping the value under another key: an exception that `level` and `message` do not have, for no observed need;
   - documenting the current behavior: the time of an entry stays untrustworthy.
-- **`context` and `stack` stay ordinary metadata fields.** The pretty format prints a non-empty string `context` as its prefix and a string `stack` on the lines after the entry, as today, and any other value of either, the empty string included, in its metadata suffix, as the JSON format keeps it. Not taken: reserving `context` for `child()`, since it is data the caller may set.
-- **A patch release.** The type does not change; a metadata `timestamp` leaving the logs corrects a behavior no doc described.
+- **`context` and `stack` stay ordinary metadata fields.** The pretty format prints a non-empty string `context` as its prefix and a string `stack` on the lines after the entry, as today; an empty `context` prints nothing, as today, since `child({ context: "" })` means no context; any other value of either goes in its metadata suffix, as the JSON format keeps it. Not taken: reserving `context` for `child()`, since it is data the caller may set.
+- **The release** awaits the user (*Open questions*). With `timestamp: true` the drop fixes a defect. With `timestamp: false` it removes documented behavior: the 1.0.0 JSDoc of `LogMetadata` names only `level` and `message` as dropped, so a metadata `timestamp` reaches the JSON entry today, as documented.
 
 ## Open questions
 
-None.
+- **Patch or major.** A new major is the repo's rule for a breaking change (ADR 0004). A patch would rest on no consumer passing the field (*Probes*). Not taken: dropping the field only when the logger stamps the entry, which keeps it a pure fix but makes the rule depend on an option.
 
 ## Changes
 
@@ -79,7 +79,7 @@ Pretty `context` and `stack`, with `timestamp: false`:
 
 7. Metadata `{ context: { a: 1 } }` → exactly `info: msg {"context":{"a":1}}`.
 8. Metadata `{ stack: ["x"] }` → exactly `info: msg {"stack":["x"]}`.
-9. Metadata `{ context: "" }` → exactly `info: msg {"context":""}`.
+9. `child({ context: "" })`, then `info("msg")` → exactly `info: msg`; metadata `{ context: "" }` → the same line.
 10. Metadata `{ context: "api", stack: "trace" }` → exactly `info: [api] msg\ntrace`.
 
 Options of the console logger:
@@ -103,5 +103,5 @@ Low: only log output changes. A collector query on a metadata `timestamp` loses 
 
 1. Cases 11 to 15, which pass on `main`: they pin the options before the change. Commit.
 2. Test-first: cases 1 to 6, failing because the metadata's value is kept; then the adapter, the `LogMetadata` JSDoc and the package `CLAUDE.md`. Commit.
-3. Test-first: cases 7 to 9, failing because the field is missing from the line (case 10 passes on `main` and guards the strings); then the pretty format. Commit.
+3. Test-first: cases 7 and 8, failing because the field is missing from the line (cases 9 and 10 pass on `main` and guard the strings); then the pretty format. Commit.
 4. The backlog item leaves, in a commit of its own.
