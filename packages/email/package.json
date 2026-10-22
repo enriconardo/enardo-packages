@@ -1,6 +1,6 @@
 {
   "name": "@enardo/email",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Email sender contract: the message types and the errors of send.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",

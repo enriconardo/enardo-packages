@@ -37,7 +37,7 @@ The three classes extend `BaseError` of `@enardo/errors`; none extends another. 
 
 | Class | `code` | `details` | When |
 | --- | --- | --- | --- |
-| `InvalidEmailMessageError` | `INVALID_EMAIL_MESSAGE` | `{ field: "to", reason: "empty" }`, `{ field: "to", reason: "address", index }`, `{ field: "from" \| "replyTo", reason: "address" }`, or `{ field: "from", reason: "missing" }` | before anything is sent: an empty `to`, an address the implementation refuses, no sender |
+| `InvalidEmailMessageError` | `INVALID_EMAIL_MESSAGE` | `{ field: "to", reason: "empty" }`, `{ field: "to", reason: "address", index }`, `{ field: "from" \| "replyTo", reason: "address" }`, or `{ field: "from", reason: "missing" }`, or `{ field: "subject" \| "text" \| "html", reason: "type" }` | before anything is sent: an empty `to`, an address the implementation refuses, no sender, a `subject`, `text` or `html` that is not a string |
 | `EmailRecipientsRefusedError` | `EMAIL_RECIPIENTS_REFUSED` | `{ refused }`: `{ index, retryable }` for each refused recipient, in ascending order of `index` | the relay refused one recipient or more; it took the message for the others, if any |
 | `EmailSendFailedError` | `EMAIL_SEND_FAILED` | `{ retryable }` | any other failure: the relay out of reach, the sender or the message refused, an authentication that failed, an answer lost |
 
@@ -95,6 +95,7 @@ async function sendOnce(
 - Hand each `address` to the transport as one address, never inside a string the transport parses: a malformed address can be refused, never turned into other recipients.
 - Encode `name` and `subject` for their headers: neither becomes header syntax, and a line break never starts a header.
 - Reject a call with an empty `to` list.
+- Reject a `subject`, `text` or `html` that is not a string, `html` being absent only when `undefined`.
 - When `from` is absent, use the default sender set when the implementation was created, and reject the call when there is none.
 - Resolve once the relay has accepted the message for every recipient; reject when it refuses the message or any recipient, and when its answer is lost.
 - Reject with the errors of [Errors](#errors), never with the driver's own:

@@ -1,6 +1,6 @@
 # @enardo/email-nodemailer
 
-The nodemailer implementation of `@enardo/email`'s `EmailSender`. The public contract is in [README.md](./README.md); this file holds the rules for changing the package. The reasons behind them, and the probes, are in `docs/specs/2026-10-14-nodemailer-contract-compliance.md`, for the errors of `send` and LMTP in `docs/specs/2026-10-20-email-send-errors.md`, and for the constructor's `transport-options` refusal in `docs/specs/2026-10-21-nodemailer-redact-transport-errors.md`.
+The nodemailer implementation of `@enardo/email`'s `EmailSender`. The public contract is in [README.md](./README.md); this file holds the rules for changing the package. The reasons behind them, and the probes, are in `docs/specs/2026-10-14-nodemailer-contract-compliance.md`, for the errors of `send` and LMTP in `docs/specs/2026-10-20-email-send-errors.md`, for the constructor's `transport-options` refusal in `docs/specs/2026-10-21-nodemailer-redact-transport-errors.md`, and for the refusal of content that is not a string in `docs/specs/2026-10-21-nodemailer-non-string-content.md`.
 
 ## Layout
 
@@ -31,7 +31,7 @@ __tests__/support/               the SMTP server (and its idle servers), header 
 
 ## Sending
 
-- **What the contract rejects, the sender rejects before calling nodemailer**: an empty `to`, a refused address, a missing sender. Nothing is sent, and nothing is logged.
+- **What the contract rejects, the sender rejects before calling nodemailer**: an empty `to`, a refused address, a missing sender, a `subject`, `text` or `html` that is not a string (`typeof`, not a list of shapes: nodemailer reads an object body as a file or a URL, and an object subject with `prepared` as raw headers). Nothing is sent, and nothing is logged.
 - **Every failure becomes an error of `@enardo/email`.** No error of nodemailer's passes through: its fields echo the addresses the server sent back.
 - **A refusal is read from `rejected`**: the result's, which `SMTPTransport` always sets, or the rejection's, when nodemailer rejects with `EENVELOPE` and `RCPT TO` because every recipient was refused. `rejected` decides who was refused: LMTP would put a refusal after the data there alone. Each address of it is matched to every index of `to` with its envelope form (`envelopeFormOf`), which holds only because the grammar of `address.ts` leaves nodemailer nothing to change but the case of the domain: a change to the grammar checks the match again (cases 60 and 67).
 - **Its `retryable` comes from `rejectedErrors`**, matched by `recipient`, never by position: a `4xx` reply. A recipient without a readable entry is not retryable.
@@ -61,4 +61,4 @@ __tests__/support/               the SMTP server (and its idle servers), header 
 - **Nothing sent.** A test that expects nothing to be sent points its sender at an idle server of its own; each file checks once, after its tests, that no idle server saw a connection.
 - **Names** are compared exactly with the ones given, after decoding the header's encoded words: a mailbox sent as a string with an escaped name loses its line breaks, and fails.
 - **Node only.** The package runs nowhere else, so the tests import `node:*` freely and have no browser project.
-- **Entry point only.** The tests import the package from `~/index`, and the contract's errors from `@enardo/email`. Each case carries its number in the spec that wrote it: 1 to 56 in `2026-10-14-nodemailer-contract-compliance.md`, 57 to 68 in `2026-10-20-email-send-errors.md`, 69 on in `2026-10-21-nodemailer-redact-transport-errors.md`.
+- **Entry point only.** The tests import the package from `~/index`, and the contract's errors from `@enardo/email`. Each case carries its number in the spec that wrote it: 1 to 56 in `2026-10-14-nodemailer-contract-compliance.md`, 57 to 68 in `2026-10-20-email-send-errors.md`, 69 to 77 in `2026-10-21-nodemailer-redact-transport-errors.md`, 78 on in `2026-10-21-nodemailer-non-string-content.md`.

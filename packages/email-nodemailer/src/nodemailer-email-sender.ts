@@ -82,7 +82,9 @@ export class NodemailerEmailSender implements EmailSender {
    * SMTP has nowhere to keep them.
    *
    * @throws {InvalidEmailMessageError} (rejects) when `to` is empty, when
-   * an address is refused, or when there is no sender.
+   * an address is refused, when there is no sender, or when `subject`,
+   * `text` or `html` is not a string (`html` is absent only when
+   * `undefined`).
    * @throws {EmailRecipientsRefusedError} (rejects) when the relay refused
    * recipients, some or all.
    * @throws {EmailSendFailedError} (rejects) for any other rejection of
@@ -193,13 +195,30 @@ export class NodemailerEmailSender implements EmailSender {
       throw new InvalidEmailMessageError({ field: "from", reason: "missing" });
     }
 
+    const replyToMailbox =
+      replyTo !== undefined
+        ? toMailbox(replyTo, () => addressRefused("replyTo"))
+        : undefined;
+
+    // nodemailer reads an object body as a file (`path`) or a URL (`href`),
+    // and an object subject with `prepared` as raw header text, whose line
+    // breaks start new headers. Only a string is encoded. The values checked
+    // here are the ones passed on.
+    const content = { subject, text, html };
+    for (const field of ["subject", "text", "html"] as const) {
+      const value: unknown = content[field];
+      if (
+        typeof value !== "string" &&
+        !(field === "html" && value === undefined)
+      ) {
+        throw new InvalidEmailMessageError({ field, reason: "type" });
+      }
+    }
+
     return {
       to: mailboxes,
       from: sender,
-      replyTo:
-        replyTo !== undefined
-          ? toMailbox(replyTo, () => addressRefused("replyTo"))
-          : undefined,
+      replyTo: replyToMailbox,
       subject,
       text,
       html,
