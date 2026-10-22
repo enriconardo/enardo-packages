@@ -44,11 +44,11 @@ Taken with the user at intake:
   - keeping the value under another key: an exception that `level` and `message` do not have, for no observed need;
   - documenting the current behavior: the time of an entry stays untrustworthy.
 - **`context` and `stack` stay ordinary metadata fields.** The pretty format prints a non-empty string `context` as its prefix and a string `stack` on the lines after the entry, as today; an empty `context` prints nothing, as today, since `child({ context: "" })` means no context; any other value of either goes in its metadata suffix, as the JSON format keeps it. Not taken: reserving `context` for `child()`, since it is data the caller may set.
-- **The release** awaits the user (*Open questions*). With `timestamp: true` the drop fixes a defect. With `timestamp: false` it removes documented behavior: the 1.0.0 JSDoc of `LogMetadata` names only `level` and `message` as dropped, so a metadata `timestamp` reaches the JSON entry today, as documented.
+- **A patch release**, chosen by the user: no consumer passes a metadata `timestamp` (*Probes*). Not taken: a new major, which the drop with `timestamp: false` would call for, since the 1.0.0 JSDoc of `LogMetadata` names only `level` and `message` as dropped; dropping the field only when the logger stamps the entry, which makes the rule depend on an option.
 
 ## Open questions
 
-- **Patch or major.** A new major is the repo's rule for a breaking change (ADR 0004). A patch would rest on no consumer passing the field (*Probes*). Not taken: dropping the field only when the logger stamps the entry, which keeps it a pure fix but makes the rule depend on an option.
+None.
 
 ## Changes
 
