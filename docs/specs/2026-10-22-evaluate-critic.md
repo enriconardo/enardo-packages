@@ -13,7 +13,7 @@ branch: chore/repo/evaluate-critic
 
 The queued backlog item `chore/repo/evaluate-critic`, due once `docs/critic-runs.md` logs five L specs (ADR 0007, point 5): count the `critic`'s runs by trigger, remove each trigger none of whose runs changed a decision, and leave a trigger with no run to the user. The log now has five L specs.
 
-The log exists for this count. Once it is done, its header points to a backlog item that has left, and nothing reads the rows it keeps getting.
+The log exists for this count. Once it is done, its header points to a backlog item that has left, and no rule reads the rows it keeps getting; ADR 0008 drew evidence from one.
 
 ## Probes
 
@@ -49,7 +49,7 @@ None.
 
 ## Changes
 
-- `docs/adr/0009-critic-runs-no-longer-logged.md` (new): *Context*, the count and its table, with the cost estimate; *Decision*, the points above; *Alternatives considered*, the three not taken. It supersedes ADR 0007's point 5. ADR 0007's status: `accepted; point 5 superseded by 0009`. `docs/adr/README.md`: the index row of 0009, and 0007's status.
+- `docs/adr/0009-critic-runs-no-longer-logged.md` (new, written with this spec so that the user reads it at checkpoint 1: no critic run follows it): it supersedes ADR 0007's point 5. ADR 0007's status: `accepted; point 5 superseded by 0009`. `docs/adr/README.md`: the index row of 0009, and 0007's status.
 - `.claude/skills/spec/SKILL.md`, *The critic*: the bullet "Log the run" goes, and so does the sentence "The row goes on the current task's branch, whether the proposal is kept or dropped; with no task, in an S task of its own, right after the user's answers."
 - `docs/critic-runs.md`: deleted.
 - `docs/backlog.md`, *To evaluate*: an item on the M trigger's wording. "a decision comes from a discussion with the user" covers, read as written, every M spec with a decision taken with the user, as the template defines *Decisions*; the main agent, whom ADR 0007 deems unable to tell when it has drifted, decides which qualify. Options: a condition it does not judge, such as the user saying at intake whether the spec gets a run, or every M spec with a decision marked as the user's. From the `critic`'s run on this spec (2026-10-22).
@@ -66,7 +66,7 @@ None: the change is to docs only. `pnpm verify` runs the context-size check, whi
 ## Plan
 
 1. This spec (committed by the main agent).
-2. ADR 0009, ADR 0007's status, the ADR index.
+2. ADR 0009, ADR 0007's status, the ADR index (committed by the main agent, before checkpoint 1).
 3. The `spec` skill's two sentences, and the deletion of `docs/critic-runs.md`.
 4. The *To evaluate* item on the M trigger.
 5. The removal of `chore/repo/evaluate-critic` from the backlog.
