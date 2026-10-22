@@ -52,7 +52,7 @@ Taken with the user:
 - **Tests in browsers too**, through the presets of `feature/repo/runtime-neutral-presets`; a README with the one-file pattern and the `VITE_` prefix as the boundary of secrets; a package `CLAUDE.md`.
 - **`isolatedDeclarations` in the runtime overlays** (`runtime-browser.json`, `runtime-node.json` of `@enardo/typescript-config`): the option is a check that every export's type is written out, so an inferred type cannot name what only one runtime's types declare (`BodyInit` of the DOM, `NodeJS.Timeout` of Node, *Probes*). The runtime programs check `src/` alone, so tests are not held to it. Once the types are written out, the build's emitter writes the same names (*Probes*): `tsconfig.json` no longer needs it. `@enardo/http-client` drops its local override, and `@enardo/env` never adds one. Taken with the user after the critic's runs: the intake's choice of no option, then a local override, then this; the move was the one `feature/repo/runtime-neutral-presets` left to this task.
 
-Taken here, for the critic and the user:
+Taken here, approved by the user at checkpoint 1:
 
 - **The booleans of 1.x stay**: `true`, `1`, `yes` and `false`, `0`, `no`, case-insensitive, with no whitespace.
 - **A string is returned as it is**: `string` does not trim `" "`.
@@ -60,7 +60,7 @@ Taken here, for the critic and the user:
 
 ## Open questions
 
-- None beyond the three decisions taken here.
+None.
 
 ## Changes
 
