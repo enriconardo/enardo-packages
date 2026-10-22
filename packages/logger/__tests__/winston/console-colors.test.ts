@@ -9,17 +9,15 @@ const ANSI = new RegExp(ESC);
 const stdout = process.stdout as unknown as Record<string, unknown>;
 const STDOUT_KEYS = ["isTTY", "hasColors"] as const;
 
-/** Sets `isTTY` on the real `process.stdout`; `undefined` leaves it off. */
+/** Sets `isTTY` on the real `process.stdout`; `undefined` reads as unset. */
 function setTTY(isTTY: boolean | undefined): void {
-  Reflect.deleteProperty(stdout, "isTTY");
-  if (isTTY !== undefined) {
-    Object.defineProperty(stdout, "isTTY", {
-      value: isTTY,
-      configurable: true,
-      writable: true,
-      enumerable: true,
-    });
-  }
+  // An own `undefined` hides the prototype's `true` of a real terminal.
+  Object.defineProperty(stdout, "isTTY", {
+    value: isTTY,
+    configurable: true,
+    writable: true,
+    enumerable: true,
+  });
 }
 
 /**
@@ -143,7 +141,12 @@ describe("console logger colors", () => {
 
     createLogger("console", { format: "json", colors: true }).info("hello");
 
-    expectPlain(output.raw()[0], "hello");
+    // json writes an escape as the text `\u001b`, which `expectPlain` cannot
+    // see: the parsed fields must be the plain ones.
+    expect(JSON.parse(output.raw()[0] ?? "")).toMatchObject({
+      level: "info",
+      message: "hello",
+    });
   });
 
   it("makes the choice when the logger is created, for its children too", () => {
