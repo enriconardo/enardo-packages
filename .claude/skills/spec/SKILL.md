@@ -84,6 +84,12 @@ Each fact the plan relies on is probed in the dev container before the spec stat
 - **Tools and existing code.** How a tool behaves (an API, a flag, what a build emits), and how the existing code behaves wherever the spec describes it. A manual check meant to show unchanged behavior runs on `main` first.
 - **A fresh build.** A probe through a package's `dist/` first rebuilds it and its dependencies, with `pnpm exec turbo run build --filter=<package>... --force`, and the spec names that command: a `dist/` imports its dependencies' `dist/`.
 - **Where a dependency is declared.** Why it sits where it does is a claim: remove it in a throwaway clone and see what breaks, including an app that loads the package.
+- **A package outside the lockfile** is probed in a throwaway container, never in the dev container, where an `npm i` can move files of `node_modules`. It mounts the repo read-only, to read built `dist/` files:
+  ```
+  docker run --rm -v "$PWD":/workspaces/enardo-packages:ro -v en-probe:/probe -w /probe node:24-bookworm \
+    sh -c 'npm init -y && npm i <packages>'    # more runs: same mounts
+  docker volume rm en-probe                   # when done
+  ```
 - **A library's documentation is not a probe.** The cases a library produces (its errors, their types or statuses, its options) come from its installed source, or from running them.
 - **A type declaration is not a probe of a runtime.** What a runtime defines (its globals, its modules) is enumerated in that runtime, every one, not a sample.
 - **Advisories.** The version that closes a module's advisories is read from the `patched_versions` of every one of them (`pnpm audit --json`), not from one. The version an upgrade moves to is audited itself, with `npm audit` on a lockfile of that version in a throwaway container: it can bring advisories of its own.
@@ -105,7 +111,7 @@ Each fact the plan relies on is probed in the dev container before the spec stat
 
 ## The critic
 
-When step 2 of the root `CLAUDE.md`'s *Workflow* calls for the `critic`, after the spec's commit:
+The `critic` runs after the spec's commit on an L spec, or an M spec whose *Why* says it or a decision comes from a discussion with the user; again after the user changes a decision it judged:
 
 - **Its input** is the spec's path; on a re-run, after the user changed a decision it judged, also the commit of the version it judged. Nothing else: no summary of the discussion, no argument.
 - **Weigh the report yourself**, and apply what you accept to the spec, in a commit of its own. An objection to a decision the user took goes to the user, with your view: never undo that decision alone. After checkpoint 1, so does any change you accept, since the spec then changes only with the user's approval.

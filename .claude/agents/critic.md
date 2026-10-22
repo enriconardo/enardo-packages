@@ -1,6 +1,6 @@
 ---
 name: critic
-description: Independent critic of a spec, or of a proposal in its form, run where the root `CLAUDE.md`'s *Workflow* says (step 2) or when the user asks. It judges whether the problem has been seen and whether the decisions are the right ones, without the discussion that produced them. Give it the path, and on a re-run the version it judged, nothing else: a summary of the discussion carries the pull it is there to catch. Weigh its report as the `spec` skill says (*The critic*). Read-only.
+description: Independent critic of a spec, or of a proposal in its form, run where the `spec` skill says (*The critic*) or when the user asks. It judges whether the problem has been seen and whether the decisions are the right ones, without the discussion that produced them. Give it the path, and on a re-run the version it judged, nothing else: a summary of the discussion carries the pull it is there to catch. Weigh its report as the `spec` skill says (*The critic*). Read-only.
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: xhigh

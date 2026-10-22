@@ -63,7 +63,7 @@ The assessment stays on the package. Its consumers and its adapters are read to 
 
 ## 4. Probes
 
-Every bug, and every claim about how the code or a tool behaves, is probed, following the root `CLAUDE.md`: commands through `./dev.sh exec`, never `pnpm` on the host; a package outside the lockfile in a throwaway container; a probe through `dist/` after `./dev.sh exec pnpm exec turbo run build --filter=<package>... --force`; a wrong implementation on a copy outside the repo, never in the working tree. A probe that writes nothing is best: `./dev.sh exec node --input-type=module -e '…'` importing a `dist/index.mjs` by its path in the container, under `/workspaces/enardo-packages`. A probe that looks for processes by name, to find a handle left open, follows the rule in `.claude/agents/reviewer.md` (*Rules*): it must not match itself.
+Every bug, and every claim about how the code or a tool behaves, is probed, following the root `CLAUDE.md` and the `spec` skill (*Probing*): commands through `./dev.sh exec`, never `pnpm` on the host; a package outside the lockfile in a throwaway container; a probe through `dist/` after `./dev.sh exec pnpm exec turbo run build --filter=<package>... --force`; a wrong implementation on a copy outside the repo, never in the working tree. A probe that writes nothing is best: `./dev.sh exec node --input-type=module -e '…'` importing a `dist/index.mjs` by its path in the container, under `/workspaces/enardo-packages`. A probe that looks for processes by name, to find a handle left open, follows the rule in `.claude/agents/reviewer.md` (*Rules*): it must not match itself.
 
 What you could not probe is marked *not probed*, never stated as fact.
 

@@ -24,6 +24,7 @@ The spec's front matter names `implementer: <model>/<effort>`. Compare its model
 - **A test-first step:** launch the `test-author` with the spec's path and the step's cases, without `model` or `effort`, which its definition sets. It runs in the background: end the turn with one line saying so, and write the production code only after its report. A test of its suite changes only where it is wrong, with the reason in the commit body.
 - **The code**, in small steps, each green and committed. A public API change carries its README in the same commit, written from the spec's decisions.
 - **Wiring** may be tested after.
+- **A wrong implementation**, to see a test fail, is tried on a copy of the package outside the repo, never by editing the working tree and reverting it: `git checkout` and `git stash` take uncommitted work with them.
 
 ## 3. Verify and review
 

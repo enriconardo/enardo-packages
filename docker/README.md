@@ -5,6 +5,7 @@ The dev container, the test browsers' image, and the compose stack that runs the
 ## The dev image (`dev/`)
 
 - `node:24-bookworm`, plus pnpm and shellcheck; nothing else is added.
+- The pnpm store, `.pnpm-store/`, sits in the repo beside `node_modules`, so that packages are hard-linked: deleting it means redownloading everything.
 - git comes with that base and must stay: turbo's `--filter=...[main]` resolves the affected packages by diffing against git, inside the container.
 - Nothing sensitive is mounted: no Docker socket (a container that can reach the host daemon is root on the host), no SSH key, no credentials. Only `~/.gitconfig`, read-only. Pushing and authenticating happen on the host.
 
