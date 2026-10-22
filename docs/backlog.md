@@ -18,6 +18,7 @@ In the order approved.
 
 ## To evaluate
 
+- **The M trigger of the `critic` is worded for the main agent to judge.** "A decision comes from a discussion with the user" covers, read as written, every M spec with a decision taken with the user, as the template defines *Decisions*; the main agent, whom ADR 0007 deems unable to tell when it has drifted, decides which qualify. Options: a condition it does not judge, such as the user saying at intake whether the spec gets a run, or every M spec with a decision marked as the user's. From the `critic`'s run on the spec of `chore/repo/evaluate-critic` (2026-10-22).
 - **The `node-app` and `library` presets set no `lib`**, so Node code sees the DOM types: in a Node app, `document.title` compiles. `fix/http/runtime-neutral-types` removed what blocked tightening them: `@enardo/http-client`'s body type no longer needs the DOM lib. Without the DOM, the `fetch` of npm `undici` would also fit `@enardo/http-client`'s `FetchImpl` with no cast (probed in the spec of `feature/http/client-errors`). From the architectural review of `@enardo/http` (2026-09-25).
   - Since the split of `en-monorepo` (`chore/repo/split-repos`, 2026-10-16), Cambusa's apps get a fixed preset when they install its new version.
 - **Runtime checks for `@enardo/errors` and `@enardo/http-status`.**
