@@ -70,7 +70,7 @@ The presets are defaults. A package may override an option in its own `tsconfig.
 }
 ```
 
-- An override needed by two or more packages moves into a preset.
+- An override whose value is a list or an object, or that sets several options, moves into a preset when a second package needs it; a scalar is repeated in each package, with its comment, unless it fits every package on a preset.
 - When a preset gets stricter, a package may keep the old behavior through a temporary override instead of blocking the change.
 - `include` in a package replaces the preset's `include` entirely: list `src/**/*` again when adding files (see `web`).
 
