@@ -35,13 +35,13 @@ In the dev container (Node 24.21.0, turbo 2.10.12, vitest 4.1.11):
 
 Taken with the user at intake:
 
-1. **The browser project goes in a new package, `@enardo/vitest-config`**, as the spec of `chore/repo/browser-tests` foresaw (its decision 10), and not in a root file: turbo sees no root file as a dependency of a package (ADR 0001), and a package is judged as if published alone, where a relative import out of it resolves to nothing. It overturns what ADR 0001 left out, so ADR 0010 records it, drafted with this spec.
+1. **The browser project goes in a new package, `@enardo/vitest-config`**, as the spec of `chore/repo/browser-tests` foresaw (its decision 10), and not in a root file: a package is judged as if published alone, where an import of a file outside it resolves to nothing. Turbo would see a root file only through `globalDependencies` (as `docker/playwright/Dockerfile` is), which re-checks every package on each change. It overturns what ADR 0001 left out, so ADR 0010 records it, drafted with this spec.
 2. **The runtime typechecks go in `@enardo/typescript-config`**, as two presets laid over a package's own `tsconfig.json` through an `extends` array, so the package keeps its overrides.
 
 Taken in this spec:
 
 3. **`@enardo/eslint-config` gets a preset, `runtimeNeutral(rootDir)`**: `node(rootDir)`, then the `src/**/*.ts` block of `http-client`'s `eslint.config.js` (imports of `node:*`, of the builtin modules and of `undici`; globals of one runtime, and those Node 24 lacks, also through `globalThis`). The list of the globals Node 24 lacks moves with it. Since a later entry replaces a rule's options (*Probes*), the preset holds every restriction: `undici` gets the generic Node-only message, and `http-client`'s *Node transport settings go through `fetchImpl`* stays in its `CLAUDE.md`. Not taken: an option for extra restrictions, which no package needs today.
-4. **`@enardo/vitest-config` carries `@vitest/browser-playwright` and `playwright`** as `dependencies` (`catalog:`), and `vitest` as a peer, as `@enardo/eslint-config` carries the lint plugins and peers `eslint`: a package that opts in adds one devDependency. Not taken: both as peers, which every package would list for code it never imports.
+4. **`@enardo/vitest-config` carries `@vitest/browser-playwright` and `playwright`** as `dependencies` (`catalog:`), and `vitest` as a peer (`catalog:` too, which `pack` turns into `^4.1.11`; `@vitest/browser-playwright` peers exactly its own vitest version, which the catalog keeps the same in this repo, and case 9 checks that one vitest runs), as `@enardo/eslint-config` carries the lint plugins and peers `eslint`: a package that opts in adds one devDependency. Not taken: both as peers, which every package would list for code it never imports.
 5. **`browserProject()` checks `PLAYWRIGHT_WS_ENDPOINT` when called**, with the message `http-client`'s config throws today, so a package's config fails at load outside the dev container, as now.
 6. **Versions**: `@enardo/eslint-config` and `@enardo/typescript-config` 1.1.0 (a new preset each), `@enardo/vitest-config` 1.0.0, like every other package's first version. `@enardo/http-client` keeps 1.0.0: its `dist/` and its `dependencies` do not change.
 
@@ -53,7 +53,7 @@ None.
 
 `packages/vitest-config` (new): `package.json` (`files: ["index.js"]`, scripts `lint`, `lint:fix`, `format`, `format:check`, as `eslint-config`), `eslint.config.js` as `eslint-config`'s, `index.js` exporting `browserProject()` with JSDoc and the comments `http-client`'s config has today, `README.md` (the preset, usage, `*.node.test.ts`, the `playwright` service of `docker/README.md`).
 
-`packages/typescript-config`: `runtime-browser.json` (`lib` ES2022, DOM, DOM.Iterable; `types: []`; `include` `${configDir}/src/**/*`) and `runtime-node.json` (`lib` ES2022; `types: ["node"]`; the same `include`), in `exports`; the README: both presets, that they are laid over a package's own `tsconfig.json` and are no base of their own, and the `typecheck` script that runs them.
+`packages/typescript-config`: `runtime-browser.json` (`lib` ES2022, DOM, DOM.Iterable; `types: []`; `include` `${configDir}/src/**/*`) and `runtime-node.json` (`lib` ES2022; `types: ["node"]`; the same `include`), in `exports`; the README: both presets, that they are laid over a package's own `tsconfig.json` and are no base of their own, the `typecheck` script that runs them, what they miss (all Node globals hidden from the browser program by a `/// <reference types="node" />`; the names `@types/node` declares that Node 24 lacks), and that they check `src/` as written, not the declarations the build emits: a package exporting types adds `isolatedDeclarations` to its own `tsconfig.json`, as `http-client` does.
 
 `packages/eslint-config`: `runtimeNeutral(rootDir)` in `index.js`, with JSDoc and the comment on `missingOnNode`; the README: the preset in the table, what it restricts and misses (the table of `http-client`'s *Checks*, for the lint rows), and to check `missingOnNode` again when Node, `globals` or `@types/node` change.
 
@@ -62,11 +62,11 @@ None.
 - `tsconfig.browser.json`, `tsconfig.node.json`: an `extends` array, `./tsconfig.json` then the preset, with their one-line comments;
 - `eslint.config.js`: `export default runtimeNeutral(import.meta.dirname);`;
 - `package.json`: `@enardo/vitest-config` (`workspace:^`) in, `@vitest/browser-playwright`, `playwright` and `globals` out of `devDependencies`;
-- `CLAUDE.md`, *Checks*: the checks come from the three presets; the `undici` message line; the opt-in paragraph says how a package opts in (the presets, `*.node.test.ts`, `__tests__/support/`), the list of globals points to `@enardo/eslint-config`'s README.
+- `CLAUDE.md`, *Checks*: the checks come from the three presets; the `undici` message line; the opt-in paragraph says how a package opts in (the presets, `isolatedDeclarations` as a local override until a second package needs it, `*.node.test.ts`, `__tests__/support/`), the list of globals points to `@enardo/eslint-config`'s README.
 
 Root `CLAUDE.md`: *Layout* names `packages/vitest-config`; *Testing* points to the presets for opting in, `http-client` staying the example.
 
-`docs/backlog.md`: the item *Runtime checks for `@enardo/errors` and `@enardo/http-status`* says that the presets exist (no move left for them to make); the item *`@types/node` is ahead of the runtime* names `runtimeNeutral`'s list instead of `http-client`'s `missingOnNode`.
+`docs/backlog.md`: the item *Runtime checks for `@enardo/errors` and `@enardo/http-status`* says that the presets exist, and that the move left is `isolatedDeclarations`, for the second package that needs it; the item *A `/// <reference types="node" />` in `@enardo/http-client`'s `src/`…* says that the blind spot reaches every package on `runtime-browser.json`, and that its rule goes in `runtimeNeutral`; the item *`@types/node` is ahead of the runtime* names `runtimeNeutral`'s list instead of `http-client`'s `missingOnNode`.
 
 `docs/adr/`: `0010-a-vitest-preset-package.md`, accepted at checkpoint 1; ADR 0001's status names it; the index.
 
@@ -84,11 +84,13 @@ The config packages have no test runner: each case is a check run in the dev con
 6. `PLAYWRIGHT_WS_ENDPOINT= pnpm --filter @enardo/http-client exec vitest run` → fails at config load with the message of decision 5.
 7. `docker/playwright/check-version.sh` passes, and `pnpm-lock.yaml` installs one `playwright` version.
 8. `pnpm verify:all` → green.
+9. After `pnpm install`: `ls node_modules/.pnpm | grep '^vitest@'` lists one entry, and `vitest` resolves to the same real path from `packages/http-client` and from `packages/vitest-config`.
 
 ## Risks
 
 - **A preset that checks less than the files it replaces**: the browser project on fewer files, a global or an import no longer restricted, a typecheck over fewer files. Cases 1 to 4 compare with `main`.
 - **A preset change that re-runs nothing**: case 5.
+- **Two copies of vitest in one run**, if `http-client`'s vitest resolves without the provider peer and the preset's with it: case 9.
 
 ## Out of scope
 
@@ -101,7 +103,7 @@ The config packages have no test runner: each case is a check run in the dev con
 
 Not test-first: the config packages have no test runner, and no behavior a consumer sees changes. Each step ends with its cases, run against `main`'s output, and `pnpm verify`.
 
-1. `@enardo/vitest-config`, and `http-client`'s `vitest.config.ts` and `package.json` on it; `pnpm install`. Cases 1, 6, 7, and 5 for `#test`.
+1. `@enardo/vitest-config`, and `http-client`'s `vitest.config.ts` and `package.json` on it; `pnpm install`. Cases 1, 6, 7, 9, and 5 for `#test`.
 2. The runtime presets of `@enardo/typescript-config`, and `http-client`'s two programs on them. Cases 3, 4 (typecheck), and 5 for `#typecheck`.
 3. `runtimeNeutral` in `@enardo/eslint-config`, and `http-client`'s `eslint.config.js` on it; `globals` out of its `devDependencies`. Cases 2, 4 (lint), and 5 for `#lint`.
 4. The docs: the three READMEs, `http-client`'s `CLAUDE.md`, the root `CLAUDE.md`, the backlog, ADR 0001's status and the index.

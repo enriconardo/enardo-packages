@@ -25,5 +25,5 @@ This overturns ADR 0001's *A third package for vitest configs*, for the browser 
 
 ## Alternatives considered
 
-- **A root file** (`vitest.browser.ts`): turbo sees no root file as a dependency of a package (ADR 0001), and a package judged as if published alone could not import it.
+- **A root file** (`vitest.browser.ts`): a package judged as if published alone could not import it. Turbo would see it only through `globalDependencies`, which re-checks every package on each change.
 - **Keeping a copy in each package**: the drift ADR 0001 was written against, and the rule of the spec of `chore/repo/browser-tests` against the second copy.
