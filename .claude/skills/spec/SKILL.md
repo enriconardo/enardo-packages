@@ -111,6 +111,8 @@ Each fact the plan relies on is probed in the dev container before the spec stat
 
 ## The critic
 
+An ADR the task calls for is drafted with the spec, as `proposed`, in the spec's commit, so that the critic judges it too.
+
 The `critic` runs after the spec's commit on an L spec, or an M spec whose *Why* says it or a decision comes from a discussion with the user; again after the user changes a decision it judged:
 
 - **Its input** is the spec's path; on a re-run, after the user changed a decision it judged, also the commit of the version it judged. Nothing else: no summary of the discussion, no argument.
