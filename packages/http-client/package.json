@@ -37,11 +37,10 @@
   "devDependencies": {
     "@enardo/eslint-config": "workspace:^",
     "@enardo/typescript-config": "workspace:^",
+    "@enardo/vitest-config": "workspace:^",
     "@types/node": "catalog:",
-    "@vitest/browser-playwright": "catalog:",
     "eslint": "catalog:",
     "globals": "catalog:",
-    "playwright": "catalog:",
     "prettier": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

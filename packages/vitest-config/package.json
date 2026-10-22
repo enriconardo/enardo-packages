@@ -1,0 +1,37 @@
+{
+  "name": "@enardo/vitest-config",
+  "version": "1.0.0",
+  "description": "Shared vitest presets for the monorepo: the browser test project",
+  "author": "Enrico Nardo <hello@enriconardo.com>",
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "registry": "https://npm.enriconardo.com/"
+  },
+  "type": "module",
+  "files": [
+    "index.js"
+  ],
+  "exports": {
+    ".": "./index.js"
+  },
+  "scripts": {
+    "lint": "eslint index.js",
+    "lint:fix": "eslint index.js --fix",
+    "format": "prettier --write index.js",
+    "format:check": "prettier --check index.js"
+  },
+  "dependencies": {
+    "@vitest/browser-playwright": "catalog:",
+    "playwright": "catalog:"
+  },
+  "peerDependencies": {
+    "vitest": "catalog:"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "eslint": "catalog:",
+    "globals": "catalog:",
+    "prettier": "catalog:",
+    "vitest": "catalog:"
+  }
+}
