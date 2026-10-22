@@ -27,7 +27,15 @@ export interface LoggerBaseOptions {
 }
 
 export interface ConsoleLoggerOptions extends LoggerBaseOptions {
+  /** `pretty` is the default. */
   format?: "pretty" | "json";
+  /**
+   * Whether the `pretty` format colors its lines. `true` always colors, `false`
+   * never does, a terminal included. Absent, it colors only when stdout is a
+   * terminal. Decided once, when the logger is created. The environment
+   * (`FORCE_COLOR`, `NO_COLOR`) plays no part. `json` never colors.
+   */
+  colors?: boolean;
   timestamp?: boolean;
 }
 

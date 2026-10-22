@@ -30,10 +30,18 @@ function safeStringify(value: unknown): string {
   }
 }
 
+// Winston's colorize() cannot be toggled: loading it sets the global
+// `colors.enabled = true`, so the choice is whether to include it.
+function shouldColorize(options: ConsoleLoggerOptions): boolean {
+  return options.colors ?? process.stdout.isTTY === true;
+}
+
 function createPrettyFormat(options: ConsoleLoggerOptions) {
   const includeTimestamp = options.timestamp ?? DEFAULT_TIMESTAMP;
   const formats = [
-    winston.format.colorize({ all: true }),
+    ...(shouldColorize(options)
+      ? [winston.format.colorize({ all: true })]
+      : []),
     winston.format.errors({ stack: true }),
     loggableMetadata(),
   ];
