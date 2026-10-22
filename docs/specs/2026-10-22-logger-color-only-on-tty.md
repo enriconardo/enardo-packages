@@ -11,7 +11,7 @@ branch: fix/logger/color-only-on-tty
 
 ## Why
 
-The console logger colors its `pretty` output (the default format) wherever it writes: through a pipe or into a file, and with `NO_COLOR` set. A server that keeps the defaults, as Cambusa's api-server does, sends ANSI escape codes to its log collector. The root cause: `createPrettyFormat` always puts `winston.format.colorize({ all: true })` first, and `logform/colorize` sets the global `colors.enabled = true` when it loads, so `@colors/colors`' own TTY and environment checks never apply.
+The console logger colors its `pretty` output (the default format) wherever it writes: through a pipe or into a file, and with `NO_COLOR` set. A server that keeps the defaults, as Cambusa's api-server does, would send ANSI escape codes to its log collector; Cambusa has no deployment yet, so none receives them today. The root cause: `createPrettyFormat` always puts `winston.format.colorize({ all: true })` first, and `logform/colorize` sets the global `colors.enabled = true` when it loads, so `@colors/colors`' own TTY and environment checks never apply.
 
 From the backlog's *Queued* item, out of the architectural review of `@enardo/logger` (2026-10-22).
 
@@ -76,7 +76,7 @@ Through `createLogger("console", …)`, reading `captureConsoleLines().raw()`. E
 
 ## Risks
 
-`medium`: a consumer reading a terminal through a tool that is no TTY (a `docker logs` without `-t`, a CI log) loses its colors. `FORCE_COLOR=1` brings them back, and the JSDoc says so. Whether Cambusa's `pnpm dev` (`turbo run dev`, then `tsx watch`) gives the api-server a terminal is not probed: if not, its dev logs lose their colors, and `FORCE_COLOR=1` in its dev script, in Cambusa's repo, restores them.
+`medium`: a consumer reading a terminal through a tool that is no TTY (a container run without a TTY, a CI log) loses its colors. `FORCE_COLOR=1` brings them back, and the JSDoc says so. The reverse stays: a server in a container with a TTY (`docker run -t`, `tty: true`, as Cambusa's dev service has) still colors into its log driver; `NO_COLOR=1` is the remedy there. Whether Cambusa's `pnpm dev` (`turbo run dev`, then `tsx watch`) gives the api-server a terminal is not probed, nor whether turbo sets `FORCE_COLOR` for a task: if neither, its dev logs lose their colors, and `FORCE_COLOR=1` in its dev script, in Cambusa's repo, restores them.
 
 ## Out of scope
 
