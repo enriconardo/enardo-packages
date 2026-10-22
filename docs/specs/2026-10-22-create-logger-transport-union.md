@@ -37,7 +37,7 @@ Approved by the user at intake:
 
 ## Open questions
 
-- **The version.** The change is additive, a minor. 1.1.0, bumped by `fix/logger/color-only-on-tty`, is not published yet as far as this session can tell (the registry asks for a login): if so, it ships in 1.1.0 with no bump; if 1.1.0 is published, 1.2.0. To confirm at checkpoint 1.
+- **The version.** Settled by the user at checkpoint 2: 1.1.0 is not published, so the change ships in it with no bump. Plan step 2 does not apply.
 
 ## Changes
 
