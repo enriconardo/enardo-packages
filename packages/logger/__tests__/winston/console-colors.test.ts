@@ -6,21 +6,12 @@ import { captureConsoleLines } from "../support/capture-console";
 const ESC = "\\u001b\\[[0-9;]*m";
 const ANSI = new RegExp(ESC);
 
-interface TerminalState {
-  /** `undefined` leaves the property off `process.stdout`. */
-  isTTY?: boolean;
-  /** `undefined` leaves the method off `process.stdout`. */
-  hasColors?: boolean;
-}
-
 const stdout = process.stdout as unknown as Record<string, unknown>;
 const STDOUT_KEYS = ["isTTY", "hasColors"] as const;
 
-/** Sets `isTTY` and `hasColors` on the real `process.stdout`. */
-function setTerminal({ isTTY, hasColors }: TerminalState): void {
-  for (const key of STDOUT_KEYS) {
-    Reflect.deleteProperty(stdout, key);
-  }
+/** Sets `isTTY` on the real `process.stdout`; `undefined` leaves it off. */
+function setTTY(isTTY: boolean | undefined): void {
+  Reflect.deleteProperty(stdout, "isTTY");
   if (isTTY !== undefined) {
     Object.defineProperty(stdout, "isTTY", {
       value: isTTY,
@@ -29,13 +20,34 @@ function setTerminal({ isTTY, hasColors }: TerminalState): void {
       enumerable: true,
     });
   }
-  if (hasColors !== undefined) {
-    Object.defineProperty(stdout, "hasColors", {
-      value: () => hasColors,
-      configurable: true,
-      writable: true,
-      enumerable: true,
-    });
+}
+
+/**
+ * Makes `process.stdout.hasColors()` answer `hasColors`. The logger must not
+ * ask it: the colored cases set it to `false` so that a logger that does
+ * shows it.
+ */
+function setHasColors(hasColors: boolean): void {
+  Object.defineProperty(stdout, "hasColors", {
+    value: () => hasColors,
+    configurable: true,
+    writable: true,
+    enumerable: true,
+  });
+}
+
+/**
+ * Sets the environment against the expected outcome: the logger reads no
+ * environment variables, so one that does writes the wrong line.
+ */
+function stubEnvAgainst(expected: "colored" | "plain"): void {
+  if (expected === "colored") {
+    vi.stubEnv("NO_COLOR", "1");
+    vi.stubEnv("FORCE_COLOR", "0");
+    setHasColors(false);
+  } else {
+    vi.stubEnv("FORCE_COLOR", "1");
+    setHasColors(true);
   }
 }
 
@@ -60,10 +72,10 @@ describe("console logger colors", () => {
   beforeEach(() => {
     for (const key of STDOUT_KEYS) {
       saved.set(key, Object.getOwnPropertyDescriptor(stdout, key));
+      Reflect.deleteProperty(stdout, key);
     }
     vi.stubEnv("FORCE_COLOR", undefined);
     vi.stubEnv("NO_COLOR", undefined);
-    setTerminal({});
   });
 
   afterEach(() => {
@@ -78,39 +90,28 @@ describe("console logger colors", () => {
     saved.clear();
   });
 
-  describe("without FORCE_COLOR", () => {
-    it("writes plain lines when stdout is no TTY", () => {
-      createLogger("console").info("hello");
-
-      expectPlain(output.raw()[0], "hello");
-    });
-
-    it("writes plain lines when stdout is no TTY and NO_COLOR is set", () => {
-      vi.stubEnv("NO_COLOR", "1");
+  describe("with default options", () => {
+    it("writes plain lines when stdout's isTTY is unset", () => {
+      setTTY(undefined);
+      stubEnvAgainst("plain");
 
       createLogger("console").info("hello");
 
       expectPlain(output.raw()[0], "hello");
     });
 
-    it("colors the level and the message on a TTY that has colors", () => {
-      setTerminal({ isTTY: true, hasColors: true });
+    it("colors the level and the message when stdout is a TTY", () => {
+      setTTY(true);
+      stubEnvAgainst("colored");
 
       createLogger("console").info("hello");
 
       expectColored(output.raw()[0], "hello");
     });
 
-    it("asks hasColors(), and writes plain lines on a TTY without colors", () => {
-      setTerminal({ isTTY: true, hasColors: false });
-
-      createLogger("console").info("hello");
-
-      expectPlain(output.raw()[0], "hello");
-    });
-
-    it("checks isTTY, and writes plain lines when it is false", () => {
-      setTerminal({ isTTY: false, hasColors: true });
+    it("writes plain lines when stdout's isTTY is false", () => {
+      setTTY(false);
+      stubEnvAgainst("plain");
 
       createLogger("console").info("hello");
 
@@ -118,53 +119,38 @@ describe("console logger colors", () => {
     });
   });
 
-  describe("with FORCE_COLOR", () => {
-    it.each(["", "1", "2", "3", "true"])(
-      "colors when FORCE_COLOR is %j, off a TTY",
-      (value) => {
-        vi.stubEnv("FORCE_COLOR", value);
+  it("colors with colors: true, off a TTY", () => {
+    setTTY(undefined);
+    stubEnvAgainst("colored");
 
-        createLogger("console").info("hello");
+    createLogger("console", { colors: true }).info("hello");
 
-        expectColored(output.raw()[0], "hello");
-      },
-    );
-
-    it.each(["0", "false", "yes"])(
-      "writes plain lines when FORCE_COLOR is %j, even on a TTY with colors",
-      (value) => {
-        vi.stubEnv("FORCE_COLOR", value);
-        setTerminal({ isTTY: true, hasColors: true });
-
-        createLogger("console").info("hello");
-
-        expectPlain(output.raw()[0], "hello");
-      },
-    );
-
-    it("ignores NO_COLOR when FORCE_COLOR is set", () => {
-      vi.stubEnv("FORCE_COLOR", "1");
-      vi.stubEnv("NO_COLOR", "1");
-
-      createLogger("console").info("hello");
-
-      expectColored(output.raw()[0], "hello");
-    });
+    expectColored(output.raw()[0], "hello");
   });
 
-  it("never colors the json format", () => {
-    vi.stubEnv("FORCE_COLOR", "1");
-    setTerminal({ isTTY: true, hasColors: true });
+  it("writes plain lines with colors: false, on a TTY", () => {
+    setTTY(true);
+    stubEnvAgainst("plain");
 
-    createLogger("console", { format: "json" }).info("hello");
+    createLogger("console", { colors: false }).info("hello");
+
+    expectPlain(output.raw()[0], "hello");
+  });
+
+  it("never colors the json format, even with colors: true on a TTY", () => {
+    setTTY(true);
+    stubEnvAgainst("plain");
+
+    createLogger("console", { format: "json", colors: true }).info("hello");
 
     expectPlain(output.raw()[0], "hello");
   });
 
   it("makes the choice when the logger is created, for its children too", () => {
-    setTerminal({ isTTY: true, hasColors: true });
+    setTTY(true);
+    stubEnvAgainst("colored");
     const logger = createLogger("console");
-    setTerminal({});
+    setTTY(undefined);
 
     logger.info("hello");
     logger.child({ context: "Child" }).info("again");
@@ -181,11 +167,11 @@ describe("console logger colors", () => {
     } as const;
     const entry = ["hello", { id: 7, tags: ["a", "b"] }] as const;
 
-    setTerminal({ isTTY: true, hasColors: true });
+    setTTY(true);
     createLogger("console", options)
       .child({ context: "Child" })
       .info(entry[0], { ...entry[1] });
-    setTerminal({});
+    setTTY(undefined);
     createLogger("console", options)
       .child({ context: "Child" })
       .info(entry[0], { ...entry[1] });
