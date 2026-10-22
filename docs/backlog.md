@@ -16,6 +16,8 @@ In the order approved.
   - The readers fall back to the default on a malformed value (`envNumber` takes `" "` as 0, `"0x10"` as 16), cannot require a variable, and assume string values: on Vite's `import.meta.env`, `envBool("PROD")` throws a `TypeError` and `envString("DEV")` returns a boolean. They read a prototype key (`toString`) too.
   - Direction: remove `loadEnv`, `env()`, `EnvValueType`, `EnvSource` and dotenv; a source of `unknown` values, read by own keys; strict parsing; a required variant throwing a `BaseError`; tests in browsers too; a README stating the one-file pattern, with the `VITE_` prefix as the boundary of secrets, and a package `CLAUDE.md`. Whether the source keeps a default (`process.env` throws a `ReferenceError` in browsers) is the spec's. A major.
   - Cambusa's side (`import.meta.env` passed to the readers, a check of the public config in `vite.config.ts`) is an item of its own backlog.
+  - Taken with the user at intake (2026-10-22), for the spec to start from: readers bound to a source the caller always passes, with no default; a malformed value throws, a missing required one too, each a `BaseError` whose `details` hold the key and the expected type, never the value; an empty string counts as unset; `bool` takes a boolean as it is, and any other value that is not a string is malformed; numbers in decimal notation only (sign, fraction, exponent; no whitespace, `0x`, `Infinity`, `NaN`). An M task, with a `critic` run.
+  - After `feature/repo/runtime-neutral-presets`, which moves the browser test project, the two runtime typechecks and the runtime-neutral lint of `@enardo/http-client` into presets for this package to use.
   - From the architectural review of `@enardo/env` (2026-10-22).
 
 ## To evaluate
