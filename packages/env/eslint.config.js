@@ -1,3 +1,3 @@
-import { node } from "@enardo/eslint-config";
+import { runtimeNeutral } from "@enardo/eslint-config";
 
-export default node(import.meta.dirname);
+export default runtimeNeutral(import.meta.dirname);
