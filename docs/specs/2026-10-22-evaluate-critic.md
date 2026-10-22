@@ -57,7 +57,7 @@ None.
 
 ## Test cases
 
-None: the change is to docs only. `pnpm verify` runs the context-size check, which covers the `spec` skill, and the shell checks; no package changes.
+None: the change is to docs only. `pnpm verify` runs the shell checks; no package changes.
 
 ## Out of scope
 

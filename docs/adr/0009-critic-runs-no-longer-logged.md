@@ -25,7 +25,7 @@ The user reads the outcome of every run, each rejected objection by the critic's
 
 ## Decision
 
-1. Every trigger of ADR 0007's point 2 stays, the M trigger included (the user).
+1. Every trigger of ADR 0007's point 2 stays: `L spec`, `re-run` and `asked` by ADR 0007's rule, each having changed a decision in every run; the M trigger by the user.
 2. The runs are no longer logged, and no further count is planned (the user). `docs/critic-runs.md` is deleted; this ADR keeps its count.
 3. Dropping the critic, or one of its triggers, is the user's call, on the outcomes of its runs.
 
@@ -35,7 +35,7 @@ This supersedes ADR 0007's point 5.
 
 - A run costs no log row, and a task no commit to log it.
 - A critic whose runs turn to noise shows only in the outcomes the user reads, with no figure to point to.
-- A later decision on the critic counts its runs from git history: the deleted log, up to this ADR, then the commit subjects that weigh a run ("weigh the critic's run on …"), which no rule requires. ADR 0008 drew evidence from a row of the log.
+- A later decision on the critic counts its runs from git history: the deleted log, up to this ADR, then the commit subjects that weigh a run ("weigh the critic's run on …"), which no rule requires. That count will be incomplete: the subjects are not uniform (some read "apply the critic's … report"), and a run where nothing was accepted leaves no commit. ADR 0008 drew evidence from a row of the log.
 
 ## Alternatives considered
 
