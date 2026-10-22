@@ -11,7 +11,9 @@ branch: fix/logger/create-logger-transport-union
 
 ## Why
 
-`createLogger` has one overload per transport literal, `"console"` and `"noop"`, so a transport typed `LoggerTransportType`, as one chosen from configuration, matches neither and does not compile, although the package exports `LoggerTransportType` and `LoggerOptionsByTransport` for that use. The root cause: the implementation signature, the only one that takes the union, is not callable.
+`createLogger` has one overload per transport literal, `"console"` and `"noop"`, so a transport typed `LoggerTransportType`, as one chosen from configuration, matches neither and does not compile, although the package exports `LoggerTransportType` and `LoggerOptionsByTransport`. The root cause: the implementation signature, the only one that takes the union, is not callable.
+
+No consumer needs it today: Cambusa passes only literals, and its configuration has no transport setting. What tips the change is its cost, one signature in place of two, and the errors it gives a misuse: on the offending property (TS2353), not on the whole call (TS2769).
 
 From the backlog's *Queued* item, out of the architectural review of `@enardo/logger` (2026-10-22).
 
@@ -29,7 +31,8 @@ In the dev container, `tsc --noEmit` in `packages/logger`, with a probe file in 
 
 Approved by the user at intake:
 
-- **One generic signature** in place of the two overloads, as probed. With the union, `options` is `ConsoleLoggerOptions | NoopLoggerOptions`, so `createLogger(t, { format: "json" })` compiles: the noop logger ignores its options, so a console option passed to it does nothing. A third overload for the union, keeping the two, was the other option: three signatures for what one says.
+- **One generic signature** in place of the two overloads, as probed. With the union, `options` is `ConsoleLoggerOptions | NoopLoggerOptions`, so `createLogger(t, { format: "json" })` compiles: the noop logger ignores its options, so a console option passed to it does nothing. A third overload for the union, keeping the two, was the other option, and is wrong: with it, `createLogger("noop", { format: "json" })` compiles through the union overload (case 4 fails), and the errors stay TS2769 on the call (the `critic`'s probe).
+- **Additive, so a minor.** Every call the overloads accept still compiles: on top of the probes above, the `critic` tried a transport and options typed `any`, options typed `LoggerOptions<"console"> | undefined`, an explicit `undefined`, a function in `defaultMetadata`. `Parameters<typeof createLogger>[0]` widens from `"noop"` (the last overload) to `LoggerTransportType`.
 - **The runtime does not change**: the dispatch and the `Error` for an unsupported transport stay as they are.
 
 ## Open questions
