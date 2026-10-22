@@ -10,7 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **`@enardo/logger` has no README**, and its public API almost no JSDoc: its defaults (level `info`, format `pretty`, timestamp on), the precedence of metadata, the fields it owns and the conversion of bound metadata at creation are written nowhere. Last in the queue. From the architectural review of `@enardo/logger` (2026-10-22).
 
 ## To evaluate
 
