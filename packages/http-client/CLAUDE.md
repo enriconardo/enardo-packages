@@ -15,9 +15,10 @@ src/header.ts               HeadersInput and its record and iterable shapes
 src/logger.ts               the Logger interface (a local copy) and the noop logger
 src/utils.ts                toBasePrefix, hasCredentials, toHeaders, redactUrl, isStreamBody
 tsconfig.json               editor, build and __tests__: the DOM libs and the Node types together
-tsconfig.browser.json       src/ alone, as a browser sees it: DOM libs, no Node types
-tsconfig.node.json          src/ alone, as Node sees it: Node types, no DOM libs
-vitest.config.ts            the test projects: node (every file), browser (all but *.node.test.ts)
+tsconfig.browser.json       src/ alone, as a browser sees it: DOM libs, no Node types (runtime-browser.json)
+tsconfig.node.json          src/ alone, as Node sees it: Node types, no DOM libs (runtime-node.json)
+eslint.config.js            runtimeNeutral of @enardo/eslint-config
+vitest.config.ts            the test projects: node (every file), browser (all but *.node.test.ts, browserProject() of @enardo/vitest-config)
 __tests__/support/          the helpers both kinds of test file share, beyond a few lines; nothing from node:*
 ```
 
@@ -63,7 +64,7 @@ __tests__/support/          the helpers both kinds of test file share, beyond a 
 
 ## Checks
 
-`typecheck` runs `tsconfig.json`, then the two runtime programs. The lint rules are in `eslint.config.js`, on `src/` only. Each check covers a blind spot of another:
+`typecheck` runs `tsconfig.json`, then the two runtime programs. The checks come from three presets: the programs from `runtime-browser.json` and `runtime-node.json` of `@enardo/typescript-config`, the lint rules, on `src/` only, from `runtimeNeutral` of `@enardo/eslint-config`, and the `browser` project from `browserProject()` of `@enardo/vitest-config`. Each check covers a blind spot of another:
 
 | Check | Catches | Misses |
 | --- | --- | --- |
@@ -74,15 +75,15 @@ __tests__/support/          the helpers both kinds of test file share, beyond a 
 | lint `no-restricted-globals` | globals of one runtime, also as `globalThis.<name>`; the globals Node 24 lacks | type positions, destructuring (`const { process } = globalThis`) |
 | the `browser` test project | what a browser does differently at run time, in Chromium, Firefox and WebKit, for the tests that need no Node | the `*.node.test.ts` tests; a browser's own `fetch`, since every test there stubs `fetchImpl`; browsers older than Playwright's builds |
 
-`undici` is not installed in the package, so an import of it, static or dynamic, fails all three programs. The lint restriction stays for its message: installed again, `undici` would bring `@types/node` into the browser program through its types, and hide every Node global from it.
+`undici` is not installed in the package, so an import of it, static or dynamic, fails all three programs. The lint restriction stays: installed again, `undici` would bring `@types/node` into the browser program through its types, and hide every Node global from it. Its message is the preset's generic Node-only one: a later entry replaces a rule's options, so the package cannot add a message of its own, and the rule that Node transport settings go through `fetchImpl` is in *Two runtimes* above.
 
-The list of globals is computed from the `globals` package: the browser's keys that Node lacks, and the other way round. The keys of `globals.node` that Node 24 does not define are listed by hand (`missingOnNode`). Check that list again when Node, `globals` or `@types/node` change: the last two are caret ranges in the catalog.
+The list of globals, and the hand list of what Node 24 lacks, are in `@enardo/eslint-config`'s README (*`runtimeNeutral`*), where to check them again.
 
 Tests run under vitest, in two projects (`vitest.config.ts`):
 - **`node`** runs every test file.
 - **`browser`** runs every file but `*.node.test.ts`, in Chromium, Firefox and WebKit, through the `playwright` service (`docker/README.md`).
 
-This package is the reference for browser tests. Another package whose `src/` runs in browsers opts in by adding `@vitest/browser-playwright` and `playwright` (`catalog:`) to its `devDependencies`, and a `browser` project copied from this `vitest.config.ts`. The second package that opts in moves that project into a shared preset. Helpers that both kinds of test file use go in `__tests__/support/`, which imports nothing from `node:*`; a constant or a builder of a few lines may be repeated instead.
+This package is the example of the opt-in. Another package whose `src/` runs in browsers adds `@enardo/vitest-config` to its `devDependencies` and calls `browserProject()` in its `vitest.config.ts`; extends the two runtime presets of `@enardo/typescript-config` in `tsconfig.browser.json` and `tsconfig.node.json`, and adds `isolatedDeclarations` to its own `tsconfig.json` if it exports types (a local override until a second package needs it); and uses `runtimeNeutral` in `eslint.config.js`. Node-only tests go in `*.node.test.ts` files. Helpers that both kinds of test file use go in `__tests__/support/`, which imports nothing from `node:*`; a constant or a builder of a few lines may be repeated instead.
 
 **What runs where:**
 - **Stubs.** The tests that run in browsers stub `fetchImpl`.

@@ -368,21 +368,15 @@ importers:
       '@enardo/typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
+      '@enardo/vitest-config':
+        specifier: workspace:^
+        version: link:../vitest-config
       '@types/node':
         specifier: 'catalog:'
         version: 26.4.0
-      '@vitest/browser-playwright':
-        specifier: 'catalog:'
-        version: 4.1.11(playwright@1.63.0)(vite@8.2.2(@types/node@26.4.0))(vitest@4.1.11)
       eslint:
         specifier: 'catalog:'
         version: 10.9.1
-      globals:
-        specifier: 'catalog:'
-        version: 17.11.0
-      playwright:
-        specifier: 'catalog:'
-        version: 1.63.0
       prettier:
         specifier: 'catalog:'
         version: 3.9.6
@@ -709,6 +703,31 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@26.4.0)(@vitest/browser-playwright@4.1.11)(vite@8.2.2(@types/node@26.4.0))
+
+  packages/vitest-config:
+    dependencies:
+      '@vitest/browser-playwright':
+        specifier: 'catalog:'
+        version: 4.1.11(playwright@1.63.0)(vite@8.2.2(@types/node@26.4.0))(vitest@4.1.11)
+      playwright:
+        specifier: 'catalog:'
+        version: 1.63.0
+    devDependencies:
+      '@eslint/js':
+        specifier: 'catalog:'
+        version: 10.0.1(eslint@10.9.1)
+      eslint:
+        specifier: 'catalog:'
+        version: 10.9.1
+      globals:
+        specifier: 'catalog:'
+        version: 17.11.0
+      prettier:
+        specifier: 'catalog:'
+        version: 3.9.6
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@types/node@26.4.0)(@vitest/browser-playwright@4.1.11)(vite@8.2.2(@types/node@26.4.0))

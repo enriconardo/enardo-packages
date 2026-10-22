@@ -8,8 +8,9 @@ The ESLint flat-config presets every `@enardo/*` package uses, and the projects 
 | --- | --- | --- |
 | `node(rootDir)` | shared packages, project packages, `api-server` | Node globals, `**/*.ts` |
 | `react(rootDir)` | `web` | browser globals, `**/*.{ts,tsx}`, JSX |
+| `runtimeNeutral(rootDir)` | packages whose `src/` runs in browsers and on Node | `node(rootDir)`, plus the restrictions of *`runtimeNeutral`* below on `src/**/*.ts` |
 
-Both start from `eslint.configs.recommended`, typescript-eslint's `recommendedTypeChecked` and `stylisticTypeChecked`, then `eslint-config-prettier`. Type information comes from `projectService`, so the package's own `tsconfig.json` decides what is linted with which types.
+All three start from `eslint.configs.recommended`, typescript-eslint's `recommendedTypeChecked` and `stylisticTypeChecked`, then `eslint-config-prettier`. Type information comes from `projectService`, so the package's own `tsconfig.json` decides what is linted with which types.
 
 ## Usage
 
@@ -25,6 +26,19 @@ Install it from the `@enardo` registry (`https://npm.enriconardo.com`, which nee
 ```sh
 pnpm add -D @enardo/eslint-config eslint
 ```
+
+## `runtimeNeutral`
+
+`src/` may use only what browsers and Node both have. On `src/**/*.ts` (tests are not restricted):
+
+| Rule | Catches | Misses |
+| --- | --- | --- |
+| `no-restricted-imports` | `undici`, `node:*`, builtin modules | a dynamic `import()` |
+| `no-restricted-globals` | the globals of one runtime, also as `globalThis.<name>`; the globals Node 24 lacks (`ErrorEvent`, `QuotaExceededError`, `Temporal`, Web Storage) | type positions, destructuring (`const { process } = globalThis`) |
+
+The lists of browser-only and Node-only globals are computed from the `globals` package. The keys of `globals.node` that Node 24 does not define are listed by hand (`missingOnNode`): `@types/node` declares some of them, so a Node typecheck passes them. Check that list again when Node, `globals` or `@types/node` change.
+
+A package's own typechecks of `src/` as each runtime sees it catch the rest, and the lint stays for `undici` too: installed, it would bring `@types/node` into the browser program through its types. Each rule's options are set whole: an entry added after the preset replaces them, it does not merge with them.
 
 ## Rule choices
 
