@@ -10,7 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **`createLogger` of `@enardo/logger` refuses a `LoggerTransportType`.** Its overloads take only the literals, so a transport chosen from configuration does not compile (probed: TS2769, with and without options), although the package exports `LoggerTransportType` and `LoggerOptionsByTransport`. A generic signature over `LoggerOptions<T>` would accept both. From the architectural review of `@enardo/logger` (2026-10-22).
 - **`@enardo/logger` has no README**, and its public API almost no JSDoc: its defaults (level `info`, format `pretty`, timestamp on), the precedence of metadata, the fields it owns and the conversion of bound metadata at creation are written nowhere. Last in the queue, so that it describes the console logger after the fixes above. From the architectural review of `@enardo/logger` (2026-10-22).
 
 ## To evaluate
