@@ -18,7 +18,7 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0008](0008-implementation-on-the-specs-model.md) | Four ratings raise the tier, and an M or L task is implemented in a fresh session on the spec's model | accepted |
 | [0009](0009-critic-runs-no-longer-logged.md) | The critic keeps its triggers, and its runs are no longer logged | accepted |
 | [0010](0010-a-vitest-preset-package.md) | The browser test project lives in a vitest preset package | accepted |
-| [0011](0011-only-a-block-moves-into-a-preset.md) | Only a block of configuration that a second package needs moves into a preset; a scalar is repeated with its comment | accepted |
+| [0011](0011-only-a-block-moves-into-a-preset.md) | Only a block of configuration that a second package needs moves into a preset; a scalar is repeated with its comment, unless it fits every package on a preset | accepted |
 
 ## Template
 

@@ -55,6 +55,6 @@ A package's own typechecks of `src/` as each runtime sees it catch the rest, and
 
 ## Overrides
 
-A package may extend the preset array with its own entries, with a comment saying why. Entries that a second package needs move into the preset, unless they set a single scalar option, which is repeated with its comment; when the preset gets stricter, a package may keep the old behavior through a temporary override.
+A package may extend the preset array with its own entries, with a comment saying why. Entries that a second package needs move into the preset, unless they set a single scalar option, which is repeated with its comment unless it fits every package on the preset; when the preset gets stricter, a package may keep the old behavior through a temporary override.
 
 Type-aware rules read the declarations of the packages a package depends on, so turbo's `lint` task depends on `^build`.

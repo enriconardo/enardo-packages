@@ -14,7 +14,7 @@ The rule counts packages, whatever the override holds. A scalar (a flag, a numbe
 
 1. **An override whose value is a list or an object, or that sets several options, moves into a preset when a second package needs it.**
 2. **A scalar override (a flag, a number, a string) is repeated in each package that needs it, with its comment.** It moves into a preset only when it fits every package on that preset, judged on its merits.
-3. This supersedes the sentence of ADR 0001's point 2 on an override needed by two or more packages; the rest of point 2 stands. ADR 0010's point 3, on parts of a vitest config, stands: such a part is a block.
+3. This supersedes the sentence of ADR 0001's point 2 on an override needed by two or more packages; the rest of point 2 stands. ADR 0010's point 3, on parts of a vitest config, follows the same split: a block moves, a scalar is repeated.
 
 ## Consequences
 
