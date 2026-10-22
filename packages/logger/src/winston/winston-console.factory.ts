@@ -30,10 +30,32 @@ function safeStringify(value: unknown): string {
   }
 }
 
+// Node's own convention: FORCE_COLOR, when set, decides alone (and NO_COLOR is
+// ignored, as Node ignores it); otherwise colors need a TTY that supports them,
+// which hasColors() judges with NO_COLOR, NODE_DISABLE_COLORS and TERM=dumb.
+// Winston's colorize() cannot be toggled: loading it sets the global
+// `colors.enabled = true`, so the choice is whether to include it.
+const FORCE_COLOR_ON = new Set(["", "1", "2", "3", "true"]);
+
+function shouldColorize(): boolean {
+  const forced = process.env.FORCE_COLOR;
+  if (forced !== undefined) {
+    return FORCE_COLOR_ON.has(forced);
+  }
+
+  const { stdout } = process;
+
+  return (
+    stdout.isTTY === true &&
+    typeof stdout.hasColors === "function" &&
+    stdout.hasColors()
+  );
+}
+
 function createPrettyFormat(options: ConsoleLoggerOptions) {
   const includeTimestamp = options.timestamp ?? DEFAULT_TIMESTAMP;
   const formats = [
-    winston.format.colorize({ all: true }),
+    ...(shouldColorize() ? [winston.format.colorize({ all: true })] : []),
     winston.format.errors({ stack: true }),
     loggableMetadata(),
   ];
