@@ -1,6 +1,6 @@
 # 0001. Shared TypeScript and ESLint configs live in workspace packages
 
-- Status: accepted; its first decision's `workspace:*` superseded by 0004; *A third package for vitest configs* overturned by 0010
+- Status: accepted; its first decision's `workspace:*` superseded by 0004; *A third package for vitest configs* overturned by 0010; point 2's moving into a preset of an override two packages need superseded by 0011
 - Date: 2026-09-24
 - Spec: docs/specs/2026-09-24-package-tooling.md
 
