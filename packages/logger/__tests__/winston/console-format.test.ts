@@ -13,9 +13,8 @@ const MESSAGE = Symbol.for("message");
 
 /**
  * Runs an `error` entry through the format and returns the line the console
- * transport would print. The entry is built as winston builds one; going
- * through the transport instead would not work, since in vitest it does not
- * write through `process.stdout`.
+ * transport would print. The entry is built as winston builds one, without a
+ * logger: `captureConsoleLines()` is the way to test through the transport.
  */
 function formatLine(
   options: ConsoleLoggerOptions,
