@@ -76,7 +76,7 @@ Taken here, for the critic and the user:
 ### `@enardo/typescript-config`
 
 - **`runtime-browser.json`, `runtime-node.json`**: `"isolatedDeclarations": true`.
-- **`README.md`**: the runtime presets' description says they hold `isolatedDeclarations`, and why, in both directions (`BodyInit`, `NodeJS.Timeout`); the sentence at `:57` that asks a package to add it goes.
+- **`README.md`**: the runtime presets' description says they hold `isolatedDeclarations`, and why, in both directions (`BodyInit`, `NodeJS.Timeout`); the sentence at `:57` that asks a package to add it goes. The presets now need a program that sets `declaration` (or `composite`): without it, `tsc` fails with TS5069 (probed by the critic's fourth run); `library.json` sets it, and the README says so.
 - **`package.json`**: a minor above the version on the registry (a stricter preset); none if 1.1.0, from `feature/repo/runtime-neutral-presets`, is not published yet.
 
 ### `@enardo/http-client`
@@ -90,7 +90,7 @@ Taken here, for the critic and the user:
 - `docs/backlog.md`, in a commit of its own:
   - the item leaves;
   - a *Queued* item enters, **Hand over `@enardo/env` 2.0 to Cambusa**: once 2.0.0 is published, a session of its own adds an item to Cambusa's backlog, on a branch as Cambusa's workflow wants, in the form of its `d7cb78a` (an item of its own, *From:* naming this branch). It lists the changes of behavior from 1.x (`createEnv` and the source passed, `undefined` for `null`, `?? default`, the throws on a malformed value, `loadEnv` replaced by `process.loadEnvFile` and `envDir`), and Cambusa's side of the old item (`import.meta.env` passed to the readers, a check of the public config in `vite.config.ts`). The list is in this repo's diff, so the reviewer checks it against *Decisions*;
-  - the item on the runtime checks of `@enardo/errors` and `@enardo/http-status` no longer lists `isolatedDeclarations` as a move left: the runtime overlays bring it.
+  - the item on the runtime checks of `@enardo/errors` and `@enardo/http-status` no longer lists `isolatedDeclarations` as a move left: the runtime overlays bring it. In its place, the cost: opting in, `@enardo/errors` fails it at `src/base/serialize-error.ts:15` (TS9011) and `@enardo/http-status` at `src/reason-phrases.ts:11` and `src/registry.ts:14` (TS9010, two `Object.freeze({...})` exports), whose types are to be written out (`tsc --noEmit --isolatedDeclarations` in each, by the critic's fourth run); "their `src/` passes both runtime typechecks today" becomes true only after that.
 
 ## Test cases
 
