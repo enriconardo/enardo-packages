@@ -10,6 +10,13 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
+- **`@enardo/env` 2.0: the readers alone, on both runtimes.**
+  - The package exists so that a monorepo's server and Vite client read one root `.env` through one interface: the same readers on `process.env` and on `import.meta.env`. Loading the file is the platform's job: Vite's `envDir`, and Node 24's `process.loadEnvFile`.
+  - `loadEnv` is a no-op in the browser and broken on Node. Without options it loads nothing (a regression of `ea515c8` in `en-monorepo`, pinned by a test that mocks dotenv). It drops the error of a file it cannot read, so the app starts on defaults. With a `target`, the file still lands in `process.env`, and the target receives the whole process environment. Its options are dotenv's: upgrading dotenv (16.6.1 → 18.0.8) alone would change the package's types and log a line on every load.
+  - The readers fall back to the default on a malformed value (`envNumber` takes `" "` as 0, `"0x10"` as 16), cannot require a variable, and assume string values: on Vite's `import.meta.env`, `envBool("PROD")` throws a `TypeError` and `envString("DEV")` returns a boolean. They read a prototype key (`toString`) too.
+  - Direction: remove `loadEnv`, `env()`, `EnvValueType`, `EnvSource` and dotenv; a source of `unknown` values, read by own keys; strict parsing; a required variant throwing a `BaseError`; tests in browsers too; a README stating the one-file pattern, with the `VITE_` prefix as the boundary of secrets, and a package `CLAUDE.md`. Whether the source keeps a default (`process.env` throws a `ReferenceError` in browsers) is the spec's. A major.
+  - Cambusa's side (`import.meta.env` passed to the readers, a check of the public config in `vite.config.ts`) is an item of its own backlog.
+  - From the architectural review of `@enardo/env` (2026-10-22).
 
 ## To evaluate
 
