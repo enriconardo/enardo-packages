@@ -1,4 +1,9 @@
-import type { LogMetadata, Logger, LoggerChildOptions } from "~/logger";
+import type {
+  LogMetadata,
+  Logger,
+  LoggerChildOptions,
+  LoggerTransportType,
+} from "~/logger";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -94,6 +99,21 @@ describe("createLogger", () => {
       defaultMetadata: { service: "worker" },
     });
     expect(mocks.createConsoleLogger).not.toHaveBeenCalled();
+    expect(result).toBe(fakeLogger);
+  });
+
+  it("dispatches a transport typed LoggerTransportType", () => {
+    const fakeLogger = createFakeLogger();
+    const config: { transport: LoggerTransportType } = { transport: "console" };
+    const options = { format: "json" as const };
+
+    mocks.createConsoleLogger.mockReturnValue(fakeLogger);
+
+    const result = createLogger(config.transport, options);
+
+    expect(mocks.createConsoleLogger).toHaveBeenCalledTimes(1);
+    expect(mocks.createConsoleLogger).toHaveBeenCalledWith(options);
+    expect(mocks.createNoopLogger).not.toHaveBeenCalled();
     expect(result).toBe(fakeLogger);
   });
 });
