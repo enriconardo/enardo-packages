@@ -1,9 +1,4 @@
 {
   // src/ alone, as a browser sees it: the DOM libs and no Node types.
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": []
-  },
-  "include": ["src/**/*"]
+  "extends": ["./tsconfig.json", "@enardo/typescript-config/runtime-browser.json"]
 }
