@@ -96,6 +96,7 @@ Each fact the plan relies on is probed in the dev container before the spec stat
 - **Commands for agents.** A command that a skill, an agent or a `CLAUDE.md` gives to agents is probed on every package it can run on, not on the one at hand.
 - **What an error exposes** is probed on its serialized form (its `toJSON()`, the log it lands in), with the whole `cause` chain, not on its message.
 - **Absence is a claim too** ("nothing else changes", "no blind spot"). When a change closes one way into a gap, describe the mechanism behind it, and look for its other triggers before removing it from the docs.
+- **A claim about the repo's history or a rule's effect** (what a rule produced, that it never did, where something can or cannot go) is probed too: `git grep` over `docs/specs` and the log, or a build.
 - **A removed dependency between two packages:** look for every doc line that names both, not only for the symbols that move.
 - **A value the code does not control.** When the code starts reading one where it used to pass it along (a rejection, an abort reason, a parsed body), the spec states what happens when a read throws, and when the value is cyclic or very deep. On an error path, a throw replaces the error being reported.
 - **A copy of a caller's value** changes what a library reads downstream: a spread keeps own enumerable properties only, and loses the prototype, its getters and the non-enumerable ones. Check what the library produced from the value.
@@ -113,7 +114,7 @@ Each fact the plan relies on is probed in the dev container before the spec stat
 
 An ADR the task calls for is drafted with the spec, as `proposed`, in the spec's commit, so that the critic judges it too.
 
-The `critic` runs after the spec's commit on an L spec, or an M spec whose *Why* says it or a decision comes from a discussion with the user; again after the user changes a decision it judged:
+The `critic` runs after the spec's commit on an L spec, or an M spec whose *Why* says it or a decision comes from a discussion with the user; again after the user changes a decision it judged. It runs once the decisions under discussion with the user are settled, not on each revision:
 
 - **Its input** is the spec's path; on a re-run, after the user changed a decision it judged, also the commit of the version it judged. Nothing else: no summary of the discussion, no argument.
 - **Weigh the report yourself**, and apply what you accept to the spec, in a commit of its own. An objection to a decision the user took goes to the user, with your view: never undo that decision alone. After checkpoint 1, so does any change you accept, since the spec then changes only with the user's approval.
