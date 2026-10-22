@@ -27,6 +27,7 @@ __tests__/                             mirrors src/
 ## Tests
 
 - Adapter tests write through `createConsoleFormat({ format: "json", timestamp: false })` to a winston `Stream` transport over a `Writable`, which receives each line synchronously.
+- Console logger tests go through `createConsoleLogger` with `captureConsoleLines()` (`__tests__/support/capture-console.ts`), which records the lines the console transport formats.
 - A metadata case is tested on the call's metadata, a child's and the defaults: each is converted on its own path.
 
 ## Public API changes

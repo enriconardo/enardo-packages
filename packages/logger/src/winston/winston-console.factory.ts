@@ -47,7 +47,8 @@ function createPrettyFormat(options: ConsoleLoggerOptions) {
       const { timestamp, level, message, ...rest } = info;
       const { context, stack } = rest;
       // `context` and `stack` leave the metadata only when printed in their
-      // own place: any other value stays in the suffix, as in the JSON format.
+      // own place (an empty `context` prints nothing and leaves too): any
+      // other value stays in the suffix, as in the JSON format.
       const hasContext = typeof context === "string" && context.length > 0;
       const hasStack = typeof stack === "string";
       const metadata = { ...rest };
