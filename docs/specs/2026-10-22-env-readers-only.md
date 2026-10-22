@@ -3,7 +3,7 @@ status: draft
 type: feature
 tier: M
 implementer: sonnet/medium
-packages: ["@enardo/env", "@enardo/http-client"]
+packages: ["@enardo/env"]
 branch: feature/env/readers-only
 ---
 
@@ -30,7 +30,8 @@ All in the dev container (Node 24.21.0), unless said otherwise.
 - `Number(s)` and `/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/` on `"3000" "-1.5" "+2" ".5" "5." "1e3" "1E-2" "-0" "007"` → all match, with the expected numbers (`-0` gives `-0`); `"1e999"` matches but gives `Infinity`; `" 1" "0x10" "0b1" "1_000" "Infinity" "NaN" ""` do not match (`Number` takes `" 1"`, `"0x10"`, `"0b1"`, `""` as 1, 16, 1, 0).
 - `tsc` with `vite/client` and `@types/node`, a parameter of `Readonly<Record<string, unknown>>` → accepts `import.meta.env` (with an augmented `interface ImportMetaEnv { readonly VITE_API_URL: string }`) and `process.env`; refuses an interface without an index signature (`TS2345`).
 - `process.loadEnvFile("p.env")` with `A=file`, `B=file` and `A=shell` in the environment → `A` stays `shell`, `B` becomes `file`; a missing file throws an `Error` with `code: "ENOENT"`.
-- `isolatedDeclarations`: a sketch of the API (`createEnv` with inferred return types, two errors over `BaseError`), placed in `packages/http-client/.probe-env/` for its `@enardo/errors`, built with `tsdown src/index.ts --format esm --dts` on `library.json` without the option → the `.d.mts` names only `string`, `number`, `undefined`, `Readonly<Record<string, unknown>>` and `BaseError`; it compiles in a consumer on `runtime-browser.json` and one on `runtime-node.json`, both with `skipLibCheck: false`; the sketch passes both runtime programs. The option is for a package whose declaration emit can write a DOM name, as `@enardo/http-client`'s does with the types of `fetch`.
+- `isolatedDeclarations`: a sketch of the API (`createEnv` with inferred return types, two errors over `BaseError`), placed in `packages/http-client/.probe-env/` for its `@enardo/errors`, built with `tsdown src/index.ts --format esm --dts` on `library.json` without the option → the `.d.mts` names only `string`, `number`, `undefined`, `Readonly<Record<string, unknown>>` and `BaseError`; it compiles in a consumer on `runtime-browser.json` and one on `runtime-node.json`, both with `skipLibCheck: false`; the sketch passes both runtime programs.
+- The critic's first run, by an in-memory declaration emit on `packages/env/tsconfig.json` → `export const start = () => setTimeout(() => {}, 1)` is emitted as `() => NodeJS.Timeout`, a name of Node's types only, which no runtime program or lint rule reports. `tsc --noEmit --isolatedDeclarations` → 0 errors in `packages/env`; with the option on every package on `library.json`, 6 errors in 5 packages (`errors`, `http-status`, `logger`, `uow-repository`, `email-nodemailer`).
 - The opt-in to the runtime checks → `packages/http-client/CLAUDE.md`, *Checks*, last paragraphs; its configs: `packages/http-client/{tsconfig.browser.json,tsconfig.node.json,eslint.config.js,vitest.config.ts}`.
 
 ## Decisions
@@ -45,7 +46,7 @@ Taken with the user:
 - **Numbers in decimal notation only**: the regex of *Probes* (sign, fraction, exponent) and a finite result; no whitespace, `0x`, `0b`, `0o`, `_`, `Infinity`, `NaN`.
 - **Remove** `loadEnv`, `LoadEnvOptions`, `env()`, `EnvValueType`, the 1.x `EnvSource` (`"node" | "vite"`) and dotenv, as if they had never been there (no deprecation, no absence test).
 - **Tests in browsers too**, through the presets of `feature/repo/runtime-neutral-presets`; a README with the one-file pattern and the `VITE_` prefix as the boundary of secrets; a package `CLAUDE.md`.
-- **No `isolatedDeclarations`** (*Probes*): `@enardo/typescript-config` does not change. Public types are still written out, for the JSDoc. The opt-in paragraph of `@enardo/http-client`'s `CLAUDE.md` gets the condition right, in this task.
+- **`isolatedDeclarations` as a local override** in `packages/env/tsconfig.json`, with a comment saying why: an inferred type can name what only one runtime's types declare (`NodeJS.Timeout`, *Probes*), and the option is the check that keeps it out, at no cost here. It does not move into a preset in this task: whether every package on `library.json` takes it is a backlog item of its own (*To evaluate*). Taken with the user after the critic's first run, which challenged the intake's choice of no option and a narrower opt-in condition in `@enardo/http-client`'s `CLAUDE.md`; that `CLAUDE.md` does not change.
 
 Taken here, for the critic and the user:
 
@@ -55,7 +56,7 @@ Taken here, for the critic and the user:
 
 ## Open questions
 
-- None beyond the three decisions taken here, and the place of `isolatedDeclarations` after the critic's first run.
+- None beyond the three decisions taken here.
 
 ## Changes
 
@@ -63,18 +64,14 @@ Taken here, for the critic and the user:
 
 - **`src/`**: `createEnv`, `EnvReader`, `EnvSource`, and the two errors (in `src/errors/`, as `@enardo/http-client` places its own); `load-env.ts` and the 1.x readers go. Reads use `Object.hasOwn`. JSDoc on every export.
 - **`package.json`**: version `2.0.0`; description "Strict readers of environment variables, over `process.env` or `import.meta.env`"; `dotenv` removed, `@enardo/errors: workspace:^` added to `dependencies`, `@enardo/vitest-config: workspace:^` to `devDependencies`; `typecheck` runs `tsconfig.json`, `tsconfig.browser.json`, `tsconfig.node.json`, as `@enardo/http-client` does. The lockfile follows.
-- **Configs**: `tsconfig.browser.json` and `tsconfig.node.json` on the runtime presets; `eslint.config.js` on `runtimeNeutral`; `vitest.config.ts` with a `node` project and `browserProject()`. `tsconfig.json` stays on `library.json`.
+- **Configs**: `tsconfig.browser.json` and `tsconfig.node.json` on the runtime presets; `eslint.config.js` on `runtimeNeutral`; `vitest.config.ts` with a `node` project and `browserProject()`. `tsconfig.json` stays on `library.json`, with `isolatedDeclarations` (*Decisions*).
 - **`__tests__/`**: the 1.x test files go; the new ones mirror `src/`, import from `~/index`, and run in both projects; the cases that need `process.env` go in `*.node.test.ts`.
 - **`README.md`** (new): the exports; the rules of *Decisions*; the one-file pattern: on Node, `process.loadEnvFile(<root>/.env)` before reading (the shell's values win, a missing file throws `ENOENT`), in Vite, `envDir` at the root and `createEnv(import.meta.env)`; only `VITE_`-prefixed variables reach the client bundle, so the prefix is the boundary of secrets; a source must have an index signature (`ImportMetaEnv` and `process.env` have one). It describes 2.0 only: the changes from 1.x go to Cambusa's backlog (*Open questions*).
-- **`CLAUDE.md`** (new): layout, the strictness rules and the reason for each, the never-the-value rule for errors, the two runtimes and the checks (by reference to the presets' READMEs), why there is no `isolatedDeclarations`.
-
-### `@enardo/http-client`
-
-- **`CLAUDE.md`**, *Checks*: "adds `isolatedDeclarations` to its own `tsconfig.json` if it exports types" becomes "if its declaration emit can write a DOM name, as an inferred type that touches `fetch` does". The local-override remark stays.
+- **`CLAUDE.md`** (new): layout, the strictness rules and the reason for each, the never-the-value rule for errors, the two runtimes and the checks (by reference to the presets' READMEs), why `isolatedDeclarations`.
 
 ### Repo
 
-- `docs/backlog.md`: the item leaves, in a commit of its own.
+- `docs/backlog.md`: the item leaves, in a commit of its own; a *To evaluate* item enters: `isolatedDeclarations` in `library.json`, for every library package, with the critic's count (*Probes*) and what is left to probe: whether tsdown's emit through Oxc changes any `.d.mts` (a build of each package with and without the option, `dist/` compared).
 
 ## Test cases
 
@@ -143,6 +140,5 @@ Taken here, for the critic and the user:
 1. **`createEnv`, `EnvReader`, `EnvSource` and the two errors**, test-first (cases 1–22), replacing the whole 1.x API and dotenv with their tests in the same commit: the 1.x readers are typed with dotenv's `DotenvPopulateInput`, so neither can go first alone.
 2. **The runtime checks**: the two programs, `runtimeNeutral`, the `browser` project, `@enardo/vitest-config`; case 23 in a `*.node.test.ts`.
 3. **`README.md`, `CLAUDE.md`, version and description.**
-4. **`@enardo/http-client`'s `CLAUDE.md`**: the condition of `isolatedDeclarations`.
-5. **The backlog item leaves.**
-6. **Handover to Cambusa**, at the integration: an entry in Cambusa's `docs/backlog.md`, *Work that `enardo-packages` hands over*, in the form of its `739e16f`, listing the changes of behavior from 1.x and Cambusa's side of this item (`import.meta.env` passed to the readers, a check of the public config in `vite.config.ts`). Agreed with the user.
+4. **The backlog**: the item leaves; the `isolatedDeclarations` item enters.
+5. **Handover to Cambusa**, at the integration: an entry in Cambusa's `docs/backlog.md`, *Work that `enardo-packages` hands over*, in the form of its `739e16f`, listing the changes of behavior from 1.x and Cambusa's side of this item (`import.meta.env` passed to the readers, a check of the public config in `vite.config.ts`). Agreed with the user.
