@@ -139,6 +139,18 @@ describe("the errors of send", () => {
         details: { field: "from", reason: "missing" },
         message: "The email has no sender: no from, and no default sender",
       },
+      {
+        details: { field: "subject", reason: "type" },
+        message: "The email sender refuses subject: not a string",
+      },
+      {
+        details: { field: "text", reason: "type" },
+        message: "The email sender refuses text: not a string",
+      },
+      {
+        details: { field: "html", reason: "type" },
+        message: "The email sender refuses html: not a string",
+      },
     ])(
       "has the details given, and the message $message, for $details",
       ({ details, message }) => {
