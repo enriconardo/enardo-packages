@@ -49,7 +49,7 @@ A package whose `src/` runs in browsers and on Node checks `src/` as each runtim
 "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.browser.json && tsc --noEmit -p tsconfig.node.json"
 ```
 
-What they miss, which the lint preset `runtimeNeutral` of `@enardo/eslint-config` covers in part:
+What they miss, which lint rules on imports and globals cover in part:
 
 - every Node global, from the browser program, after a `/// <reference types="node" />` in `src/`: `@types/node` is installed, so the reference resolves;
 - the names `@types/node` declares that Node 24 lacks (`ErrorEvent`, Web Storage), from the Node program.

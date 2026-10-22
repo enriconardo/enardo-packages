@@ -377,9 +377,6 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 10.9.1
-      globals:
-        specifier: 'catalog:'
-        version: 17.11.0
       prettier:
         specifier: 'catalog:'
         version: 3.9.6

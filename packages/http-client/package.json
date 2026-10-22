@@ -40,7 +40,6 @@
     "@enardo/vitest-config": "workspace:^",
     "@types/node": "catalog:",
     "eslint": "catalog:",
-    "globals": "catalog:",
     "prettier": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
