@@ -55,8 +55,8 @@ Packages go to the private registry `https://npm.enriconardo.com` (`publishConfi
 
 ## Architecture conventions
 
-- **Ports & adapters**: a contract package defines interfaces and technology-agnostic logic (`uow-repository`, `email`); a `<name>-<technology>` package implements it (`email-nodemailer`).
-- A contract package never depends on a technology. A driver (`mongodb`, `bcrypt`, `nodemailer`) is a peer and a dev dependency of its adapter. A project's app lists the driver of every adapter it runs in its own `dependencies`, since pnpm reports nothing when one is missing; any other package lists a driver only when its own code runs it.
+- **Ports & adapters**, where the app picks the technology: a contract package defines interfaces and technology-agnostic logic (`email`), with no technology; a `<name>-<technology>` package implements it (`email-nodemailer`). Otherwise one package, named for its role, hides the technology (`logger`) until a second implementation calls for a split.
+- A driver (`mongodb`, `bcrypt`, `nodemailer`) is a peer and a dev dependency of its adapter. An app lists the driver of every adapter it runs in its own `dependencies`, since pnpm never reports a missing one; another package, only when its own code runs it.
 - `@enardo/*` packages never depend on a project's packages.
 - One entry point, `src/index.ts` → `dist/index.mjs` + `.d.mts`; the config packages ship their files as they are.
 - Errors extend `BaseError` from `@enardo/errors`: a concrete class declares its `name` as a field and passes a `code` ([its README](packages/errors/README.md)).
