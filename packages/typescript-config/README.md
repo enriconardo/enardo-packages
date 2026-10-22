@@ -4,7 +4,7 @@ The tsconfig presets every `@enardo/*` package extends, and the projects built o
 
 ## Presets
 
-| Preset | For | Adds to `base.json` |
+| Preset | For | Adds (to `base.json`, except the two `runtime-*` presets, which extend nothing) |
 | --- | --- | --- |
 | `base.json` | every preset | ES2022, ESM, `moduleResolution: bundler`, `strict`, `isolatedModules`, `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch` |
 | `library.json` | packages built with tsdown | `~/*` alias, `src` and `__tests__` included, `dist` as output |
@@ -54,7 +54,7 @@ What they miss, which lint rules on imports and globals cover in part:
 - every Node global, from the browser program, after a `/// <reference types="node" />` in `src/`: `@types/node` is installed, so the reference resolves;
 - the names `@types/node` declares that Node 24 lacks (`ErrorEvent`, Web Storage), from the Node program.
 
-They check `src/` as written, not the declarations the build emits. A package that exports types adds `isolatedDeclarations` to its own `tsconfig.json`, so that the build emits them from the source text and not through a program with the DOM: an inferred type would come out with its DOM name. `@enardo/http-client` is the example.
+`runtime-node.json` needs `@types/node` installed in the package: without it, `tsc` fails with TS2688. They check `src/` as written, not the declarations the build emits. A package that exports types adds `isolatedDeclarations` to its own `tsconfig.json`, so that the build emits them from the source text and not through a program with the DOM: an inferred type would come out with its DOM name.
 
 ## Overrides
 

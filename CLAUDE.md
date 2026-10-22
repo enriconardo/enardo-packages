@@ -6,7 +6,7 @@ Personal TypeScript monorepo of reusable infrastructure packages (`@enardo/*`), 
 
 ```
 packages/<name>             @enardo/<name>, shared, project-agnostic libraries
-packages/typescript-config  tsconfig presets (library, node-app, react-app)
+packages/typescript-config  tsconfig presets (library, node-app, react-app, runtime-browser, runtime-node)
 packages/eslint-config      ESLint presets (node, react, runtimeNeutral)
 packages/vitest-config      vitest presets (the browser test project)
 docker/                     dev container, test browsers, compose stack (./dev.sh; docker/README.md)
@@ -71,7 +71,7 @@ Packages are published through the `publish` skill, each publish approved by the
 ## Testing
 
 - Tests live in `<package>/__tests__/`, mirroring `src/`, as `*.test.ts`. Adapters are tested against an in-memory Mongo replica set that the tests start (`__tests__/setup/replica-set.ts`, one database per test).
-- A package whose `src/` runs in browsers runs its tests there too (`errors` and `http-status` not yet: backlog); The presets (`@enardo/vitest-config`, the runtime programs of `typescript-config`, `eslint-config`'s `runtimeNeutral`) hold those checks; `@enardo/http-client` is the example ([its CLAUDE.md](packages/http-client/CLAUDE.md), *Checks*). A test that needs Node goes in a `*.node.test.ts` beside its `*.test.ts`.
+- A package whose `src/` runs in browsers runs its tests there too (`errors` and `http-status` not yet: backlog); the presets (`@enardo/vitest-config`, the runtime programs of `typescript-config`, `eslint-config`'s `runtimeNeutral`) hold those checks; `@enardo/http-client` is the example ([its CLAUDE.md](packages/http-client/CLAUDE.md), *Checks*). A test that needs Node goes in a `*.node.test.ts` beside its `*.test.ts`.
 - Refactors keep the existing tests green without changing them, unless the spec says so.
 
 **Test-first**, unless the spec says otherwise, with a reason:

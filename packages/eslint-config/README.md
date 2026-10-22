@@ -8,7 +8,7 @@ The ESLint flat-config presets every `@enardo/*` package uses, and the projects 
 | --- | --- | --- |
 | `node(rootDir)` | shared packages, project packages, `api-server` | Node globals, `**/*.ts` |
 | `react(rootDir)` | `web` | browser globals, `**/*.{ts,tsx}`, JSX |
-| `runtimeNeutral(rootDir)` | packages whose `src/` runs in browsers and on Node | `node(rootDir)`, plus the restrictions of the next section on `src/**/*.ts` |
+| `runtimeNeutral(rootDir)` | packages whose `src/` runs in browsers and on Node | `node(rootDir)`, plus the restrictions of *`runtimeNeutral`* below on `src/**/*.ts` |
 
 All three start from `eslint.configs.recommended`, typescript-eslint's `recommendedTypeChecked` and `stylisticTypeChecked`, then `eslint-config-prettier`. Type information comes from `projectService`, so the package's own `tsconfig.json` decides what is linted with which types.
 
