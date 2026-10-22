@@ -27,7 +27,8 @@ All in the dev container, Node v24.21.0, winston 3.19.0, `@colors/colors` 1.6.0,
   - `{}`, `TERM=dumb`, `NODE_DISABLE_COLORS=1`, `TERM=xterm NO_COLOR=1` → 1 (no colors); `TERM=xterm`, `TERM=xterm NO_COLOR=` (empty) → 4.
   - `FORCE_COLOR` `""`, `"1"`, `"true"` → 4; `"2"` → 8; `"3"` → 24; `"0"`, `"false"`, `"yes"` → 1.
   - `FORCE_COLOR=1 NO_COLOR=1` → 4, with Node's warning that `NO_COLOR` is ignored.
-- Under `script` (a pseudo-terminal) → `process.stdout.isTTY` is `true`; `hasColors()` is `false` there with no `TERM` in `./dev.sh exec`'s environment, and with `NO_COLOR=1`.
+- `script` run inside the container → `process.stdout.isTTY` is `true`, `hasColors()` `false`: that inner shell has no `TERM`. Run from the host's terminal, `./dev.sh exec` sets `TERM=xterm` and `hasColors()` is `true` (the critic's probe): interactive sessions keep their colors. With `NO_COLOR=1` → `false`.
+- `@colors/colors/safe` before and after `import("./dist/index.mjs")` → `enabled` turns from `false` to `true` (the critic's probe): winston's config loads `logform/levels.js`, which requires `colorize.js`.
 - Inside a vitest worker of this package → `FORCE_COLOR`, `NO_COLOR` and `TERM` unset, `process.stdout.isTTY` unset, no `hasColors`: every existing test runs on the non-TTY path.
 - `git grep` for `raw()`, `\u001b`, `\x1b` in `packages/logger` → no existing test asserts on ANSI codes; they read `captureConsoleLines().lines()`, which strips them (`__tests__/support/capture-console.ts`).
 
@@ -39,14 +40,14 @@ Proposed at intake and approved by the user:
 - **Node's color conventions**, not rules of our own:
   - `FORCE_COLOR`, when set, decides on its own, as Node does: colors for `""`, `"1"`, `"2"`, `"3"`, `"true"`, none for any other value; `NO_COLOR` is then ignored, as Node ignores it.
   - Otherwise, colors only when `process.stdout.isTTY` and `process.stdout.hasColors()`, which applies `NO_COLOR`, `NODE_DISABLE_COLORS` and `TERM=dumb`.
-  - Calling `tty.WriteStream.prototype.getColorDepth` on a stream that is no TTY was the other option for `FORCE_COLOR`: it borrows a method from a prototype, outside the documented use.
+  - Other options for `FORCE_COLOR`, not taken. Calling `tty.WriteStream.prototype.getColorDepth` on a stream that is no TTY borrows a method from a prototype, outside the documented use. Testing `util.styleText("red", "x", { stream: process.stdout }) !== "x"` applies Node's whole rule (the critic's probe), but it derives a predicate from a side effect, and which Node versions check the stream there is not probed.
 - **A `colors?: boolean` option on `ConsoleLoggerOptions`** wins over all of the above. The `json` format never colors, with or without it.
 - **The choice is made once, when the logger is created**, as the format is today; its children share it.
-- **A minor: 1.1.0.** A new option, and a fix of what the default was meant to do; the shape of a line does not change. Publishing is a session of its own.
+- **A minor: 1.1.0.** A new option, and a fix of what the default was meant to do; the shape of a line does not change. Publishing is a session of its own. The version also ships the fixes of `fix/logger/reserved-entry-fields`, merged with the version left at the published 1.0.0.
 
 ## Open questions
 
-None.
+- The `colors` option: the critic objects that no consumer needs it, since `FORCE_COLOR` and `NO_COLOR` cover both directions, and that without it the release is a patch (1.0.1), with the option a later minor when a need shows. Its one difference from the variables: it is scoped to the logger, where `FORCE_COLOR` also reaches child processes and other libraries.
 
 ## Changes
 
@@ -77,13 +78,14 @@ Through `createLogger("console", …)`, reading `captureConsoleLines().raw()`. E
 
 ## Risks
 
-`medium`: a consumer reading a terminal through a tool that is no TTY (a `docker logs` without `-t`, a CI log) loses its colors. `FORCE_COLOR=1` or `colors: true` brings them back, and the JSDoc says so.
+`medium`: a consumer reading a terminal through a tool that is no TTY (a `docker logs` without `-t`, a CI log) loses its colors. `FORCE_COLOR=1` or `colors: true` brings them back, and the JSDoc says so. Whether Cambusa's `pnpm dev` (`turbo run dev`, then `tsx watch`) gives the api-server a terminal is not probed: if not, its dev logs lose their colors, and `FORCE_COLOR=1` in its dev script, in Cambusa's repo, restores them.
 
 ## Out of scope
 
 - The default format off a terminal (see *Decisions*).
 - The README of `@enardo/logger`: the last *Queued* item, after this one.
 - Writing some levels to stderr.
+- The global `colors.enabled = true` that loading winston sets: other code that uses the same `@colors/colors` instance keeps coloring into pipes. No consumer does today.
 
 ## Plan
 
