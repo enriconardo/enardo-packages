@@ -27,17 +27,20 @@ ADR 0007 provides for one count. Once it is done, the log's header points to a b
   | M spec, from a discussion with the user | 0 | – | – | – |
 
   Text only, all runs: 19.
-- The specs since the critic (2026-10-16 on), by `tier`: one M, `2026-10-21-nodemailer-redact-transport-errors.md`, whose *Why* comes from a bug in the code, not from a discussion with the user; so no run of the M trigger was missed.
+- The specs since the critic (2026-10-16 on), by `tier`: one M, `2026-10-21-nodemailer-redact-transport-errors.md`. Its *Why* comes from a bug in the code, but a decision of it was "taken with the user at intake", so it qualifies under the trigger's wording and had no run. The zero shows how the main agent reads the clause, not that no M spec came from a discussion.
+- Cost: ADR 0007 estimates about 1M input tokens a run, so about 10M for the ten runs; not measured.
 - Where the log is named: `git grep -n critic-runs` → the root `CLAUDE.md` does not name it; the `spec` skill (*The critic*, "Log the run") and ADR 0007 (point 5) do, and the log's header names the backlog item.
 - ADRs are never edited after acceptance, except for their status (`docs/adr/README.md`): changing point 5 of ADR 0007 takes a new ADR.
 
 ## Decisions
 
 - **Every trigger stays**, by ADR 0007's rule: each of `L spec`, `re-run` and `asked` changed a decision in every run.
-- **The M trigger stays** (the user, 2026-10-22). It has no run, because no M spec has come from a discussion since; removing it would leave unguarded the case ADR 0007 is about, on no evidence either way.
+- **The M trigger stays** (the user, 2026-10-22). Its zero runs is no evidence either way (*Probes*), and removing it would leave unguarded the case ADR 0007 is about.
 - **The runs are still logged, and counted again** (the user, 2026-10-22, among: stop logging; log and count again; log with no count). Not taken: stopping the log, which would end the measure after one sample; logging with no count, a rule with no reader.
 - **The second count reads only the rows after the first count**, the last of which is the 2026-10-21 run on `fix/email-nodemailer/non-string-content`. The whole log would keep every trigger whatever the new runs show, since each has already changed a decision.
 - **It is due at five more L specs**, as the first, under the same rule. Its item also asks the user whether the log goes on, so that counting does not become a standing rule by default.
+
+- **This branch's critic runs are not logged**, as the spec of `chore/repo/spec-critic` left out the runs that judged the critic itself: a run on its own evaluation is not a sample of its use.
 
 ## Open questions
 
