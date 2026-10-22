@@ -34,28 +34,28 @@ All in the dev container, Node v24.21.0, winston 3.19.0, `@colors/colors` 1.6.0,
 
 ## Decisions
 
-Proposed at intake and approved by the user:
+Proposed at intake and approved by the user, the option dropped after the critic's first run:
 
 - **The default format stays `pretty`**, on a terminal or not. Only the colors follow the output. Switching to `json` off a terminal was the other option: it changes the shape of every line a collector receives, a new major, and a server that wants JSON already says so.
 - **Node's color conventions**, not rules of our own:
   - `FORCE_COLOR`, when set, decides on its own, as Node does: colors for `""`, `"1"`, `"2"`, `"3"`, `"true"`, none for any other value; `NO_COLOR` is then ignored, as Node ignores it.
   - Otherwise, colors only when `process.stdout.isTTY` and `process.stdout.hasColors()`, which applies `NO_COLOR`, `NODE_DISABLE_COLORS` and `TERM=dumb`.
   - Other options for `FORCE_COLOR`, not taken. Calling `tty.WriteStream.prototype.getColorDepth` on a stream that is no TTY borrows a method from a prototype, outside the documented use. Testing `util.styleText("red", "x", { stream: process.stdout }) !== "x"` applies Node's whole rule (the critic's probe), but it derives a predicate from a side effect, and which Node versions check the stream there is not probed.
-- **A `colors?: boolean` option on `ConsoleLoggerOptions`** wins over all of the above. The `json` format never colors, with or without it.
+- **No `colors` option.** `FORCE_COLOR` and `NO_COLOR` already cover both directions, and no consumer has asked for more. Its one difference, a choice scoped to the logger where `FORCE_COLOR` also reaches child processes and other libraries, would be a minor when a consumer needs it; removing it later would be a major. The `json` format never colors.
 - **The choice is made once, when the logger is created**, as the format is today; its children share it.
-- **A minor: 1.1.0.** A new option, and a fix of what the default was meant to do; the shape of a line does not change. Publishing is a session of its own. The version also ships the fixes of `fix/logger/reserved-entry-fields`, merged with the version left at the published 1.0.0.
+- **A patch: 1.0.1.** A fix of what the default was meant to do; the API and the shape of a line do not change. Publishing is a session of its own. The version also ships the fixes of `fix/logger/reserved-entry-fields`, merged with the version left at the published 1.0.0.
 
 ## Open questions
 
-- The `colors` option: the critic objects that no consumer needs it, since `FORCE_COLOR` and `NO_COLOR` cover both directions, and that without it the release is a patch (1.0.1), with the option a later minor when a need shows. Its one difference from the variables: it is scoped to the logger, where `FORCE_COLOR` also reaches child processes and other libraries.
+None.
 
 ## Changes
 
 `@enardo/logger`:
 
-- `src/logger.ts`: `colors?: boolean` on `ConsoleLoggerOptions`, with JSDoc: what decides the default, that it wins, that `json` ignores it.
-- `src/winston/winston-console.factory.ts`: a function that resolves the option, the environment and `process.stdout` into one boolean, read at creation; `createPrettyFormat` includes `colorize({ all: true })` only when it is `true`.
-- `package.json`: `version` 1.1.0.
+- `src/logger.ts`: JSDoc on `ConsoleLoggerOptions.format`: `pretty` colors only when `FORCE_COLOR` asks for it, or on a terminal that supports colors and without `NO_COLOR`; `json` never colors.
+- `src/winston/winston-console.factory.ts`: a function that resolves the environment and `process.stdout` into one boolean, read at creation; `createPrettyFormat` includes `colorize({ all: true })` only when it is `true`.
+- `package.json`: `version` 1.0.1.
 - `docs/backlog.md`: the item leaves, in a commit of its own.
 
 ## Test cases
@@ -70,15 +70,13 @@ Through `createLogger("console", …)`, reading `captureConsoleLines().raw()`. E
 6. `FORCE_COLOR` each of `""`, `"1"`, `"2"`, `"3"`, `"true"`, `isTTY` unset → colored.
 7. `FORCE_COLOR` each of `"0"`, `"false"`, `"yes"`, `isTTY: true`, `hasColors()` returning `true` → plain.
 8. `FORCE_COLOR=1`, `NO_COLOR=1`, `isTTY` unset → colored.
-9. `colors: true`, `isTTY` unset, `FORCE_COLOR=0` → colored.
-10. `colors: false`, `isTTY: true`, `hasColors()` returning `true`, `FORCE_COLOR=1` → plain.
-11. `format: "json"`, `colors: true`, `isTTY: true`, `hasColors()` returning `true` → plain.
-12. Created with `isTTY: true` and `hasColors()` returning `true`, then `isTTY` unset before logging → colored, and so is a `child()` of it: the choice is made at creation.
-13. The text of a colored line with the codes stripped equals the plain line of the same entry, with `timestamp: false`: colors change nothing else.
+9. `format: "json"`, `FORCE_COLOR=1`, `isTTY: true`, `hasColors()` returning `true` → plain.
+10. Created with `isTTY: true` and `hasColors()` returning `true`, then `isTTY` unset before logging → colored, and so is a `child()` of it: the choice is made at creation.
+11. The text of a colored line with the codes stripped equals the plain line of the same entry, with `timestamp: false`: colors change nothing else.
 
 ## Risks
 
-`medium`: a consumer reading a terminal through a tool that is no TTY (a `docker logs` without `-t`, a CI log) loses its colors. `FORCE_COLOR=1` or `colors: true` brings them back, and the JSDoc says so. Whether Cambusa's `pnpm dev` (`turbo run dev`, then `tsx watch`) gives the api-server a terminal is not probed: if not, its dev logs lose their colors, and `FORCE_COLOR=1` in its dev script, in Cambusa's repo, restores them.
+`medium`: a consumer reading a terminal through a tool that is no TTY (a `docker logs` without `-t`, a CI log) loses its colors. `FORCE_COLOR=1` brings them back, and the JSDoc says so. Whether Cambusa's `pnpm dev` (`turbo run dev`, then `tsx watch`) gives the api-server a terminal is not probed: if not, its dev logs lose their colors, and `FORCE_COLOR=1` in its dev script, in Cambusa's repo, restores them.
 
 ## Out of scope
 
@@ -89,6 +87,6 @@ Through `createLogger("console", …)`, reading `captureConsoleLines().raw()`. E
 
 ## Plan
 
-1. Test-first: cases 1–13 in `__tests__/winston/console-colors.test.ts`, red where the current code colors (1, 2, 4, 5, 7, 10). Then the option and the resolution. Green, committed.
+1. Test-first: cases 1–11 in `__tests__/winston/console-colors.test.ts`, red where the current code colors (1, 2, 4, 5, 7). Then the resolution. Green, committed.
 2. JSDoc and the version. Committed.
 3. The backlog item leaves. Committed.
