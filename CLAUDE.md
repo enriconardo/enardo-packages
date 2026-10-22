@@ -49,7 +49,7 @@ Packages are published through the `publish` skill, each publish approved by the
 
 ## Architecture conventions
 
-- **Ports & adapters**, where the app picks the technology: a contract package defines interfaces and technology-agnostic logic (`email`), with no technology; a `<name>-<technology>` package implements it (`email-nodemailer`). Otherwise one package, named for its role, hides the technology (`logger`) until a second implementation calls for a split.
+- **Ports & adapters**, where the app picks the technology or provides its driver: a contract package defines interfaces and technology-agnostic logic (`email`), with no technology; a `<name>-<technology>` package implements it (`email-nodemailer`). Otherwise one package, named for its role, hides the technology (`logger`) until a second implementation, or a driver the app must provide, calls for a split.
 - A driver (`mongodb`, `bcrypt`, `nodemailer`) is a peer and a dev dependency of its adapter. An app lists the driver of every adapter it runs in its own `dependencies`, since pnpm never reports a missing one; another package, only when its own code runs it.
 - `@enardo/*` packages never depend on a project's packages.
 - One entry point, `src/index.ts` → `dist/index.mjs` + `.d.mts`; the config packages ship their files as they are.
