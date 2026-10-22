@@ -41,6 +41,6 @@
     "vitest": "catalog:"
   },
   "dependencies": {
-    "dotenv": "^16.6.1"
+    "@enardo/errors": "workspace:^"
   }
 }
