@@ -29,7 +29,6 @@ In the order approved.
   - Aligning `@types/node` with Node 24 would let the typecheck catch these names. Whether `@types/node` 24 declares them is not probed.
   - From the review of `fix/http/runtime-neutral-types`.
   - Since the split of `en-monorepo` (`chore/repo/split-repos`, 2026-10-16), Cambusa's catalog has an `@types/node` of its own: aligning it there is Cambusa's change.
-- **Split `@enardo/logger`** into a contract (the interface and the noop logger, no dependencies) and a winston adapter, following the ports-and-adapters rule. It would remove the local copies of the `Logger` interface in `cqrs`, `http-client`, `database-mongo` and `email-nodemailer`. Worth it when one more package needs a logger. From the architectural review of `@enardo/http` (2026-09-25).
 - **The logger drops some errors' content:**
   - `AggregateError.errors` is not enumerable, so it is lost;
   - an error from another realm (`vm`) is not recognized; `Error.isError` would recognize it.
@@ -102,3 +101,4 @@ In the order approved.
 
 - **`fix/errors/proto-key-in-serialize`** (2026-10-02). `serializeError` drops an own `__proto__` field of an error. Such a field can only be created on purpose, with `Object.defineProperty` or a computed class field. Untrusted input belongs in `details`, which already keeps the key. Copying parsed input onto an error with `Object.assign` replaces its prototype instead, and no code in the monorepo does that.
 - **A sync `Iterable<Uint8Array>` body is sent as a string on Node** (2026-10-22). `HttpBody` accepts it with the Node types, and Node's `fetch` sends it as `[object Generator]` or `104,105`. `@enardo/http-client`'s README already documents it. Leaving it out of `HttpBody` is a new major for a case no consumer has; rejecting it at runtime needs a list of the iterable bodies `fetch` takes (`URLSearchParams`, `FormData`). From the spec of `fix/http/stream-body-duplex`.
+- **Split `@enardo/logger`** (2026-10-22) into a contract and a winston adapter. Winston is a detail the app never picks: it chooses a transport, not an engine, so the package stays opaque (root `CLAUDE.md`, *Architecture conventions*). The local copies of `Logger` in `cqrs`, `database-mongo`, `email-nodemailer` and `http-client` are on purpose: each holds the part it uses, and `Logger` is assignable to all of them. Decided after the architectural review of `@enardo/logger` (2026-10-22).
