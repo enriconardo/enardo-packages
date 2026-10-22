@@ -10,15 +10,15 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **`@enardo/env` 2.0: the readers alone, on both runtimes.**
-  - The package exists so that a monorepo's server and Vite client read one root `.env` through one interface: the same readers on `process.env` and on `import.meta.env`. Loading the file is the platform's job: Vite's `envDir`, and Node 24's `process.loadEnvFile`.
-  - `loadEnv` is a no-op in the browser and broken on Node. Without options it loads nothing (a regression of `ea515c8` in `en-monorepo`, pinned by a test that mocks dotenv). It drops the error of a file it cannot read, so the app starts on defaults. With a `target`, the file still lands in `process.env`, and the target receives the whole process environment. Its options are dotenv's: upgrading dotenv (16.6.1 → 18.0.8) alone would change the package's types and log a line on every load.
-  - The readers fall back to the default on a malformed value (`envNumber` takes `" "` as 0, `"0x10"` as 16), cannot require a variable, and assume string values: on Vite's `import.meta.env`, `envBool("PROD")` throws a `TypeError` and `envString("DEV")` returns a boolean. They read a prototype key (`toString`) too.
-  - Direction: remove `loadEnv`, `env()`, `EnvValueType`, `EnvSource` and dotenv; a source of `unknown` values, read by own keys; strict parsing; a required variant throwing a `BaseError`; tests in browsers too; a README stating the one-file pattern, with the `VITE_` prefix as the boundary of secrets, and a package `CLAUDE.md`. Whether the source keeps a default (`process.env` throws a `ReferenceError` in browsers) is the spec's. A major.
-  - Cambusa's side (`import.meta.env` passed to the readers, a check of the public config in `vite.config.ts`) is an item of its own backlog.
-  - Taken with the user at intake (2026-10-22), for the spec to start from: readers bound to a source the caller always passes, with no default; a malformed value throws, a missing required one too, each a `BaseError` whose `details` hold the key and the expected type, never the value; an empty string counts as unset; `bool` takes a boolean as it is, and any other value that is not a string is malformed; numbers in decimal notation only (sign, fraction, exponent; no whitespace, `0x`, `Infinity`, `NaN`). An M task, with a `critic` run.
-  - After `feature/repo/runtime-neutral-presets`, which moves the browser test project, the two runtime typechecks and the runtime-neutral lint of `@enardo/http-client` into presets for this package to use.
-  - From the architectural review of `@enardo/env` (2026-10-22).
+- **Hand over `@enardo/env` 2.0 to Cambusa.**
+  - **What:** once 2.0.0 is published (the `publish` skill, a session of its own), a session of its own adds an item to Cambusa's backlog, on a branch as Cambusa's workflow wants, in the form of its `d7cb78a` (an item of its own, *From:* naming `feature/env/readers-only`). It lists the changes of behavior from 1.x:
+    - `createEnv(source)` replaces `envString`, `envNumber`, `envBool` and `env()`: the source is always passed (`process.env`, or `import.meta.env` in the web app), and there is no default parameter;
+    - a reader returns `undefined` for an unset variable (a key that is not an own key, or whose value is `undefined` or `""`), not `null`: a default is `?? value`;
+    - a malformed value throws `EnvMalformedError` (a number outside decimal notation, a boolean other than `true`, `1`, `yes`, `false`, `0`, `no`, a value that is not a string where a string is read), where 1.x fell back to the default; `requireString`, `requireNumber` and `requireBool` throw `EnvMissingError` for an unset one; neither error holds the value;
+    - `loadEnv` is gone: on Node, `process.loadEnvFile(<root>/.env)` before reading (the shell's values win, a missing file throws `ENOENT`); in Vite, `envDir` at the root.
+  - Cambusa's side of the old item: `import.meta.env` passed to the readers in `apps/web/src/lib/config.ts`, and a check of the public config in `vite.config.ts` (only `VITE_`-prefixed variables reach the client).
+  - **Why:** Cambusa calls the 1.x readers and `loadEnv` (`packages/config/src/`, `apps/web/src/lib/config.ts`), and its backlog has no item about env.
+  - **From:** `feature/env/readers-only`, from the architectural review of `@enardo/env` (2026-10-22).
 
 ## To evaluate
 
@@ -29,8 +29,8 @@ In the order approved.
 - **Runtime checks for `@enardo/errors` and `@enardo/http-status`.**
   - Both run in browsers and on Node. `@cambusa/web` imports `http-status`, and gets `errors` through `@enardo/http-client` and `@cambusa/shared`; the api-server imports both.
   - Neither has the checks `fix/http/runtime-neutral-types` gave `@enardo/http-client`: one typecheck of `src/` per runtime, `isolatedDeclarations`, lint rules against one runtime's imports and globals.
-  - Their `src/` passes both runtime typechecks today (probed on 2026-10-05).
-  - Giving them the same checks is now a matter of opting in to the presets of `feature/repo/runtime-neutral-presets`: `runtime-browser.json` and `runtime-node.json`, `runtimeNeutral`, and `browserProject()` for their tests (root `CLAUDE.md`, *Testing*). The move left is `isolatedDeclarations`, an override of `@enardo/http-client`'s `tsconfig.json`: the second package that needs it moves it into a preset.
+  - Their `src/` passes both runtime typechecks only after types are written out: the runtime presets now hold `isolatedDeclarations` (`feature/env/readers-only`), and opting in, `@enardo/errors` fails it at `src/base/serialize-error.ts:15` (TS9011) and `@enardo/http-status` at `src/reason-phrases.ts:11` and `src/registry.ts:14` (TS9010, two `Object.freeze({...})` exports). Found with `tsc --noEmit --isolatedDeclarations` in each (2026-10-22).
+  - Giving them the same checks is a matter of opting in to the presets of `feature/repo/runtime-neutral-presets`: `runtime-browser.json` and `runtime-node.json`, `runtimeNeutral`, and `browserProject()` for their tests (root `CLAUDE.md`, *Testing*), after those types are written out.
   - From the spec of `fix/http/runtime-neutral-types`; the browser tests from the spec of `chore/repo/browser-tests` (2026-10-07).
 - **`@types/node` is ahead of the runtime.**
   - The catalog has `@types/node: ^26.4.0`; the dev container runs Node 24 (`docker/dev/Dockerfile`).
