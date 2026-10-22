@@ -31,14 +31,8 @@ Every command that touches `node_modules` runs in the `dev` container. The host 
 ```
 
 - **Never run `pnpm` on the host.** `bcrypt` and `mongodb-memory-server` are native modules: installs from two environments into one `node_modules` break them. Recovery: `./dev.sh clean`, then `./dev.sh exec pnpm install`. The one exception is publishing (the `publish` skill).
-- **A probe that needs a package outside the lockfile** runs in a throwaway container, never in the dev container, where an `npm i` can move files of `node_modules`. It mounts the repo read-only, to read built `dist/` files:
-  ```
-  docker run --rm -v "$PWD":/workspaces/enardo-packages:ro -v en-probe:/probe -w /probe node:24-bookworm \
-    sh -c 'npm init -y && npm i <packages>'    # more runs: same mounts
-  docker volume rm en-probe                   # when done
-  ```
-- Mongo-backed tests start their own in-memory replica set. Browser tests run in the `playwright` service: see [docker/README.md](docker/README.md), which also says what the containers never mount.
-- The repo is mounted at `/workspaces/enardo-packages` in the container. The pnpm store, `.pnpm-store/`, sits beside `node_modules` so that packages are hard-linked: deleting it means redownloading everything.
+- **Never `npm i` in the dev container**, which can move files of `node_modules`: a probe that needs a package outside the lockfile runs in a throwaway container (the `spec` skill, *Probing*).
+- The repo is mounted at `/workspaces/enardo-packages` in the container. Browser tests run in the `playwright` service: see [docker/README.md](docker/README.md), which also says what the containers never mount.
 
 ## Tooling & commands
 
@@ -51,7 +45,7 @@ Every command that touches `node_modules` runs in the `dev` container. The host 
 
 ## Publishing
 
-Packages go to the private registry `https://npm.enriconardo.com` (`publishConfig.registry`) through the `publish` skill, never with npm, each publish approved by the user. A published version never changes: a breaking change is a new major (a new minor below 1.0.0).
+Packages are published through the `publish` skill, each publish approved by the user. A published version never changes: a breaking change is a new major (a new minor below 1.0.0).
 
 ## Architecture conventions
 
@@ -75,16 +69,15 @@ Packages go to the private registry `https://npm.enriconardo.com` (`publishConfi
 
 ## Testing
 
-- Tests live in `<package>/__tests__/`, mirroring `src/`, as `*.test.ts`. Adapters are tested against the in-memory Mongo replica set (`__tests__/setup/replica-set.ts`, one database per test).
+- Tests live in `<package>/__tests__/`, mirroring `src/`, as `*.test.ts`. Adapters are tested against an in-memory Mongo replica set that the tests start (`__tests__/setup/replica-set.ts`, one database per test).
 - A package whose `src/` runs in browsers runs its tests there too (`errors` and `http-status` not yet: backlog); `@enardo/http-client` is the reference ([its CLAUDE.md](packages/http-client/CLAUDE.md), *Checks*). A test that needs Node goes in a `*.node.test.ts` beside its `*.test.ts`.
 - Refactors keep the existing tests green without changing them, unless the spec says so.
 
 **Test-first**, unless the spec says otherwise, with a reason:
 
 - A bug fix starts with a test that reproduces the bug and fails with its symptom.
-- The public API of `@enardo/*` and domain logic are test-first. In M and L the `test-author` writes the initial suite from the spec, and records it. The main agent changes one of its tests only where it is wrong, saying why in the commit body, and writes the tests of review follow-ups, seeing each fail first. Wiring may be tested after.
+- The public API of `@enardo/*` and domain logic are test-first; in M and L, as the `implement` skill says. Wiring may be tested after.
 - A test written first fails for the expected reason, and asserts what identifies it (the class, `code`, `details`): `rejects.toThrow(undefined)` accepts any error.
-- A wrong implementation is tried on a copy of the package outside the repo, never by editing the working tree and reverting it: `git checkout` and `git stash` take uncommitted work with them.
 
 ## Workflow
 
@@ -99,10 +92,10 @@ The table is the floor: a `high` among the brief's four ratings makes the task L
 | L | a new package, a change across packages, the dev environment or the workflow; a `high` rating | as M, with an ADR for a decision that outlives the task |
 
 1. **Branch**: `scripts/task-start.sh <branch>`, from an up-to-date `main`.
-2. **Spec**: with the `spec` skill, as the branch's first commit; then the `critic`, on an L spec or an M spec whose *Why* says it or a decision comes from a discussion with the user, and again after the user changes a decision it judged.
-3. **⏸ Checkpoint 1**: the user approves the spec before any production code, then sets the model and effort of its `implementer`, `/clear`, and `/implement <spec>`.
+2. **Spec**: with the `spec` skill, as the branch's first commit, and the `critic` where that skill says.
+3. **⏸ Checkpoint 1**: the user approves the spec before any production code (the `spec` skill).
 4. **Implement, review, ⏸ checkpoint 2**: the `implement` skill, in that fresh session. An S task: verify, then the summary and the diff, and wait for the go-ahead.
-5. **Integrate**, when verify is green (dependents included) and the README follows the public API: the spec `done`, then `scripts/integrate.sh` (verify, `merge --no-ff`, branch deleted). No PRs. Publishing and follow-ups go in a session of their own, on the user's model.
+5. **Integrate**, when verify is green (dependents included) and the README follows the public API: `scripts/integrate.sh` (verify, `merge --no-ff`, branch deleted), after the spec's `done`. No PRs. Publishing and follow-ups go in a session of their own.
 6. **Learn**, at checkpoints 1 and 2, for a problem that could recur and costs more than its rule costs to read: propose it, on the task's branch. Prefer a check, script, hook or lint rule; else the agent, skill or package `CLAUDE.md` it applies to; this file only for what every task needs. The rule, not its story. `scripts/check-context-size.sh` caps this file at 12 000 bytes and each agent at 6 000: a new rule merges with or replaces an old one.
 
 Roles: the main agent holds the intent; the `critic` starts from the spec alone, the `test-author` from the spec and the `reviewer` from the spec and the diff, in fresh contexts, so they don't share the author's blind spots; `pnpm verify` cannot talk itself into accepting a failure.
