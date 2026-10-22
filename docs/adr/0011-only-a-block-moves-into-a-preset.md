@@ -1,6 +1,6 @@
 # 0011. Only a block of configuration that a second package needs moves into a preset
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-22
 - Spec: docs/specs/2026-10-22-narrow-preset-rule.md
 
