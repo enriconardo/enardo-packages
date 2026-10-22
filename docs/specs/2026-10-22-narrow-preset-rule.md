@@ -3,7 +3,7 @@ status: draft
 type: docs
 tier: L
 implementer: sonnet/medium
-packages: ["@enardo/typescript-config", "@enardo/eslint-config", "@enardo/http-client"]
+packages: ["@enardo/typescript-config", "@enardo/eslint-config"]
 branch: docs/repo/narrow-preset-rule
 ---
 
@@ -11,31 +11,26 @@ branch: docs/repo/narrow-preset-rule
 
 ## Why
 
-`feature/env/readers-only` gives `@enardo/env` a local `isolatedDeclarations`, as `@enardo/http-client` has: the rule that an override two packages need moves into a preset then asks for a preset of one flag, which no existing preset can host (ADR 0011, *Context*). The user questioned the rule (2026-10-22): counting packages produces presets that serve two or three packages. The rule did produce the four runtime presets, which hold blocks that would drift if copied; a single option does not drift the way a block does. Decided with the user after a `critic` run on a proposal to drop the rule: narrow it to blocks.
+The rule that an override two packages need moves into a preset (ADR 0001, root `CLAUDE.md`, the presets' READMEs) counts packages, whatever the override holds. The user judged it rigid (2026-10-22): a scalar shared by two packages would make a preset of one option. The rule did produce the four runtime presets, which hold blocks that would drift if copied; a scalar does not drift the way a block does. Decided with the user, after two `critic` runs: narrow the rule to blocks, by the value of the override.
 
-L by the tier table: the docs of three packages and a decision that outlives the task (ADR 0011).
+The question came up with `isolatedDeclarations`, shared by `@enardo/http-client` and `@enardo/env` 2.0. `feature/env/readers-only` moves it into the runtime overlays, where it fits every package; this task does not depend on it.
+
+L by the tier table: the READMEs of two packages and a decision that outlives the task (ADR 0011).
 
 ## Probes
 
-- `git grep -n -i -E "second package|two packages need|moves? (it )?into (a|the) preset|until a second"`, over the repo but `docs/specs` → the rule is stated or applied in:
-  - `CLAUDE.md:41`;
-  - `docs/adr/0001-shared-configs-as-workspace-packages.md:16` (point 2);
-  - `docs/adr/0010-a-vitest-preset-package.md:15` (point 3, for parts of a vitest config);
-  - `packages/typescript-config/README.md:73`;
-  - `packages/eslint-config/README.md:58`;
-  - `packages/http-client/CLAUDE.md:86` ("a local override until a second package needs it");
-  - `docs/backlog.md:32` ("the second package that needs it moves it into a preset").
+- `git grep -n -i -E "second package|two packages need|moves? (it )?into (a|the) preset|until a second"`, over the repo but `docs/specs` → the rule is stated in `CLAUDE.md:41`, `docs/adr/0001-shared-configs-as-workspace-packages.md:16` (point 2), `docs/adr/0010-a-vitest-preset-package.md:15` (point 3, for parts of a vitest config), `packages/typescript-config/README.md:73`, `packages/eslint-config/README.md:58`; it is applied to `isolatedDeclarations` in `packages/http-client/CLAUDE.md:86` and `docs/backlog.md:32`, which `feature/env/readers-only` rewrites.
 - `docs/specs/2026-10-22-runtime-neutral-presets.md:20` and `docs/specs/2026-10-07-browser-tests.md:289` → the rule is what moved the runtime overlays, `runtimeNeutral` and `browserProject()` into presets.
-- `packages/typescript-config/README.md:57` and the comment in `packages/http-client/tsconfig.json:5-9` → both give `isolatedDeclarations`'s reason in the DOM direction only. An inferred `setTimeout` comes out as `NodeJS.Timeout`, a name of Node's types only (an in-memory declaration emit on `packages/env/tsconfig.json`, by the `critic`'s first run on the env spec).
+- The `critic`'s run on the first version of this spec → the `test` block of `vitest.config.ts` (`globalSetup`, `include`, `hookTimeout`, `testTimeout`) is identical in `@enardo/transaction-manager-mongo` and `@enardo/uow-repository-mongo` since `2099677`: a block the rule, old or narrowed, sends to `@enardo/vitest-config`, and nobody moved.
 - `wc -c CLAUDE.md` → 11 072 bytes, of 12 000.
 
 ## Decisions
 
 Taken with the user (2026-10-22):
 
-- **The rule, narrowed**: "An override of more than one option (a block, a list) that a second package needs moves into a preset; a single option is repeated, with its comment." The four runtime presets are blocks, and stay.
-- **ADRs keep their method**: ADR 0011 supersedes the sentence of ADR 0001's point 2; ADR 0001 changes only in its status line. Not taken: amending ADRs in place, which leaves a *Context* written for the old decision and references that go stale without notice.
-- Not taken: dropping the rule, with shared patterns found by a review on request (nothing triggers the review); dropping "with a comment saying why" from the root `CLAUDE.md` (no other root rule asks an override for a comment).
+- **The rule, by the value of the override**: a list, an object, or several options that a second package needs move into a preset; a scalar is repeated, with its comment, and moves into a preset only when it fits every package on it. The wording by value comes from the `critic`: counting options would repeat a lone list, the case that drifts.
+- **ADRs keep their method**: ADR 0011 supersedes the sentence of ADR 0001's point 2; ADR 0001 changes only in its status line.
+- Not taken: dropping the rule, with shared patterns found by a review on request (nothing triggers the review); dropping "with a comment saying why" from the root `CLAUDE.md` (no other root rule asks an override for a comment); amending ADRs in place.
 
 ## Open questions
 
@@ -44,27 +39,23 @@ None.
 ## Changes
 
 - **`docs/adr/0011-only-a-block-moves-into-a-preset.md`** (new, `proposed` until checkpoint 1, then `accepted`); **`docs/adr/0001-…md`**, status line: "…; point 2's moving into a preset of an override two packages need superseded by 0011"; **`docs/adr/README.md`**: a row for 0011, and 0001's row follows its status line.
-- **`CLAUDE.md:41`**: "… uses a preset of `@enardo/typescript-config` or `@enardo/eslint-config`. A package may override an option or a rule, with a comment saying why; an override of more than one option (a block, a list) that a second package needs moves into a preset, and a single option is repeated, with its comment."
-- **`packages/typescript-config/README.md`**:
-  - `:73`: "An override of more than one option (a block, a list) that a second package needs moves into a preset; a single option is repeated in each package, with its comment."
-  - `:57`: "… so that the build emits them from the source text and not through a program with the types of both runtimes: an inferred type would come out with a name only one runtime declares (`BodyInit` of the DOM, `NodeJS.Timeout` of Node)."
-- **`packages/eslint-config/README.md:58`**: "A package may extend the preset array with its own entries, with a comment saying why. An override of more than one rule or option that a second package needs moves into the preset, and a single one is repeated, with its comment; when the preset gets stricter, a package may keep the old behavior through a temporary override."
-- **`packages/http-client/CLAUDE.md:86`**: "(a local override until a second package needs it)" becomes "(a single option: each package repeats it, with its comment)".
-- **`packages/http-client/tsconfig.json`**, the comment on `isolatedDeclarations`: the reason in both directions, as in `typescript-config`'s README.
-- **`docs/backlog.md:32`**: "The move left is `isolatedDeclarations`, … moves it into a preset." becomes "`isolatedDeclarations` is a single option: each package repeats it in its own `tsconfig.json`, with its comment (ADR 0011)."
+- **`CLAUDE.md:41`**: "… uses a preset of `@enardo/typescript-config` or `@enardo/eslint-config`. A package may override an option or a rule, with a comment saying why. A list, an object or several options that a second package needs move into a preset; a scalar is repeated with its comment, unless it fits every package on a preset (ADR 0011)."
+- **`packages/typescript-config/README.md:73`**: "An override whose value is a list or an object, or that sets several options, moves into a preset when a second package needs it; a scalar is repeated in each package, with its comment, unless it fits every package on a preset."
+- **`packages/eslint-config/README.md:58`**: "A package may extend the preset array with its own entries, with a comment saying why. Entries that a second package needs move into the preset, unless they set a single scalar option, which is repeated with its comment; when the preset gets stricter, a package may keep the old behavior through a temporary override."
+- **`docs/backlog.md`**, *To evaluate*: **The vitest `test` block of the Mongo adapters**, identical in `@enardo/transaction-manager-mongo` and `@enardo/uow-repository-mongo`: under ADR 0010 and ADR 0011 it moves into `@enardo/vitest-config`. From the `critic`'s run on the spec of `docs/repo/narrow-preset-rule`.
 - No version bump: no preset changes; the READMEs reach the registry with each package's next release.
-- ADR 0010 stays: its point 3 is about parts of a vitest config, which are blocks.
 
 ## Test cases
 
-None: documentation only. `pnpm verify` checks the format of the changed files and the size of the root `CLAUDE.md`; `typecheck` of `@enardo/http-client` re-reads its `tsconfig.json`.
+None: documentation only. `pnpm verify` checks the format of the changed files and the size of the root `CLAUDE.md`.
 
 ## Out of scope
 
-- `isolatedDeclarations` in `library.json` for every library (a *To evaluate* item of `feature/env/readers-only`).
-- `@enardo/env`'s own `tsconfig.json` (`feature/env/readers-only`).
+- `isolatedDeclarations` (`feature/env/readers-only`).
+- Moving the Mongo adapters' vitest block (the backlog item above).
 
 ## Plan
 
-1. ADR 0011 `accepted`, ADR 0001's status, the index; the rule narrowed in the root `CLAUDE.md`, the two READMEs, `http-client`'s `CLAUDE.md` and the backlog; `isolatedDeclarations`'s reason in both directions. One commit: the rule and its applications change together.
-2. `pnpm verify`, the diff to the user, integrate.
+1. ADR 0011 `accepted`, ADR 0001's status, the index; the rule in the root `CLAUDE.md` and the two READMEs. One commit: the rule changes everywhere at once.
+2. The backlog item, in a commit of its own.
+3. `pnpm verify`, the diff to the user, integrate.
