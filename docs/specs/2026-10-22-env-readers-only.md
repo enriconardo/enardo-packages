@@ -1,9 +1,9 @@
 ---
 status: draft
 type: feature
-tier: M
+tier: L
 implementer: sonnet/medium
-packages: ["@enardo/env"]
+packages: ["@enardo/env", "@enardo/typescript-config", "@enardo/http-client"]
 branch: feature/env/readers-only
 ---
 
@@ -19,6 +19,8 @@ branch: feature/env/readers-only
 
 The direction and most rules were taken with the user at intake (2026-10-22); the shape of the API and the `isolatedDeclarations` question in the intake discussion that followed. A major.
 
+The spec of `feature/repo/runtime-neutral-presets` left one move to the task of the second package on the runtime presets, this one: `isolatedDeclarations`, an override of `@enardo/http-client`'s `tsconfig.json`. That makes the task L by the tier table: it changes `@enardo/typescript-config` and `@enardo/http-client` too.
+
 ## Probes
 
 All in the dev container (Node 24.21.0), unless said otherwise.
@@ -32,6 +34,8 @@ All in the dev container (Node 24.21.0), unless said otherwise.
 - `process.loadEnvFile("p.env")` with `A=file`, `B=file` and `A=shell` in the environment → `A` stays `shell`, `B` becomes `file`; a missing file throws an `Error` with `code: "ENOENT"`.
 - `isolatedDeclarations`: a sketch of the API (`createEnv` with inferred return types, two errors over `BaseError`), placed in `packages/http-client/.probe-env/` for its `@enardo/errors`, built with `tsdown src/index.ts --format esm --dts` on `library.json` without the option → the `.d.mts` names only `string`, `number`, `undefined`, `Readonly<Record<string, unknown>>` and `BaseError`; it compiles in a consumer on `runtime-browser.json` and one on `runtime-node.json`, both with `skipLibCheck: false`; the sketch passes both runtime programs.
 - The critic's first run, by an in-memory declaration emit on `packages/env/tsconfig.json` → `export const start = () => setTimeout(() => {}, 1)` is emitted as `() => NodeJS.Timeout`, a name of Node's types only, which no runtime program or lint rule reports. `tsc --noEmit --isolatedDeclarations` → 0 errors in `packages/env`; with the option on every package on `library.json`, 6 errors in 5 packages (`errors`, `http-status`, `logger`, `uow-repository`, `email-nodemailer`).
+- The critic's third run, a program on the options of `packages/http-client/tsconfig.node.json` with a `src/` file holding that export → no error without `isolatedDeclarations`, TS9007 with it: the runtime program alone catches it.
+- `tsdown src/index.ts --format esm --dts` in `packages/http-client`, after `pnpm exec turbo run build --filter=@enardo/http-client... --force`, with a tsconfig that drops `isolatedDeclarations` (so tsdown emits through tsc instead of Oxc) → `index.d.mts` identical to `dist/index.d.mts` once both go through `prettier --parser typescript` (415 lines each, no difference).
 - The opt-in to the runtime checks → `packages/http-client/CLAUDE.md`, *Checks*, last paragraphs; its configs: `packages/http-client/{tsconfig.browser.json,tsconfig.node.json,eslint.config.js,vitest.config.ts}`.
 
 ## Decisions
@@ -46,7 +50,7 @@ Taken with the user:
 - **Numbers in decimal notation only**: the regex of *Probes* (sign, fraction, exponent) and a finite result; no whitespace, `0x`, `0b`, `0o`, `_`, `Infinity`, `NaN`.
 - **Remove** `loadEnv`, `LoadEnvOptions`, `env()`, `EnvValueType`, the 1.x `EnvSource` (`"node" | "vite"`) and dotenv, as if they had never been there (no deprecation, no absence test).
 - **Tests in browsers too**, through the presets of `feature/repo/runtime-neutral-presets`; a README with the one-file pattern and the `VITE_` prefix as the boundary of secrets; a package `CLAUDE.md`.
-- **`isolatedDeclarations` as a local override** in `packages/env/tsconfig.json`, with a comment saying why: an inferred type can name what only one runtime's types declare (`NodeJS.Timeout`, *Probes*), and the option is the check that keeps it out, at no cost here. It does not move into a preset in this task: whether every package on `library.json` takes it is a backlog item of its own (*To evaluate*). Taken with the user after the critic's first run, which challenged the intake's choice of no option and a narrower opt-in condition in `@enardo/http-client`'s `CLAUDE.md`. The rule that an override two packages need moves into a preset (ADR 0001, root `CLAUDE.md`, the presets' READMEs) is dropped by `docs/repo/drop-preset-promotion-rule`, an S task integrated before this one, which also rewrites the lines that apply it (`@enardo/http-client`'s `CLAUDE.md`, the backlog item on `@enardo/errors` and `@enardo/http-status`) and states the option's reason in both directions (`@enardo/typescript-config`'s README).
+- **`isolatedDeclarations` in the runtime overlays** (`runtime-browser.json`, `runtime-node.json` of `@enardo/typescript-config`): the option is a check that every export's type is written out, so an inferred type cannot name what only one runtime's types declare (`BodyInit` of the DOM, `NodeJS.Timeout` of Node, *Probes*). The runtime programs check `src/` alone, so tests are not held to it. Once the types are written out, the build's emitter writes the same names (*Probes*): `tsconfig.json` no longer needs it. `@enardo/http-client` drops its local override, and `@enardo/env` never adds one. Taken with the user after the critic's runs: the intake's choice of no option, then a local override, then this; the move was the one `feature/repo/runtime-neutral-presets` left to this task.
 
 Taken here, for the critic and the user:
 
@@ -64,17 +68,29 @@ Taken here, for the critic and the user:
 
 - **`src/`**: `createEnv`, `EnvReader`, `EnvSource`, and the two errors (in `src/errors/`, as `@enardo/http-client` places its own); `load-env.ts` and the 1.x readers go. Reads use `Object.hasOwn`. JSDoc on every export.
 - **`package.json`**: version `2.0.0`; description "Strict readers of environment variables, over `process.env` or `import.meta.env`"; `dotenv` removed, `@enardo/errors: workspace:^` added to `dependencies`, `@enardo/vitest-config: workspace:^` to `devDependencies`; `typecheck` runs `tsconfig.json`, `tsconfig.browser.json`, `tsconfig.node.json`, as `@enardo/http-client` does. The lockfile follows.
-- **Configs**: `tsconfig.browser.json` and `tsconfig.node.json` on the runtime presets; `eslint.config.js` on `runtimeNeutral`; `vitest.config.ts` with a `node` project and `browserProject()`. `tsconfig.json` stays on `library.json`, with `isolatedDeclarations` (*Decisions*).
+- **Configs**: `tsconfig.browser.json` and `tsconfig.node.json` on the runtime presets; `eslint.config.js` on `runtimeNeutral`; `vitest.config.ts` with a `node` project and `browserProject()`. `tsconfig.json` stays on `library.json`, with no override.
 - **`__tests__/`**: the 1.x test files go; the new ones mirror `src/`, import from `~/index`, and run in both projects; the cases that need `process.env` go in `*.node.test.ts`.
 - **`README.md`** (new): the exports; the rules of *Decisions*; the one-file pattern: on Node, `process.loadEnvFile(<root>/.env)` before reading (the shell's values win, a missing file throws `ENOENT`), in Vite, `envDir` at the root and `createEnv(import.meta.env)`; only `VITE_`-prefixed variables reach the client bundle, so the prefix is the boundary of secrets; a source must have an index signature (`ImportMetaEnv` and `process.env` have one). It describes 2.0 only: the changes from 1.x go in the handover item (*Repo*).
-- **`CLAUDE.md`** (new): layout, the strictness rules and the reason for each, the never-the-value rule for errors, the two runtimes and the checks (by reference to the presets' READMEs), why `isolatedDeclarations`.
+- **`CLAUDE.md`** (new): layout, the strictness rules and the reason for each, the never-the-value rule for errors, the two runtimes and the checks (by reference to the presets' READMEs), the explicit types that the runtime programs require (`isolatedDeclarations`).
+
+### `@enardo/typescript-config`
+
+- **`runtime-browser.json`, `runtime-node.json`**: `"isolatedDeclarations": true`.
+- **`README.md`**: the runtime presets' description says they hold `isolatedDeclarations`, and why, in both directions (`BodyInit`, `NodeJS.Timeout`); the sentence at `:57` that asks a package to add it goes.
+- **`package.json`**: a minor above the version on the registry (a stricter preset); none if 1.1.0, from `feature/repo/runtime-neutral-presets`, is not published yet.
+
+### `@enardo/http-client`
+
+- **`tsconfig.json`**: `isolatedDeclarations` and its comment go; `lib` stays.
+- **`CLAUDE.md`**: *Two runtimes*' "Exported types are written out" says the runtime programs require it, and that the build then emits the same names; the *Checks* table's `isolatedDeclarations` row names the runtime programs; the opt-in paragraph loses the step that adds the option; the layout's `tsconfig.json` line follows.
+- No version bump: its `dist/` does not change (*Probes*).
 
 ### Repo
 
 - `docs/backlog.md`, in a commit of its own:
   - the item leaves;
   - a *Queued* item enters, **Hand over `@enardo/env` 2.0 to Cambusa**: once 2.0.0 is published, a session of its own adds an item to Cambusa's backlog, on a branch as Cambusa's workflow wants, in the form of its `d7cb78a` (an item of its own, *From:* naming this branch). It lists the changes of behavior from 1.x (`createEnv` and the source passed, `undefined` for `null`, `?? default`, the throws on a malformed value, `loadEnv` replaced by `process.loadEnvFile` and `envDir`), and Cambusa's side of the old item (`import.meta.env` passed to the readers, a check of the public config in `vite.config.ts`). The list is in this repo's diff, so the reviewer checks it against *Decisions*;
-  - a *To evaluate* item enters: `isolatedDeclarations` in `library.json`, for every library package, with the critic's count (*Probes*), ADR 0001's temporary overrides for the packages that fail, and what is left to probe: whether tsdown's emit through Oxc changes any `.d.mts` (a build of each package with and without the option, `dist/` compared). The runtime overlays are no home for it: the build reads `tsconfig.json`, which does not extend them.
+  - the item on the runtime checks of `@enardo/errors` and `@enardo/http-status` no longer lists `isolatedDeclarations` as a move left: the runtime overlays bring it.
 
 ## Test cases
 
@@ -127,6 +143,7 @@ Taken here, for the critic and the user:
 ## Risks
 
 - **An app that started on defaults now fails at startup** on a malformed value. Intended; Cambusa's handover entry lists each change of behavior.
+- **A stricter preset**: a package on the runtime overlays with an inferred export type fails `typecheck`. Today only `@enardo/http-client` and `@enardo/env` are on them, and both pass.
 - **A secret in an error**: case 19 checks the serialized form.
 - **A check that sees only one runtime**: the tests run in the `browser` project too, and `src/` passes both runtime programs and `runtimeNeutral`.
 
@@ -141,8 +158,7 @@ Taken here, for the critic and the user:
 ## Plan
 
 1. **`createEnv`, `EnvReader`, `EnvSource` and the two errors**, test-first (cases 1–22), replacing the whole 1.x API and dotenv with their tests in the same commit: the 1.x readers are typed with dotenv's `DotenvPopulateInput`, so neither can go first alone.
-2. **The runtime checks**: the two programs, `runtimeNeutral`, the `browser` project, `@enardo/vitest-config`; case 23 in a `*.node.test.ts`.
-3. **`README.md`, `CLAUDE.md`, version and description.**
-4. **The backlog**: the item leaves; the handover and the `isolatedDeclarations` items enter.
-
-Before step 1: `main` holds `docs/repo/drop-preset-promotion-rule`, and the branch is rebased on it.
+2. **`isolatedDeclarations` into the runtime overlays**: `@enardo/typescript-config`'s two presets, README and version; `@enardo/http-client`'s `tsconfig.json` and `CLAUDE.md`. `typecheck` of `@enardo/http-client` stays green, and its `dist/index.d.mts` is unchanged.
+3. **The runtime checks of `@enardo/env`**: the two programs, `runtimeNeutral`, the `browser` project, `@enardo/vitest-config`; case 23 in a `*.node.test.ts`.
+4. **`README.md`, `CLAUDE.md`, version and description of `@enardo/env`.**
+5. **The backlog**: the item leaves; the handover item enters; the item on `@enardo/errors` and `@enardo/http-status` is rewritten.
