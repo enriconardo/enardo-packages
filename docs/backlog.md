@@ -29,11 +29,6 @@ In the order approved.
   - Aligning `@types/node` with Node 24 would let the typecheck catch these names. Whether `@types/node` 24 declares them is not probed.
   - From the review of `fix/http/runtime-neutral-types`.
   - Since the split of `en-monorepo` (`chore/repo/split-repos`, 2026-10-16), Cambusa's catalog has an `@types/node` of its own: aligning it there is Cambusa's change.
-- **A sync `Iterable<Uint8Array>` body is sent as a string on Node.**
-  - `HttpBody` accepts it on Node because undici's types declare it: `undici-types` 7.24.6, the top of the range the latest `@types/node` 24 depends on, and 8.3.0, the one the catalog's `@types/node` 26.4.0 installs.
-  - Node 24.21.0's `fetch` sends a generator as `[object Generator]`, and an array of `Uint8Array` as `104,105` (probed on 2026-10-05).
-  - `duplex` does not change it. Options: leave it out of `HttpBody`, or reject it at runtime.
-  - From the spec of `fix/http/stream-body-duplex`.
 - **Split `@enardo/logger`** into a contract (the interface and the noop logger, no dependencies) and a winston adapter, following the ports-and-adapters rule. It would remove the local copies of the `Logger` interface in `cqrs`, `http-client`, `database-mongo` and `email-nodemailer`. Worth it when one more package needs a logger. From the architectural review of `@enardo/http` (2026-09-25).
 - **The logger drops some errors' content:**
   - `AggregateError.errors` is not enumerable, so it is lost;
@@ -106,3 +101,4 @@ In the order approved.
 ## Dropped
 
 - **`fix/errors/proto-key-in-serialize`** (2026-10-02). `serializeError` drops an own `__proto__` field of an error. Such a field can only be created on purpose, with `Object.defineProperty` or a computed class field. Untrusted input belongs in `details`, which already keeps the key. Copying parsed input onto an error with `Object.assign` replaces its prototype instead, and no code in the monorepo does that.
+- **A sync `Iterable<Uint8Array>` body is sent as a string on Node** (2026-10-22). `HttpBody` accepts it with the Node types, and Node's `fetch` sends it as `[object Generator]` or `104,105`. `@enardo/http-client`'s README already documents it. Leaving it out of `HttpBody` is a new major for a case no consumer has; rejecting it at runtime needs a list of the iterable bodies `fetch` takes (`URLSearchParams`, `FormData`). From the spec of `fix/http/stream-body-duplex`.
