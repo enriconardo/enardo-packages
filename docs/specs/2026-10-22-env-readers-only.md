@@ -23,7 +23,7 @@ The direction and most rules were taken with the user at intake (2026-10-22); th
 
 All in the dev container (Node 24.21.0), unless said otherwise.
 
-- `git grep "@enardo/env"` outside specs → no package of this repo depends on it; Cambusa's side is an item of its own backlog.
+- `git grep "@enardo/env"` outside specs → no package of this repo depends on it. Cambusa calls the 1.x readers and `loadEnv` (`packages/config/src/`, `apps/web/src/lib/config.ts`), and its `docs/backlog.md` has no item about env: this backlog item is the only record of Cambusa's side.
 - `vite build` (Vite 8.2.2, from the lockfile) of a page logging `import.meta.env`, with a `.env` of `VITE_PORT=3000`, `VITE_EMPTY=`, `SECRET=x` → an object literal `{ BASE_URL: "/", DEV: false, MODE: "production", PROD: true, SSR: false, VITE_EMPTY: "", VITE_PORT: "3000" }`: `DEV`, `PROD`, `SSR` are booleans, the rest strings, `SECRET` is left out, an empty value is kept as `""`, and the object has `Object.prototype` (`Object.hasOwn(e, "toString")` is `false`).
 - `process.env` → `Object.hasOwn(process.env, "PATH")` is `true`, `Object.hasOwn(process.env, "toString")` `false` while `"toString" in process.env` is `true`; assigning `3` or `undefined` stores the strings `"3"` and `"undefined"`.
 - `Number(s)` and `/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/` on `"3000" "-1.5" "+2" ".5" "5." "1e3" "1E-2" "-0" "007"` → all match, with the expected numbers (`-0` gives `-0`); `"1e999"` matches but gives `Infinity`; `" 1" "0x10" "0b1" "1_000" "Infinity" "NaN" ""` do not match (`Number` takes `" 1"`, `"0x10"`, `"0b1"`, `""` as 1, 16, 1, 0).
@@ -64,7 +64,7 @@ Taken here, for the critic and the user:
 - **`package.json`**: version `2.0.0`; description "Strict readers of environment variables, over `process.env` or `import.meta.env`"; `dotenv` removed, `@enardo/errors: workspace:^` added to `dependencies`, `@enardo/vitest-config: workspace:^` to `devDependencies`; `typecheck` runs `tsconfig.json`, `tsconfig.browser.json`, `tsconfig.node.json`, as `@enardo/http-client` does. The lockfile follows.
 - **Configs**: `tsconfig.browser.json` and `tsconfig.node.json` on the runtime presets; `eslint.config.js` on `runtimeNeutral`; `vitest.config.ts` with a `node` project and `browserProject()`. `tsconfig.json` stays on `library.json`.
 - **`__tests__/`**: the 1.x test files go; the new ones mirror `src/`, import from `~/index`, and run in both projects; the cases that need `process.env` go in `*.node.test.ts`.
-- **`README.md`** (new): the exports; the rules of *Decisions*; the one-file pattern: on Node, `process.loadEnvFile(<root>/.env)` before reading (the shell's values win, a missing file throws `ENOENT`), in Vite, `envDir` at the root and `createEnv(import.meta.env)`; only `VITE_`-prefixed variables reach the client bundle, so the prefix is the boundary of secrets; a source must have an index signature (`ImportMetaEnv` and `process.env` have one); migrating from 1.x.
+- **`README.md`** (new): the exports; the rules of *Decisions*; the one-file pattern: on Node, `process.loadEnvFile(<root>/.env)` before reading (the shell's values win, a missing file throws `ENOENT`), in Vite, `envDir` at the root and `createEnv(import.meta.env)`; only `VITE_`-prefixed variables reach the client bundle, so the prefix is the boundary of secrets; a source must have an index signature (`ImportMetaEnv` and `process.env` have one). It describes 2.0 only: the changes from 1.x go to Cambusa's backlog (*Open questions*).
 - **`CLAUDE.md`** (new): layout, the strictness rules and the reason for each, the never-the-value rule for errors, the two runtimes and the checks (by reference to the presets' READMEs), why there is no `isolatedDeclarations`.
 
 ### `@enardo/http-client`
@@ -125,7 +125,7 @@ Taken here, for the critic and the user:
 
 ## Risks
 
-- **An app that started on defaults now fails at startup** on a malformed value. Intended; Cambusa upgrades through its own backlog item. The README's migration section lists each change of behavior.
+- **An app that started on defaults now fails at startup** on a malformed value. Intended; Cambusa's handover entry lists each change of behavior.
 - **A secret in an error**: case 19 checks the serialized form.
 - **A check that sees only one runtime**: the tests run in the `browser` project too, and `src/` passes both runtime programs and `runtimeNeutral`.
 
