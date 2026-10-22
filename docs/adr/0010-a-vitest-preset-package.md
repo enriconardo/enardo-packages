@@ -1,6 +1,6 @@
 # 0010. The browser test project lives in a vitest preset package
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-22
 - Spec: docs/specs/2026-10-22-runtime-neutral-presets.md
 
