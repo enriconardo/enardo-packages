@@ -67,7 +67,7 @@ It refuses some valid addresses too:
 
 **Names** may hold any text: quotes, commas, angle brackets, line breaks. nodemailer quotes or encodes a name for its header, so it never becomes header syntax. The sender trims a name, and leaves out a blank one, so the header holds the bare address.
 
-**Recipients the types refuse** are checked at run time too. A recipient that is not an object, a hole in the `to` list or a `from` or `replyTo` of `null` or `""` included, or an address that is not a string, is refused like a refused address. `from` and `replyTo` are absent only when `undefined`. A name that is not a string is left out. `subject`, `text` and `html` are passed to nodemailer as they are: keep them strings, as the types ask. nodemailer reads an object body with a `path` from a file, and writes an object subject with `prepared` as raw header text.
+**What the types refuse** is checked at run time too. A recipient that is not an object, a hole in the `to` list or a `from` or `replyTo` of `null` or `""` included, or an address that is not a string, is refused like a refused address. `from` and `replyTo` are absent only when `undefined`. A name that is not a string is left out. A `subject`, `text` or `html` that is not a string is refused too, `html` being absent only when `undefined`: nodemailer reads an object body with a `path` from a file, or an `href` from a URL, and writes an object subject with `prepared` as raw header text.
 
 ## `send`
 
@@ -77,6 +77,7 @@ It refuses some valid addresses too:
 | --- | --- | --- | --- |
 | `to` is an empty list | `InvalidEmailMessageError`, `{ field: "to", reason: "empty" }` | no | no |
 | an address is refused | `InvalidEmailMessageError`, `{ field, reason: "address" }`, with `index` in `to` | no | no |
+| a `subject`, `text` or `html` that is not a string (`html` absent only when `undefined`) | `InvalidEmailMessageError`, `{ field, reason: "type" }` | no | no |
 | neither `from` nor `defaultFrom` | `InvalidEmailMessageError`, `{ field: "from", reason: "missing" }` | no | no |
 | the relay refused recipients, some or all | `EmailRecipientsRefusedError`, `{ refused }`: `{ index, retryable }` for each | to the others, if any | `warn` |
 | any other failure: the connection refused or lost, a timeout, authentication failed, the sender or the message refused, `maxRecipients` exceeded | `EmailSendFailedError`, `{ retryable }`, with nodemailer's identifiers in `cause` | maybe: a lost answer can follow a delivered message | `warn` |
