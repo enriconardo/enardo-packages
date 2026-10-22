@@ -2,8 +2,9 @@ export type LoggerLevel =
   "error" | "warn" | "info" | "http" | "verbose" | "debug" | "silly";
 
 /**
- * Structured data of a log entry. `level` and `message` are reserved: a field
- * with either name is dropped, and the call's own level and message are kept.
+ * Structured data of a log entry. `level`, `message` and `timestamp` are
+ * reserved: a field with any of these names is dropped, the call's own level
+ * and message are kept, and the entry's time comes from the logger.
  */
 export type LogMetadata = Record<string, unknown>;
 

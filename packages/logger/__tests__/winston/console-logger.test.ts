@@ -61,4 +61,48 @@ describe("createConsoleLogger", () => {
       });
     });
   });
+
+  describe("a timestamp in the metadata", () => {
+    const metadata = { timestamp: "2000-01-01T00:00:00.000Z" };
+
+    function expectBetween(time: unknown, before: number, after: number): void {
+      expect(time).toEqual(expect.stringMatching(ISO));
+      const at = Date.parse(String(time));
+      expect(at).toBeGreaterThanOrEqual(before);
+      expect(at).toBeLessThanOrEqual(after);
+    }
+
+    it("does not replace the time of a JSON entry", () => {
+      const logger = createConsoleLogger({ format: "json" });
+
+      const before = Date.now();
+      logger.info("msg", metadata);
+      const after = Date.now();
+
+      expect(output.lines()).toHaveLength(1);
+      expectBetween(parse(output.lines()[0]).timestamp, before, after);
+    });
+
+    it("does not replace the time of a pretty line, and is not printed", () => {
+      const logger = createConsoleLogger({ format: "pretty" });
+
+      const before = Date.now();
+      logger.info("msg", metadata);
+      const after = Date.now();
+
+      expect(output.lines()).toHaveLength(1);
+      const line = output.lines()[0] ?? "";
+      expectBetween(line.split(" ")[0], before, after);
+      expect(line).not.toContain("2000-01-01");
+    });
+
+    it("is not printed as the time of a pretty line without timestamps", () => {
+      createConsoleLogger({ format: "pretty", timestamp: false }).info(
+        "msg",
+        metadata,
+      );
+
+      expect(output.lines()).toEqual(["info: msg"]);
+    });
+  });
 });

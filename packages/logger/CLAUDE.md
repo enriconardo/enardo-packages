@@ -19,6 +19,7 @@ __tests__/                             mirrors src/
 - **Opaque.** Winston is an implementation detail: the app picks a transport, never an engine, so the package is not split into a contract and an adapter (root `CLAUDE.md`, *Architecture conventions*), and winston stays a dependency. No winston type reaches `dist/index.d.mts`.
 - **No metadata makes a log call throw**: not the call's, not a child's, not the defaults.
 - **The adapter builds each entry**, `{ ...bound, ...metadata, level, message }`, and passes it to `logger.log()` as one object. Never winston's `log(level, message, metadata)`, `defaultMeta` or `child()`: the first scans the message for printf tokens and appends a metadata `message`, the others change the precedence.
+- **No metadata `timestamp`** in the entry the adapter builds: the entry's time comes from the console format alone, since logform keeps a value already on the entry.
 - **Precedence**: the call's `level` and `message`, then the call's metadata, then the child's (an inner child over an outer one), then the defaults.
 - **Bound metadata** (the defaults, a child's) is converted once, when the logger is created: a later mutation does not reach the logs.
 - **`toLoggable`** calls a value's `toJSON()` before treating it as an `Error`, so a `BaseError` keeps control of what it logs; reads one field at a time, so a field that throws costs only itself; and writes fields with `defineProperty`, so a `__proto__` key stays a field.

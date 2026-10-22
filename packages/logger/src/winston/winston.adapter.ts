@@ -73,14 +73,21 @@ export class WinstonLoggerAdapter implements Logger {
 
 // Reads the metadata one field at a time, so a getter that throws costs only
 // its own field. Metadata that is not a plain record at runtime is kept under
-// one key rather than spread.
+// one key rather than spread. A `timestamp` is dropped: the entry's time comes
+// from the format alone, and logform keeps any value already on the entry.
 function toLoggableFields(metadata: LogMetadata | undefined): LogMetadata {
   if (metadata === undefined) {
     return {};
   }
 
   const fields = toLoggable(metadata);
-  return isRecord(fields) ? fields : { metadata: fields };
+  if (!isRecord(fields)) {
+    return { metadata: fields };
+  }
+
+  const rest = { ...fields };
+  delete rest.timestamp;
+  return rest;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

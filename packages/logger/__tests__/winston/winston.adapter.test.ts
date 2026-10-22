@@ -223,6 +223,43 @@ describe("WinstonLoggerAdapter", () => {
     });
   });
 
+  describe("a reserved timestamp", () => {
+    it("drops a timestamp field of the call's metadata, keeping the other fields", () => {
+      const { winstonLogger, lines } = captureLines();
+      const logger = new WinstonLoggerAdapter(winstonLogger);
+
+      logger.info("msg", { timestamp: "FAKE", other: 1 });
+
+      expect(lines()).toStrictEqual([
+        { level: "info", message: "msg", other: 1 },
+      ]);
+    });
+
+    it("drops a timestamp field of a child's metadata", () => {
+      const { winstonLogger, lines } = captureLines();
+      const logger = new WinstonLoggerAdapter(winstonLogger);
+
+      logger
+        .child({ context: "C", metadata: { timestamp: "FAKE" } })
+        .info("msg");
+
+      expect(lines()).toHaveLength(1);
+      expect(lines()[0]).not.toHaveProperty("timestamp");
+    });
+
+    it("drops a timestamp field of the bound metadata", () => {
+      const { winstonLogger, lines } = captureLines();
+      const logger = new WinstonLoggerAdapter(winstonLogger, {
+        timestamp: "FAKE",
+      });
+
+      logger.info("msg");
+
+      expect(lines()).toHaveLength(1);
+      expect(lines()[0]).not.toHaveProperty("timestamp");
+    });
+  });
+
   describe("a __proto__ key", () => {
     it("writes the __proto__ field of the call's metadata", () => {
       const { winstonLogger, lines } = captureLines();
