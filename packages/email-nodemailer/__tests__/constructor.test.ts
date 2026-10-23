@@ -17,7 +17,7 @@ import type {
 
 const MESSAGE: EmailMessage = {
   to: { address: "anna@example.test", name: "Anna" },
-  from: { address: "noreply@example.test", name: "Cambusa" },
+  from: { address: "noreply@example.test", name: "Example App" },
   subject: "Welcome",
   text: "Hello",
 };

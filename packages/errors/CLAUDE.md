@@ -14,7 +14,7 @@ __tests__/                      mirrors src/, plus index.test.ts (public surface
 
 ## Invariants
 
-- **No dependencies.** Most packages of this repo import this one, directly or not, and so do the projects that install them, on Node and in browsers (Cambusa's web app, through `@enardo/http-client` and its own packages), so a dependency of its own would reach them all. An error tied to a protocol or a technology lives in the package that speaks it, as `@enardo/http-client`'s errors do.
+- **No dependencies.** Most packages of this repo import this one, directly or not, and so do the projects that install them, on Node and in browsers (a web app, through `@enardo/http-client` and its own packages), so a dependency of its own would reach them all. An error tied to a protocol or a technology lives in the package that speaks it, as `@enardo/http-client`'s errors do.
 - **The root contract.**
   - `BaseError` is abstract, and so is its `name`.
   - Every concrete class declares `name` as a field, equal to the class name. The field's literal type blocks subclasses, so a class meant to be extended types it `string`.
