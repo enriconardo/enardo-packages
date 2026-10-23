@@ -10,6 +10,7 @@ type MissingCollectionChangesErrorOptions = Omit<BaseErrorOptions, "code">;
  */
 export class MissingCollectionChangesError extends BaseError {
   override readonly name = "MissingCollectionChangesError";
+  declare readonly code: "MISSING_COLLECTION_CHANGES";
 
   constructor(
     collection: string,

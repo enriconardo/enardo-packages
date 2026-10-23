@@ -9,6 +9,7 @@ type InvalidDataStoreOptionsErrorOptions = Omit<BaseErrorOptions, "code">;
  */
 export class InvalidDataStoreOptionsError extends BaseError {
   override readonly name = "InvalidDataStoreOptionsError";
+  declare readonly code: "INVALID_DATA_STORE_OPTIONS";
 
   constructor(
     roots: readonly string[],
