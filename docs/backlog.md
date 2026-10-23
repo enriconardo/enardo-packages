@@ -10,10 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **`bcrypt` 5 brings `tar` 6 into every app that hashes passwords.** `@enardo/password-hasher-bcrypt` takes `bcrypt` `^5.1.1` as a peer, so an app that runs it installs `bcrypt>@mapbox/node-pre-gyp>tar` 6.2.1: the critical advisory of `pnpm audit` (`GHSA-23hp-3jrh-7fpw`, patched in 7.5.19), nine high and three moderate, all closed from 7.5.21. `brace-expansion` 1.1.18, through `node-pre-gyp`'s `rimraf`, adds two high and a moderate.
-  - `@mapbox/node-pre-gyp` 1.0.11 requires `tar ^6.1.11`, and every `tar` advisory covers all of 6.x: no refresh within `bcrypt` 5 closes them.
-  - Whether `bcrypt` 6 drops `node-pre-gyp` is not probed. If it does, the fix moves the peer range to `^6`: a new major of the adapter, and its README's notes on the 72-byte limit and lone surrogates re-checked against `bcrypt` 6.
-  - From the intake of a backlog choice (2026-10-23), which re-ran the audit of `chore/repo/arch-review-skill` on this repo. The rest of that audit was closed by `chore/repo/refresh-audited-tooling`.
 - **Two tests failed once under `pnpm verify` and passed on a re-run**, on 2026-10-23, in a branch that changed only docs and test fixtures (`docs/repo/remove-project-names`).
   - `@enardo/http-client`, `__tests__/http-client.node.test.ts:197`: *should reject with the very reason when the caller aborts at 50 ms a request to a server that never answers, and close its connection* failed with `connections: expected 0 to be greater than 0`. The test counts the sockets the server saw closed, and under load the abort may come before the client opens one. The cause is not probed.
   - `@enardo/uow-repository-mongo#test` failed in an earlier run of the same `verify`; its output was not kept, and the package's tests passed on their own (40 of 40). The cause is unknown.
@@ -76,9 +72,9 @@ In the order approved.
   - From checkpoint 2 of `refactor/email/contract-docs` (2026-10-14).
 - **A manifest and README check in `pnpm verify`.** A script that checks each library package for `"files": ["dist"]`, `"sideEffects": false`, the standard scripts, `publishConfig.registry`, `catalog:` for the shared tooling, a README that names only packages its package depends on, and the contract an adapter implements as a peer and a dev dependency, never a `dependency` (ADR 0013). Today these are rules of the root `CLAUDE.md` that only a review checks. It would fail on the READMEs of *Six READMEs name packages they do not depend on*, so it lands with that item or after it. From the spec of `chore/repo/lean-workflow` (2026-10-16).
 - **`BcryptPasswordHasher` reads only the first 72 bytes of a password.**
-  - bcrypt 5.1.1 ignores what follows them, counted in UTF-8: two passwords that share their first 72 bytes match the same hash. `@enardo/password-hasher-bcrypt`'s README documents it, and its tests pin it.
+  - bcrypt 6.0.0 ignores what follows them, counted in UTF-8: two passwords that share their first 72 bytes match the same hash. `@enardo/password-hasher-bcrypt`'s README documents it, and its tests pin it.
   - An app that caps no password length, such as one whose routes take `z.string().min(1)`, passes it whatever the user types.
-  - It also encodes each lone surrogate as U+FFFD, so `"pw\uD800"`, `"pw\uDC00"` and `"pw�"` match the same hash (probed by the review of `refactor/repo/split-contracts-from-adapters`). The README documents it; no test pins it.
+  - It also encodes each lone surrogate as U+FFFD, so `"pw\uD800"`, `"pw\uDC00"` and `"pw�"` match the same hash (probed by the review of `refactor/repo/split-contracts-from-adapters`). The README documents it, and a test pins it.
   - Options: the adapter rejects a longer password, and one that is not well-formed (`String.prototype.isWellFormed`): a behavior change, and a new major. Or each app caps the length and refuses such strings, in its own repo.
   - From the `critic`'s run on the spec of `refactor/repo/split-contracts-from-adapters` (2026-10-20), and its review.
 - **Some transient failures on the way to the relay come out `retryable: false`** in `@enardo/email-nodemailer`.

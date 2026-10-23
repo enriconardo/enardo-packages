@@ -1,6 +1,6 @@
 {
   "name": "@enardo/password-hasher-bcrypt",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "bcrypt adapter for @enardo/password-hasher.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
@@ -34,9 +34,9 @@
     "@enardo/eslint-config": "workspace:^",
     "@enardo/password-hasher": "workspace:^",
     "@enardo/typescript-config": "workspace:^",
-    "@types/bcrypt": "^5.0.2",
+    "@types/bcrypt": "^6.0.0",
     "@types/node": "catalog:",
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "tsdown": "catalog:",
@@ -45,6 +45,6 @@
   },
   "peerDependencies": {
     "@enardo/password-hasher": "workspace:^",
-    "bcrypt": "^5.1.1"
+    "bcrypt": "^6.0.0"
   }
 }
