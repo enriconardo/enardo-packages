@@ -11,7 +11,7 @@ branch: feature/errors/brand-recognition
 
 ## Why
 
-The backlog item *How the ecosystem recognizes an error: by a brand, not by `BaseError`'s identity*, from the architectural review of `@enardo/cqrs` (2026-10-23) and the discussion that followed it. `error instanceof BaseError` fails silently when an app has two copies of `@enardo/errors`, which every package declares as a `dependency`: an error built on the other copy loses its `code` in `@enardo/cqrs`. The direction was decided with the user in that discussion. ADR 0012, drafted with this spec, records it. This branch carries the parts that `@enardo/errors` and the repo can carry alone: the brand, the guard, the codes declared by every class, and the docs.
+The backlog item *How the ecosystem recognizes an error: by a brand, not by `BaseError`'s identity*, from the architectural review of `@enardo/cqrs` (2026-10-23) and the discussion that followed it. `error instanceof BaseError` fails silently when an app has two copies of `@enardo/errors`, which every package declares as a `dependency`: an error built on the other copy loses its `code` in `@enardo/cqrs`. No app has two copies yet, but a brand only helps the copies that carry it: it has to ship before copies diverge, and 1.1.0 is the first version that can sit beside another. The direction was decided with the user in that discussion. ADR 0012, drafted with this spec, records it. This branch carries the parts that `@enardo/errors` and the repo can carry alone: the brand, the guard, the codes declared by every class, and the docs.
 
 ## Probes
 
@@ -24,6 +24,7 @@ The backlog item *How the ecosystem recognizes an error: by a brand, not by `Bas
 - `ErrorDetails` takes no array, function or `Date`: assigning `[1, 2]`, `() => 1` and `new Date()` to it is TS2322 (a probe file in `packages/cqrs/src`, `tsc --noEmit`).
 - A script on TypeScript's compiler API, run in the dev container with a program per package from its `tsconfig.json`, reads each class's `extends` and its own `code` declaration: it lists 22 error classes in `packages/*/src` besides `BaseError`, all names distinct. Concrete ones without a `code` declaration of their own or of an ancestor: `DatabaseError` (`database`); `InvalidEntityIdError` (`entities`); `DuplicateEntityError`, `UnsupportedIdentityError`, `UnitOfWorkAlreadyUsedError`, `DuplicateRecordKeyError`, `InvalidRecordSetError`, `ConcurrencyConflictError` (`uow-repository`); `InvalidDataStoreOptionsError`, `MissingCollectionChangesError` (`uow-repository-mongo`). The others declare one. No literal is declared by two classes.
 - `git grep -n "instanceof BaseError"` → in `src/`, `packages/cqrs/src/command-handler.ts:70` and `query-handler.ts:67` only; in docs, `packages/errors/README.md:44`.
+- pnpm 11.1.3, the version both `packageManager` fields pin, warns `The "pnpm" field in package.json is no longer read by pnpm` and ignores its keys (`dist/pnpm.mjs` of corepack's copy, in the dev container).
 - `wc -c CLAUDE.md` → 11 196 bytes, of the 12 000 that `scripts/check-context-size.sh` allows.
 - Versions: `errors` 1.0.0, `entities` 1.1.0, `uow-repository` and `uow-repository-mongo` 0.1.0. A branch bumps the version of the packages it changes (`git log -G'"version"'`).
 
@@ -32,7 +33,7 @@ The backlog item *How the ecosystem recognizes an error: by a brand, not by `Bas
 Taken with the user, in the discussion that followed the review (the backlog item) and at intake:
 
 1. **A brand on the prototype and a guard**, as ADR 0012 points 1–3 say. `@enardo/errors` stays a `dependency`. Rejected: a peer dependency, `Symbol.hasInstance`, a guard on `code` or its prefix (the ADR).
-2. **`code` identifies one condition, and every concrete class declares its codes** (ADR 0012, point 4). The nine classes that do not yet do it get a `declare readonly code` with the literal their tests already pin; a subclass may inherit its parent's union, as the two of `EntityLifecycleError` do.
+2. **`code` identifies one condition, and every concrete class declares its codes** (ADR 0012, point 4). The nine classes that do not yet do it get a `declare readonly code` with the literal their tests already pin; the two concrete subclasses of `EntityLifecycleError`, which inherit its union and so also list each other's code, narrow it to their own.
 3. **No check in `pnpm verify` for the codes' uniqueness, for now.** The `critic`'s first run measured its cost (one program per package, about 1.6 s per verify with shared source files, 8 s without, plus fixture tests and `typescript` at the root) against a collision never seen, in this repo alone. The review checks a new code; the check goes to the backlog.
 4. **`DatabaseError` stays as it is**, the one exception to point 4 of the ADR, and its form waits for the architectural review of the database packages, which this branch adds to the backlog. No ADR of its own: ADR 0012 names it.
 5. **This branch does not change which classes extend `BaseError`, nor `@enardo/cqrs`.** The review of the `BaseError`s that report misuse or misconfiguration goes to the backlog, one branch per package, each a breaking change. `@enardo/cqrs` moves off `instanceof BaseError` in the branch of its own item.
@@ -59,12 +60,12 @@ None.
   - *Exports* lists the guard and the interface;
   - *Writing an error* says that a concrete class declares its codes with `declare readonly code` (on itself or an ancestor), that a code belongs to one class and is public API;
   - *Handling an error* recognizes with `isBaseErrorLike` and the `code`, keeps `instanceof` with a specific class for a class thrown by the package that declares it (ADR 0012, point 3), and says why `instanceof BaseError` is not for recognizing;
-  - *Handling an error* also says that a copy of 1.0.0 has no brand: while packages that allow 1.0.0 are in its tree, an app keeps one copy of `@enardo/errors` at 1.1.0 or later, with `pnpm.overrides`.
+  - *Handling an error* also says that a copy of 1.0.0 has no brand: while packages that allow 1.0.0 are in its tree, an app keeps one copy of `@enardo/errors` at 1.1.0 or later, with an override of its package manager (with pnpm 11, `overrides` in `pnpm-workspace.yaml`: it no longer reads the `pnpm` field of `package.json`).
 - `CLAUDE.md`: the opening line as in the README; an invariant for the brand's key and `BaseErrorLike`, a contract between majors (ADR 0012, point 2); `isBaseErrorLike` in *Layout*.
 
 ### `@enardo/entities` (1.1.0 → 1.2.0), `@enardo/uow-repository` and `@enardo/uow-repository-mongo` (0.1.0 → 0.1.1)
 
-- Each class listed in *Probes* gets `declare readonly code: "<its code>";`, with the literal it passes to `super`. A narrower type for readers: a patch below 1.0.0, a minor above.
+- Each class listed in *Probes*, and `EntityAlreadyMarkedForRemovalError` and `EntityNotMutableError`, gets `declare readonly code: "<its code>";`, with the literal it passes to `super`. A narrower type for readers: a patch below 1.0.0, a minor above.
 - `uow-repository/README.md`, *Contributing*: a new error declares its `code`.
 
 ### Repo
@@ -109,7 +110,7 @@ None.
 ## Risks
 
 - **A guard that lets through what it should not, or misses what it should not**: cases 6–10 for the first, 1–5 for the second.
-- **The transition from 1.0.0**, which has no brand: a tree with 1.0.0 beside 1.1.0 recognizes the errors of neither copy from the other, through the guard or through `instanceof`. Whether pnpm keeps 1.0.0 beside 1.1.0 when an app upgrades only some dependents is not probed: the README tells apps to keep one copy, which removes the question.
+- **The transition from 1.0.0**, which has no brand: a tree with 1.0.0 beside 1.1.0 recognizes the errors of neither copy from the other, through the guard or through `instanceof`. Whether pnpm keeps 1.0.0 beside 1.1.0 when an app upgrades only some dependents, and whether an override reaches a `pnpm deploy`, are not probed: the README tells apps to keep one copy, which removes the first question.
 - **The brand in a log**: case 11.
 - **A declared literal that differs from the value passed to `super`**: the compiler does not see it, since `BaseErrorOptions.code` is `string`. The existing tests of each class pin the runtime `code`; the review compares the two in step 3.
 - **Two classes declaring one code**, which nothing checks (decision 3): today none does (*Probes*); the review checks every new code.
