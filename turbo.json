@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["docker/playwright/Dockerfile"],
+  "globalDependencies": ["docker/playwright/Dockerfile", "package.json"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
