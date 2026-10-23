@@ -1,14 +1,15 @@
 # @enardo/errors
 
-Root of the error hierarchy of the `@enardo/*` packages and of the projects built on them; every other package's errors extend `BaseError`. The public contract is in [README.md](./README.md); this file holds the rules for changing the package.
+Root of the error hierarchy of the `@enardo/*` packages and of the projects built on them; an error a caller may handle by `code` extends `BaseError`, in this repo and in the projects. The public contract is in [README.md](./README.md); this file holds the rules for changing the package.
 
 ## Layout
 
 ```
-src/base/base-error.ts        BaseError
-src/base/base-error.types.ts  BaseErrorOptions, ErrorDetails, SerializedError
-src/base/serialize-error.ts   the serializer behind toJSON (internal, not exported)
-__tests__/                    mirrors src/, plus index.test.ts (public surface) and types.test.ts (type-level)
+src/base/base-error.ts          BaseError
+src/base/base-error.types.ts    BaseErrorOptions, BaseErrorLike, ErrorDetails, SerializedError
+src/base/is-base-error-like.ts  isBaseErrorLike, the guard on the brand
+src/base/serialize-error.ts     the serializer behind toJSON (internal, not exported)
+__tests__/                      mirrors src/, plus index.test.ts (public surface) and types.test.ts (type-level)
 ```
 
 ## Invariants
@@ -20,6 +21,7 @@ __tests__/                    mirrors src/, plus index.test.ts (public surface) 
   - `code` is required.
   - `details` is an object (`ErrorDetails`).
   - Every field is `readonly`. This is compile-time only: freezing the instance in the base constructor would make every subclass field initializer throw.
+- **The brand's key and `BaseErrorLike` are a contract between majors** (ADR 0012, point 2): the key `Symbol.for("@enardo/errors.BaseError")`, set on the prototype, and the shape the guard checks. A new major may add to that shape only in a way an older `BaseError` still meets. `BaseErrorLike` is never `BaseError` (ADR 0003).
 - **No type parameters on `BaseError`.** `instanceof` with a generic class narrows to `BaseError<any>`, which would type `error.code` as `any` in every consumer. Subclasses narrow `code` and `details` with `declare readonly`.
 - **`code` is for machines, `message` for humans.** No code parses a message.
 - **Every constructor accepts `cause`.** An error that wraps another passes it as `cause`, and never pastes its message into its own.

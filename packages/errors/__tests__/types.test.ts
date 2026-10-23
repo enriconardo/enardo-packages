@@ -1,6 +1,11 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { BaseError } from "~/index";
-import type { BaseErrorOptions, ErrorDetails, SerializedError } from "~/index";
+import { BaseError, isBaseErrorLike } from "~/index";
+import type {
+  BaseErrorLike,
+  BaseErrorOptions,
+  ErrorDetails,
+  SerializedError,
+} from "~/index";
 
 // These tests are enforced by `tsc --noEmit`: the `@ts-expect-error` lines
 // must not compile. Constructions go through `compileOnly`, so the compiler
@@ -165,5 +170,37 @@ describe("BaseError types", () => {
       readonly cause?: unknown;
       readonly [key: string]: unknown;
     }>();
+  });
+});
+
+describe("isBaseErrorLike types", () => {
+  it("narrows an unknown to BaseErrorLike, with code exactly string and no toJSON", () => {
+    const reached: string[] = [];
+
+    const inspect = (value: unknown) => {
+      if (isBaseErrorLike(value)) {
+        expectTypeOf(value).toEqualTypeOf<BaseErrorLike>();
+        expectTypeOf(value.code).toEqualTypeOf<string>();
+        expectTypeOf(value.details).toEqualTypeOf<ErrorDetails | undefined>();
+        compileOnly(
+          // @ts-expect-error the guard proves the shape: BaseErrorLike has no toJSON
+          () => value.toJSON,
+        );
+        reached.push("BaseErrorLike");
+      }
+    };
+
+    inspect(new TestError("message", { code: "CODE" }));
+
+    expect(reached).toEqual(["BaseErrorLike"]);
+  });
+
+  it("accepts a BaseError subclass instance as a BaseErrorLike", () => {
+    const error = new DuplicateEntityError("user-1");
+
+    expectTypeOf(error).toExtend<BaseErrorLike>();
+    expectTypeOf(
+      new TestError("message", { code: "CODE" }),
+    ).toExtend<BaseErrorLike>();
   });
 });
