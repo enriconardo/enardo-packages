@@ -10,17 +10,10 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **Refresh the dev tooling that `pnpm audit` flags.** On 2026-10-23, `pnpm audit` reports 29 advisories over this repo's lockfile (1 critical, 16 high, 11 moderate, 1 low). Those through the dev and test tooling:
-  - `vite` 8.2.2 (patched in 8.2.4) and `@vitest/mocker` 4.1.11 (4.1.12), through `vitest`;
-  - `source-map-js` 1.2.1 (1.2.2), through `vite`'s `postcss`;
-  - `brace-expansion` 5.0.9 (5.0.12), through `eslint`'s `minimatch`;
-  - `follow-redirects` 1.16.0 (1.16.1), through `mongodb-memory-server`.
-
-  Whether each fix is within the ranges of the packages that pull it in is not probed. `pnpm audit` ignores `--filter`: it always reports the whole lockfile. The ones through `bcrypt` are the next item. From the intake of a backlog choice (2026-10-23), which re-ran the audit of `chore/repo/arch-review-skill` on this repo.
-- **`bcrypt` 5 brings `tar` 6 into every app that hashes passwords.** `@enardo/password-hasher-bcrypt` takes `bcrypt` `^5.1.1` as a peer, so an app that runs it installs `bcrypt>@mapbox/node-pre-gyp>tar` 6.2.1: the critical advisory of the audit (`GHSA-23hp-3jrh-7fpw`, patched in 7.5.19), nine high and three moderate, all closed from 7.5.21. `brace-expansion` 1.1.18, through `node-pre-gyp`'s `rimraf`, adds two high and a moderate.
+- **`bcrypt` 5 brings `tar` 6 into every app that hashes passwords.** `@enardo/password-hasher-bcrypt` takes `bcrypt` `^5.1.1` as a peer, so an app that runs it installs `bcrypt>@mapbox/node-pre-gyp>tar` 6.2.1: the critical advisory of `pnpm audit` (`GHSA-23hp-3jrh-7fpw`, patched in 7.5.19), nine high and three moderate, all closed from 7.5.21. `brace-expansion` 1.1.18, through `node-pre-gyp`'s `rimraf`, adds two high and a moderate.
   - `@mapbox/node-pre-gyp` 1.0.11 requires `tar ^6.1.11`, and every `tar` advisory covers all of 6.x: no refresh within `bcrypt` 5 closes them.
   - Whether `bcrypt` 6 drops `node-pre-gyp` is not probed. If it does, the fix moves the peer range to `^6`: a new major of the adapter, and its README's notes on the 72-byte limit and lone surrogates re-checked against `bcrypt` 6.
-  - From the intake of a backlog choice (2026-10-23), with the previous item.
+  - From the intake of a backlog choice (2026-10-23), which re-ran the audit of `chore/repo/arch-review-skill` on this repo. The rest of that audit was closed by `chore/repo/refresh-audited-tooling`.
 - **Two tests failed once under `pnpm verify` and passed on a re-run**, on 2026-10-23, in a branch that changed only docs and test fixtures (`docs/repo/remove-project-names`).
   - `@enardo/http-client`, `__tests__/http-client.node.test.ts:197`: *should reject with the very reason when the caller aborts at 50 ms a request to a server that never answers, and close its connection* failed with `connections: expected 0 to be greater than 0`. The test counts the sockets the server saw closed, and under load the abort may come before the client opens one. The cause is not probed.
   - `@enardo/uow-repository-mongo#test` failed in an earlier run of the same `verify`; its output was not kept, and the package's tests passed on their own (40 of 40). The cause is unknown.
