@@ -10,13 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **`@enardo/cqrs` sends the message of a native error to the client.**
-  - `CommandHandler`'s `mapErrorToString` returns `code` for a `BaseError`, and `message` for any other `Error`, as the response's `error`, which an app's HTTP layer sends to the client.
-  - Before `feature/email/send-errors`, that message was nodemailer's: `getaddrinfo EAI_AGAIN smtp.internal.corp.test` for a host that does not resolve, and `Can't send mail - all recipients were rejected: 550 5.1.1 <anna.marker@example.test>: no such user` when the relay refused the recipient (probed through `CommandHandler` and `@enardo/logger` in its spec, 2026-10-20). That branch closes the email path; any other native error still reaches the client with its message.
-  - `QueryHandler` maps errors the same way (`packages/cqrs/src/query-handler.ts`).
-  - From the spec of `feature/email/send-errors` (2026-10-20); that branch's own item named it, and leaves with its merge.
-  - ADR 0012 points 3 and 7 apply: that branch replaces `instanceof BaseError` with `isBaseErrorLike` (`command-handler.ts:70`, `query-handler.ts:67`), stops classifying with a catch-all, and adds a lint rule against `instanceof BaseError` to the presets once no use is left.
-
 ## To evaluate
 
 - **Review the `BaseError`s that report misuse or misconfiguration.** Against ADR 0012 point 6: `UOW_ALREADY_USED`, `MISSING_COLLECTION_CHANGES`, `UNSUPPORTED_IDENTITY`, `INVALID_DATA_STORE_OPTIONS`, `INVALID_EMAIL_SENDER_OPTIONS`, perhaps `ENV_MISSING` and `ENV_MALFORMED`. One branch per package, each a breaking change. The native throws of `src/` (`@enardo/logger`, `retryOnConflict`, `@enardo/http-client`) are consistent with the rule and need nothing. From the spec of `feature/errors/brand-recognition` (2026-10-23).
@@ -87,8 +80,8 @@ In the order approved.
   - Each of these codes also covers misconfigurations, a proxy that refuses its credentials or a token answer nodemailer cannot use, which is why the user kept them permanent. Telling the two apart needs what the sender keeps out of its identifiers: the HTTP status, or the proxy's answer.
   - From the second review of `feature/email/send-errors` (2026-10-20), which probed them.
 - **What a package logs.** A decision for every package, with an ADR.
-  - Four packages take an optional `Logger`, a no-op by default: `@enardo/cqrs`, `@enardo/database-mongo`, `@enardo/email-nodemailer`, `@enardo/http-client`. The mechanism matches common practice (Fastify, AWS SDK v3's `logger`, KafkaJS's `logCreator`, Prisma's `log`), as do the local structural copies of `Logger`. What they log, and at what level, has no rule.
-  - Each of the four logs a failure that it also throws or returns: `cqrs` at `error` (`command-handler.ts:46`, `query-handler.ts:43`), `database-mongo` at `error` (`mongo.database.ts:82`), `email-nodemailer` and `http-client` at `warn`. The caller gets the error and logs it again; the package decides a level it cannot know. In `cqrs`, an expected domain error (a not found, a conflict) becomes an `error` log with its details and stack (probed). `email-nodemailer` also logs at `info` the success the caller awaits (`nodemailer-email-sender.ts:136`).
+  - Four packages take an optional `Logger`, a no-op by default: `@enardo/cqrs`, `@enardo/database-mongo`, `@enardo/email-nodemailer`, `@enardo/http-client`. (`cqrs` logs at `debug` only since `fix/cqrs/expected-failures-as-values`: it rethrows what it does not expect.) The mechanism matches common practice (Fastify, AWS SDK v3's `logger`, KafkaJS's `logCreator`, Prisma's `log`), as do the local structural copies of `Logger`. What they log, and at what level, has no rule.
+  - Each of the other three logs a failure that it also throws or returns: `database-mongo` at `error` (`mongo.database.ts:82`), `email-nodemailer` and `http-client` at `warn`. The caller gets the error and logs it again; the package decides a level it cannot know. `email-nodemailer` also logs at `info` the success the caller awaits (`nodemailer-email-sender.ts:136`).
   - The common rule for a library: log only what the caller cannot see (a retry, a fallback, a reconnection, a timeout before giving up, an error swallowed in a background task or a cleanup), at `debug` or `warn`; never both log and throw an error ("log or throw"), and leave `error` to the app. Fewer log points are also fewer places for personal data or secrets to leak.
   - Alternatives to weigh for observability: hooks the app subscribes to (`onRetry`, `onResponse`), which run in browsers too; Node's `diagnostics_channel`, which undici uses and OpenTelemetry reads, Node only; a decorator or middleware around a component, such as `cqrs`' handlers, so that logging is the app's choice, not a base class's.
   - Each package's log points are then judged against the rule, in its own branch.

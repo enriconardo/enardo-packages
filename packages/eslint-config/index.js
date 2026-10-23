@@ -80,6 +80,22 @@ function createConfig({
       },
     },
     {
+      // An error built by another copy of `@enardo/errors` is not an instance
+      // of this one's `BaseError`: `instanceof` loses its `code` silently.
+      files: ["src/**"],
+      rules: {
+        "no-restricted-syntax": [
+          "error",
+          {
+            selector:
+              'BinaryExpression[operator="instanceof"]:matches([right.name="BaseError"], [right.property.name="BaseError"])',
+            message:
+              "Recognize an error with isBaseErrorLike and its code (README of @enardo/errors).",
+          },
+        ],
+      },
+    },
+    {
       // Asymmetric matchers (`expect.any`, `expect.objectContaining`) are typed
       // `any`, and `expect(mock.method)` passes a method unbound by design.
       files: ["__tests__/**"],

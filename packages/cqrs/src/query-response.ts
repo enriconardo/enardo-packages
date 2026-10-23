@@ -2,20 +2,21 @@ export interface QuerySuccessResponse<TPayload> {
   success: true;
   payload: TPayload;
   error?: never;
-  exception?: never;
 }
 
-export interface QueryFailureResponse {
+export interface QueryFailureResponse<TCode extends string> {
   success: false;
-  error: string;
-  exception: unknown;
+  error: TCode;
   payload?: never;
 }
 
-export type QueryResponse<TPayload = unknown> =
-  QuerySuccessResponse<TPayload> | QueryFailureResponse;
+export type QueryResponse<TPayload = unknown, TCode extends string = never> =
+  QuerySuccessResponse<TPayload> | QueryFailureResponse<TCode>;
 
-export type QuerySuccessPayload<TResponse extends QueryResponse> = Extract<
-  TResponse,
-  { success: true }
->["payload"];
+export type QuerySuccessPayload<
+  TResponse extends QueryResponse<unknown, string>,
+> = Extract<TResponse, { success: true }>["payload"];
+
+/** The union of the failure codes of a query response type. */
+export type QueryFailureCode<TResponse extends QueryResponse<unknown, string>> =
+  Extract<TResponse, { success: false }>["error"];

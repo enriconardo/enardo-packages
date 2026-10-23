@@ -91,6 +91,7 @@ Each fact the plan relies on is probed in the dev container before the spec stat
   docker volume rm en-probe                   # when done
   ```
 - **A library's documentation is not a probe.** The cases a library produces (its errors, their types or statuses, its options) come from its installed source, or from running them.
+- **A type probe marks the error it expects on each line**, and every other line compiles: compare the output with the marks.
 - **A type declaration is not a probe of a runtime.** What a runtime defines (its globals, its modules) is enumerated in that runtime, every one, not a sample.
 - **An install is probed on the consumer's shape**: a workspace whose packages import the same package, not a one-package app. Packed tarballs go to a local Verdaccio, reached on `127.0.0.1`: pnpm 11 fails on `localhost` (`ECONNREFUSED`).
 - **Advisories.** The version that closes a module's advisories is read from the `patched_versions` of every one of them (`pnpm audit --json`), not from one. The version an upgrade moves to is audited itself, with `npm audit` on a lockfile of that version in a throwaway container: it can bring advisories of its own.
@@ -110,6 +111,7 @@ Each fact the plan relies on is probed in the dev container before the spec stat
 - **An input where the side effect would show.** A case that checks one rule gives an input on which a wrong implementation gives another result: to test that a failing read keeps the `cause`, the error needs a `cause`.
 - **An input the change starts rejecting:** list every existing test that sends it. Search for the value, then for the uses of every constant that holds it.
 - **A type the change narrows:** list every existing test that pins the wider type.
+- **A breaking change:** compile the old version's usage against the new types. What still compiles but behaves differently gets a compile error or a case.
 - **What identifies the outcome:** the expected error's class, `code` and `details`, not only that something is thrown.
 
 ## The critic
