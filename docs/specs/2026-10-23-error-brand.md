@@ -36,7 +36,7 @@ Taken with the user, in the discussion that followed the review (the backlog ite
 2. **`code` identifies one condition, and every concrete class declares its codes** (ADR 0012, point 4). The nine classes that do not yet do it get a `declare readonly code` with the literal their tests already pin; the two concrete subclasses of `EntityLifecycleError`, which inherit its union and so also list each other's code, narrow it to their own.
 3. **No check in `pnpm verify` for the codes' uniqueness, for now.** The `critic`'s first run measured its cost (one program per package, about 1.6 s per verify with shared source files, 8 s without, plus fixture tests and `typescript` at the root) against a collision never seen, in this repo alone. The review checks a new code; the check goes to the backlog.
 4. **`DatabaseError` stays as it is**, the one exception to point 4 of the ADR, and its form waits for the architectural review of the database packages, which this branch adds to the backlog. No ADR of its own: ADR 0012 names it.
-5. **This branch does not change which classes extend `BaseError`, nor `@enardo/cqrs`.** The review of the `BaseError`s that report misuse or misconfiguration goes to the backlog, one branch per package, each a breaking change. `@enardo/cqrs` moves off `instanceof BaseError` in the branch of its own item.
+5. **This branch does not change which classes extend `BaseError`, nor `@enardo/cqrs`, nor how a contract's errors thrown by its adapter are recognized.** ADR 0012 point 3 leaves the last one to its own item, which the user leans to settle with the contract as a peer of its adapter. The review of the `BaseError`s that report misuse or misconfiguration goes to the backlog, one branch per package, each a breaking change. `@enardo/cqrs` moves off `instanceof BaseError` in the branch of its own item.
 6. **The guard is `isBaseErrorLike`, and its type `BaseErrorLike`**, after `PromiseLike` and `ArrayLike`: the name says the shape, not the class. Not taken: `isEnardoError`, which says a provenance a project's errors share; `isCodedError`, which reads as any error with a `code`, Node's included.
 
 Taken by this spec:
@@ -59,7 +59,7 @@ None.
   - the opening says which errors extend `BaseError` (ADR 0012, point 6);
   - *Exports* lists the guard and the interface;
   - *Writing an error* says that a concrete class declares its codes with `declare readonly code` (on itself or an ancestor), that a code belongs to one class and is public API;
-  - *Handling an error* recognizes with `isBaseErrorLike` and the `code`, keeps `instanceof` with a specific class for a class thrown by the package that declares it (ADR 0012, point 3), and says why `instanceof BaseError` is not for recognizing;
+  - *Handling an error* recognizes with `isBaseErrorLike` and the `code`, says that `instanceof` with a specific class needs one copy of the package that declares it, for its typed `details` (ADR 0012, point 3), and why `instanceof BaseError` is not for recognizing;
   - *Handling an error* also says that a copy of 1.0.0 has no brand: while packages that allow 1.0.0 are in its tree, an app keeps one copy of `@enardo/errors` at 1.1.0 or later, with an override of its package manager (with pnpm 11, `overrides` in `pnpm-workspace.yaml`: it no longer reads the `pnpm` field of `package.json`).
 - `CLAUDE.md`: the opening line as in the README; an invariant for the brand's key and `BaseErrorLike`, a contract between majors (ADR 0012, point 2); `isBaseErrorLike` in *Layout*.
 
@@ -79,7 +79,7 @@ None.
   - *To evaluate*: the architectural review of `@enardo/database` and `@enardo/database-mongo`, starting from `DatabaseError`'s free `code`, the one exception to point 4 of ADR 0012;
   - *To evaluate*: a check of the codes' uniqueness in `pnpm verify`, with the design and the cost of decision 3, for when a first collision is seen;
   - *`@enardo/cqrs` sends the message of a native error to the client*: ADR 0012 points 3 and 7 apply; that branch replaces `instanceof BaseError` and adds a lint rule against it in the presets once no use is left;
-  - *To evaluate*: `retryOnConflict` of `@enardo/uow-repository` recognizes `ConcurrencyConflictError` with `instanceof`, while `@enardo/uow-repository-mongo` throws it from its own copy of the package: with two copies the retry stops silently. The guard and `code === "CONCURRENCY_CONFLICT"` would recognize it (ADR 0012, point 3);
+  - *To evaluate*: a contract's errors thrown by its adapter (ADR 0012, point 3). The adapter throws them from its own copy of the contract, so `instanceof` with the class fails silently when an app has two copies: `@enardo/email`'s README advises it for the classes `@enardo/email-nodemailer` throws, `retryOnConflict` of `@enardo/uow-repository` does it for `ConcurrencyConflictError`, which `@enardo/uow-repository-mongo` throws, and `@enardo/database-mongo` throws `DatabaseError` of `@enardo/database`. Options: the guard and `code`, with `details` checked at runtime; a guard per class; the contract as a peer of its adapter, as a driver is, which keeps one copy and the typed `details` (the direction the user prefers, 2026-10-23, after the practice of `@langchain/core`, `@opentelemetry/api` and `@nestjs/common`, not probed). An ADR of its own;
   - this item leaves, in a commit of its own.
 
 ## Test cases
