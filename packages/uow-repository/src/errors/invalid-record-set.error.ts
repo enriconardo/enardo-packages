@@ -5,6 +5,7 @@ type InvalidRecordSetErrorOptions = Omit<BaseErrorOptions, "code">;
 /** Thrown when a record set lacks a collection its key functions describe. */
 export class InvalidRecordSetError extends BaseError {
   override readonly name = "InvalidRecordSetError";
+  declare readonly code: "INVALID_RECORD_SET";
 
   constructor(
     collection: string,

@@ -8,6 +8,7 @@ type ConcurrencyConflictErrorOptions = Omit<BaseErrorOptions, "code">;
  */
 export class ConcurrencyConflictError extends BaseError {
   override readonly name = "ConcurrencyConflictError";
+  declare readonly code: "CONCURRENCY_CONFLICT";
 
   constructor(
     id: unknown,
