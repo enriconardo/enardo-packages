@@ -108,6 +108,7 @@ Each fact the plan relies on is probed in the dev container before the spec stat
 - **For each rule, ask which wrong implementation would break it and still pass every case**, and add the case that catches it.
 - **An input where the side effect would show.** A case that checks one rule gives an input on which a wrong implementation gives another result: to test that a failing read keeps the `cause`, the error needs a `cause`.
 - **An input the change starts rejecting:** list every existing test that sends it. Search for the value, then for the uses of every constant that holds it.
+- **A type the change narrows:** list every existing test that pins the wider type.
 - **What identifies the outcome:** the expected error's class, `code` and `details`, not only that something is thrown.
 
 ## The critic
