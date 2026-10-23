@@ -1,6 +1,6 @@
 # 0012. An error of the ecosystem is recognized by a brand and its `code`, never by `BaseError`'s identity
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-23
 - Spec: docs/specs/2026-10-23-error-brand.md
 
