@@ -10,13 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **`@enardo/cqrs` sends the message of a native error to the client.**
-  - `CommandHandler`'s `mapErrorToString` returns `code` for a `BaseError`, and `message` for any other `Error`, as the response's `error`, which an app's HTTP layer sends to the client.
-  - Before `feature/email/send-errors`, that message was nodemailer's: `getaddrinfo EAI_AGAIN smtp.internal.corp.test` for a host that does not resolve, and `Can't send mail - all recipients were rejected: 550 5.1.1 <anna.marker@example.test>: no such user` when the relay refused the recipient (probed through `CommandHandler` and `@enardo/logger` in its spec, 2026-10-20). That branch closes the email path; any other native error still reaches the client with its message.
-  - `QueryHandler` maps errors the same way (`packages/cqrs/src/query-handler.ts`).
-  - From the spec of `feature/email/send-errors` (2026-10-20); that branch's own item named it, and leaves with its merge.
-  - ADR 0012 points 3 and 7 apply: that branch replaces `instanceof BaseError` with `isBaseErrorLike` (`command-handler.ts:70`, `query-handler.ts:67`), stops classifying with a catch-all, and adds a lint rule against `instanceof BaseError` to the presets once no use is left.
-
 ## To evaluate
 
 - **Review the `BaseError`s that report misuse or misconfiguration.** Against ADR 0012 point 6: `UOW_ALREADY_USED`, `MISSING_COLLECTION_CHANGES`, `UNSUPPORTED_IDENTITY`, `INVALID_DATA_STORE_OPTIONS`, `INVALID_EMAIL_SENDER_OPTIONS`, perhaps `ENV_MISSING` and `ENV_MALFORMED`. One branch per package, each a breaking change. The native throws of `src/` (`@enardo/logger`, `retryOnConflict`, `@enardo/http-client`) are consistent with the rule and need nothing. From the spec of `feature/errors/brand-recognition` (2026-10-23).
