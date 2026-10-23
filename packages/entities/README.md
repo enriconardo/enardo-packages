@@ -290,7 +290,7 @@ Called after `_isMarkedForRemoval` is set but before the `deleted` event is queu
 | `EntityNotMutableError` | `ENTITY_NOT_MUTABLE` | `setAttribute` is called on a removed aggregate |
 | `EntityAlreadyMarkedForRemovalError` | `ENTITY_ALREADY_MARKED_FOR_REMOVAL` | `markForRemoval` is called more than once |
 
-Both extend the abstract `EntityLifecycleError`, a `BaseError` (`@enardo/errors`) whose `code` is typed `EntityLifecycleErrorCode` and whose `details` is the `{ entityType, entityId }` object, also exposed as `context`, for structured logging.
+Both extend the abstract `EntityLifecycleError`, a `BaseError` (`@enardo/errors`) whose `code` is typed `EntityLifecycleErrorCode`, narrowed by each subclass to its own literal and whose `details` is the `{ entityType, entityId }` object, also exposed as `context`, for structured logging.
 
 ```ts
 import {
