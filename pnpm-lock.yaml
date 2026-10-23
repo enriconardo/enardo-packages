@@ -78,6 +78,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@26.4.0)(@vitest/browser-playwright@4.1.11)(vite@8.2.2(@types/node@26.4.0))
 
   packages/database:
     dependencies:
