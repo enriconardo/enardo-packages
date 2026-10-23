@@ -47,6 +47,7 @@ A package's own typechecks of `src/` as each runtime sees it catch the rest, and
 | `consistent-type-imports`, `no-import-type-side-effects` | error | with `verbatimModuleSyntax`, only `import type` is erased from the output |
 | `prefer-nullish-coalescing` | ignores strings | `value.trim() \|\| undefined` relies on `""` falling through; `??` would keep it |
 | `require-await` | off | `async` on a method with nothing to await keeps errors as rejections, which callers of a Promise-returning interface expect |
+| `no-restricted-syntax` | `instanceof BaseError` in `src/**` | an error built by another copy of `@enardo/errors` fails it silently; recognize it with `isBaseErrorLike` and its `code`. Misses an aliased import (`import { BaseError as B }`); `__tests__/` is not restricted; an entry that sets `no-restricted-syntax` after the preset replaces it |
 | `no-unsafe-assignment`, `unbound-method` | off in `__tests__/**` | asymmetric matchers (`expect.any`) are typed `any`, and `expect(mock.method)` passes a method unbound by design |
 
 ## Known limit
