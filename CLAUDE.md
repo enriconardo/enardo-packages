@@ -54,7 +54,7 @@ Packages are published through the `publish` skill, each publish approved by the
 - A driver (`mongodb`, `bcrypt`, `nodemailer`) is a peer and a dev dependency of its adapter. An app lists the driver of every adapter it runs in its own `dependencies`, since pnpm never reports a missing one; another package, only when its own code runs it.
 - `@enardo/*` packages never depend on a project's packages, and no file of this repo names a project built on them.
 - One entry point, `src/index.ts` → `dist/index.mjs` + `.d.mts`; the config packages ship their files as they are.
-- Errors extend `BaseError` from `@enardo/errors`: a concrete class declares its `name` as a field and passes a `code` ([its README](packages/errors/README.md)).
+- An error a caller may handle by `code` extends `BaseError` from `@enardo/errors`; misuse and misconfiguration throw native errors. A concrete class declares its `name` as a field and its codes with `declare readonly code`; a code belongs to one concrete class across packages. Recognize an error with `isBaseErrorLike` and its `code`, never `instanceof BaseError`; `instanceof` with a specific class only as ADR 0012 point 3 says ([its README](packages/errors/README.md)).
 
 ## Code conventions
 
