@@ -18,7 +18,7 @@ import {
 import type { LocalSmtpServer } from "./support/smtp-server";
 
 const RECIPIENT = { address: "anna@example.test" };
-const SENDER = { address: "noreply@example.test", name: "Cambusa" };
+const SENDER = { address: "noreply@example.test", name: "Example App" };
 
 const MESSAGE: EmailMessage = {
   to: RECIPIENT,

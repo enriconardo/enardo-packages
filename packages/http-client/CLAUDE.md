@@ -1,6 +1,6 @@
 # @enardo/http-client
 
-HTTP client over the Fetch API: it makes requests, in browsers and on Node alike. Cambusa's web app (`@cambusa/web`, in its own repo) is its only consumer today; a Node consumer would be a server calling upstream services. The public contract is in [README.md](./README.md); this file holds the rules for changing the package.
+HTTP client over the Fetch API: it makes requests, in browsers and on Node alike. A web app, in a repo of its own, is its only consumer today; a Node consumer would be a server calling upstream services. The public contract is in [README.md](./README.md); this file holds the rules for changing the package.
 
 Server needs are requirements, not extras: timeouts, a `baseUrl` with a path, logs without response bodies or query strings. The logs, the `baseUrl` and the timeouts meet them (below).
 
@@ -103,4 +103,4 @@ Tests import from the entry point only (`~/index`), so the files of `src/` can m
 ## Public API changes
 
 - JSDoc on every export, and the README updated in the same commit.
-- No consumer is in this repo: `pnpm verify` sees what a consumer sees through the package's own configs only. `tsconfig.browser.json` checks `src/` with the DOM and no Node types, as a browser consumer sees it, and `tsconfig.node.json` with the Node types and no DOM. A change reaches `@cambusa/web` when it installs the new version.
+- No consumer is in this repo: `pnpm verify` sees what a consumer sees through the package's own configs only. `tsconfig.browser.json` checks `src/` with the DOM and no Node types, as a browser consumer sees it, and `tsconfig.node.json` with the Node types and no DOM. A change reaches a consumer when it installs the new version.

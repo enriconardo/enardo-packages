@@ -25,7 +25,7 @@ import {
 import type { LocalSmtpServer } from "./support/smtp-server";
 
 const RECIPIENT = { address: "anna@example.test" };
-const SENDER = { address: "noreply@example.test", name: "Cambusa" };
+const SENDER = { address: "noreply@example.test", name: "Example App" };
 
 const MESSAGE: EmailMessage = {
   to: RECIPIENT,
@@ -83,7 +83,7 @@ describe("send", () => {
     const { envelope, raw } = onlyReceived(server);
     expect(envelope.from).toBe("noreply@example.test");
     expect(mailboxesOf(raw, "From")).toEqual([
-      { name: "Cambusa", address: "noreply@example.test" },
+      { name: "Example App", address: "noreply@example.test" },
     ]);
   });
 

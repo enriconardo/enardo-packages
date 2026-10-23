@@ -150,13 +150,16 @@ describe("recipients", () => {
       const server = await startServer();
       const sender = new NodemailerEmailSender({
         transport: server.transportOptions,
-        defaultFrom: { address: "noreply@example.test", name: "  Cambusa  " },
+        defaultFrom: {
+          address: "noreply@example.test",
+          name: "  Example App  ",
+        },
       });
 
       await sender.send({ to: RECIPIENT, subject: "Welcome", text: "Hello" });
 
       expect(mailboxesOf(onlyReceived(server).raw, "From")).toEqual([
-        { name: "Cambusa", address: "noreply@example.test" },
+        { name: "Example App", address: "noreply@example.test" },
       ]);
     });
 
@@ -373,7 +376,7 @@ describe("recipients", () => {
         ]),
         from: Object.freeze({
           address: "noreply@example.test",
-          name: "Cambusa",
+          name: "Example App",
         }),
         replyTo: Object.freeze({ address: "support@example.test" }),
         subject: "Welcome",
@@ -400,7 +403,7 @@ describe("recipients", () => {
           { address: "bruno@example.test" },
           { address: "carla@Example.TEST", name: "   " },
         ],
-        from: { address: "noreply@example.test", name: "Cambusa" },
+        from: { address: "noreply@example.test", name: "Example App" },
         replyTo: { address: "support@example.test" },
         subject: "Welcome",
         text: "Hello",
@@ -824,7 +827,7 @@ describe("recipients", () => {
       transport: server.transportOptions,
       defaultFrom: Object.freeze({
         address: "noreply@example.test",
-        name: "Cambusa",
+        name: "Example App",
       }),
     });
 
@@ -835,7 +838,7 @@ describe("recipients", () => {
     for (const { envelope, raw } of server.messages) {
       expect(envelope.from).toBe("noreply@example.test");
       expect(mailboxesOf(raw, "From")).toEqual([
-        { name: "Cambusa", address: "noreply@example.test" },
+        { name: "Example App", address: "noreply@example.test" },
       ]);
     }
   });
