@@ -43,7 +43,7 @@ pnpm add @enardo/transaction-manager-mongo @enardo/uow-repository @enardo/uow-re
 pnpm add -D mongodb-memory-server
 ```
 
-`@enardo/transaction-manager-mongo` has a peer of its own, which its install line shows.
+`@enardo/transaction-manager-mongo` has a peer of its own, which [its install line](../transaction-manager-mongo/README.md#usage) shows.
 
 **2. Save this as `quickstart.mts`** in that package.
 

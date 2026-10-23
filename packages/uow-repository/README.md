@@ -12,7 +12,7 @@ await unitOfWork.execute(async () => {
 // Committed in one transaction: an update of p-1 that sets only `price`, and an insert of p-2.
 ```
 
-> Published to the `@enardo` registry, version 0.1.0: the API can still change. The package ships no database adapters. For MongoDB, use [`@enardo/uow-repository-mongo`](../uow-repository-mongo/README.md). For any other database, write a `DataStore` and an `ITransactionManager` for your driver.
+> Published to the `@enardo` registry, version 0.1.2: the API can still change. The package ships no database adapters. For MongoDB, use [`@enardo/uow-repository-mongo`](../uow-repository-mongo/README.md). For any other database, write a `DataStore` and an `ITransactionManager` for your driver.
 
 ## Contents
 
