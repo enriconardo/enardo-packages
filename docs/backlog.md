@@ -94,6 +94,11 @@ In the order approved.
   - Alternatives to weigh for observability: hooks the app subscribes to (`onRetry`, `onResponse`), which run in browsers too; Node's `diagnostics_channel`, which undici uses and OpenTelemetry reads, Node only; a decorator or middleware around a component, such as `cqrs`' handlers, so that logging is the app's choice, not a base class's.
   - Each package's log points are then judged against the rule, in its own branch.
   - From the architectural review of `@enardo/cqrs` (2026-10-23), and the discussion that followed it.
+- **Two tests failed once under `pnpm verify` and passed on a re-run**, on 2026-10-23, in a branch that changed only docs and test fixtures (`docs/repo/remove-project-names`).
+  - `@enardo/http-client`, `__tests__/http-client.node.test.ts:197`: *should reject with the very reason when the caller aborts at 50 ms a request to a server that never answers, and close its connection* failed with `connections: expected 0 to be greater than 0`. The test counts the sockets the server saw closed, and under load the abort may come before the client opens one. The cause is not probed.
+  - `@enardo/uow-repository-mongo#test` failed in an earlier run of the same `verify`; its output was not kept, and the package's tests passed on their own (40 of 40). The cause is unknown.
+  - Both ran with the other packages' tests in parallel. The fix of the first is a test that waits for the connection before it aborts; the second needs a reproduction first.
+  - From the `verify` runs of `docs/repo/remove-project-names` (2026-10-23).
 
 ## Dropped
 
