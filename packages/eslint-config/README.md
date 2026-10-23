@@ -4,11 +4,11 @@ The ESLint flat-config presets every `@enardo/*` package uses, and the projects 
 
 ## Presets
 
-| Preset | For | Globals, files |
-| --- | --- | --- |
-| `node(rootDir)` | shared packages, project packages, `api-server` | Node globals, `**/*.ts` |
-| `react(rootDir)` | `web` | browser globals, `**/*.{ts,tsx}`, JSX |
-| `runtimeNeutral(rootDir)` | packages whose `src/` runs in browsers and on Node | `node(rootDir)`, plus the restrictions of *`runtimeNeutral`* below on `src/**/*.ts` |
+| Preset                    | For                                                | Globals, files                                                                      |
+| ------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `node(rootDir)`           | shared packages, project packages, `api-server`    | Node globals, `**/*.ts`                                                             |
+| `react(rootDir)`          | `web`                                              | browser globals, `**/*.{ts,tsx}`, JSX                                               |
+| `runtimeNeutral(rootDir)` | packages whose `src/` runs in browsers and on Node | `node(rootDir)`, plus the restrictions of _`runtimeNeutral`_ below on `src/**/*.ts` |
 
 All three start from `eslint.configs.recommended`, typescript-eslint's `recommendedTypeChecked` and `stylisticTypeChecked`, then `eslint-config-prettier`. Type information comes from `projectService`, so the package's own `tsconfig.json` decides what is linted with which types.
 
@@ -31,9 +31,9 @@ pnpm add -D @enardo/eslint-config eslint
 
 `src/` may use only what browsers and Node both have. On `src/**/*.ts` (tests are not restricted):
 
-| Rule | Catches | Misses |
-| --- | --- | --- |
-| `no-restricted-imports` | `undici`, `node:*`, builtin modules | a dynamic `import()` |
+| Rule                    | Catches                                                                                                                                          | Misses                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `no-restricted-imports` | `undici`, `node:*`, builtin modules                                                                                                              | a dynamic `import()`                                             |
 | `no-restricted-globals` | the globals of one runtime, also as `globalThis.<name>`; the globals Node 24 lacks (`ErrorEvent`, `QuotaExceededError`, `Temporal`, Web Storage) | type positions, destructuring (`const { process } = globalThis`) |
 
 The lists of browser-only and Node-only globals are computed from the `globals` package. The keys of `globals.node` that Node 24 does not define are listed by hand (`missingOnNode`): `@types/node` declares some of them, so a Node typecheck passes them. Check that list again when Node, `globals` or `@types/node` change.
@@ -42,13 +42,13 @@ A package's own typechecks of `src/` as each runtime sees it catch the rest, and
 
 ## Rule choices
 
-| Rule | Setting | Why |
-| --- | --- | --- |
-| `consistent-type-imports`, `no-import-type-side-effects` | error | with `verbatimModuleSyntax`, only `import type` is erased from the output |
-| `prefer-nullish-coalescing` | ignores strings | `value.trim() \|\| undefined` relies on `""` falling through; `??` would keep it |
-| `require-await` | off | `async` on a method with nothing to await keeps errors as rejections, which callers of a Promise-returning interface expect |
-| `no-restricted-syntax` | `instanceof BaseError` in `src/**` | an error built by another copy of `@enardo/errors` fails it silently; recognize it with `isBaseErrorLike` and its `code`. Misses an aliased import (`import { BaseError as B }`); `__tests__/` is not restricted; an entry that sets `no-restricted-syntax` after the preset replaces it |
-| `no-unsafe-assignment`, `unbound-method` | off in `__tests__/**` | asymmetric matchers (`expect.any`) are typed `any`, and `expect(mock.method)` passes a method unbound by design |
+| Rule                                                     | Setting                            | Why                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `consistent-type-imports`, `no-import-type-side-effects` | error                              | with `verbatimModuleSyntax`, only `import type` is erased from the output                                                                                                                                                                                                                                                                                                                    |
+| `prefer-nullish-coalescing`                              | ignores strings                    | `value.trim() \|\| undefined` relies on `""` falling through; `??` would keep it                                                                                                                                                                                                                                                                                                             |
+| `require-await`                                          | off                                | `async` on a method with nothing to await keeps errors as rejections, which callers of a Promise-returning interface expect                                                                                                                                                                                                                                                                  |
+| `no-restricted-syntax`                                   | `instanceof BaseError` in `src/**` | an error built by another copy of `@enardo/errors` fails it silently; recognize it with `isBaseErrorLike` and its `code`. Matches any class named `BaseError`, whatever it is imported from; misses an aliased import (`import { BaseError as B }`), which is also the way around it; `__tests__/` is not restricted; an entry that sets `no-restricted-syntax` after the preset replaces it |
+| `no-unsafe-assignment`, `unbound-method`                 | off in `__tests__/**`              | asymmetric matchers (`expect.any`) are typed `any`, and `expect(mock.method)` passes a method unbound by design                                                                                                                                                                                                                                                                              |
 
 ## Known limit
 

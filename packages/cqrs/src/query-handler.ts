@@ -30,6 +30,10 @@ export abstract class QueryHandler<
     );
   }
 
+  /**
+   * Resolves to the payload, or to a failure when `handle()` throws an error
+   * with a code in `expectedCodes`. Rejects with every other error.
+   */
   async execute(query: TQuery): Promise<TResult> {
     const queryName = query.constructor.name || "UnknownQuery";
 

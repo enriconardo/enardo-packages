@@ -17,6 +17,7 @@ export type CommandSuccessPayload<
   TResponse extends CommandResponse<unknown, string>,
 > = Extract<TResponse, { success: true }>["payload"];
 
+/** The union of the failure codes of a command response type. */
 export type CommandFailureCode<
   TResponse extends CommandResponse<unknown, string>,
 > = Extract<TResponse, { success: false }>["error"];

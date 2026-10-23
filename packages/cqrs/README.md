@@ -7,22 +7,32 @@ rethrows everything else.
 ## A command handler
 
 ```ts
-import { Command, CommandHandler, type CommandResponse } from "@enardo/cqrs";
+import {
+  Command,
+  CommandHandler,
+  type CommandHandlerOptions,
+  type CommandResponse,
+} from "@enardo/cqrs";
 
 const codes = ["EMAIL_TAKEN", "EMAIL_INVALID"] as const;
 
 type RegisterResponse = CommandResponse<{ id: string }, (typeof codes)[number]>;
 
+interface RegisterUserOptions extends CommandHandlerOptions {
+  createUnitOfWork: () => UnitOfWork;
+}
+
 class RegisterUserHandler extends CommandHandler<
   RegisterUserCommand,
-  RegisterResponse
+  RegisterResponse,
+  RegisterUserOptions
 > {
   protected readonly expectedCodes = codes;
 
   protected async handle(command: RegisterUserCommand) {
-    return this.options.unitOfWork.execute(async (uow) => {
+    return this.options.createUnitOfWork().execute(async () => {
       // throws an error with code "EMAIL_TAKEN": the unit of work rolls back
-      return { id: await register(uow, command) };
+      return { id: await register(command) };
     });
   }
 }
@@ -43,7 +53,7 @@ back and a conflict at commit is covered. Queries work the same way
 - Any other error is rethrown as it is: a code missing from the list, a native
   error, a non-error, an error without the brand (such as one built on
   `@enardo/errors` 1.0.0, or a native error with a `code`).
-- The list is typed by the codes of the response type. Declare it `as const`;
+- The list is typed by the codes of the response type (`CommandFailureCode<TResponse>`, the union of its failure codes). Declare it `as const`;
   derive the response type from it, as above, so the two cannot drift. A code in
   a hand-written type but missing from the list is rethrown.
 
@@ -84,7 +94,7 @@ caller's to log.
   subscribers and rolls back the publisher's transaction, which 1.x let commit.
 - `error` holds only a listed code, never a message or `"INTERNAL_ERROR"`.
   `exception` and `mapErrorToString` are gone.
-- `failureResponse` takes a code. A response type lists its codes in its second
+- `CommandFailureResponse` and `QueryFailureResponse` take the code type as a required parameter (TS2314 without it). `failureResponse` takes a code. A response type lists its codes in its second
   parameter.
 - `Logger` has no `error`: an object literal with it is TS2353.
 - An error built on `@enardo/errors` 1.0.0 has no brand, and is rethrown.

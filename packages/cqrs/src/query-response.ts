@@ -17,5 +17,6 @@ export type QuerySuccessPayload<
   TResponse extends QueryResponse<unknown, string>,
 > = Extract<TResponse, { success: true }>["payload"];
 
+/** The union of the failure codes of a query response type. */
 export type QueryFailureCode<TResponse extends QueryResponse<unknown, string>> =
   Extract<TResponse, { success: false }>["error"];
