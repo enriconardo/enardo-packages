@@ -5,6 +5,7 @@ type DuplicateRecordKeyErrorOptions = Omit<BaseErrorOptions, "code">;
 /** Thrown when two records of one collection share a key, so a diff cannot tell them apart. */
 export class DuplicateRecordKeyError extends BaseError {
   override readonly name = "DuplicateRecordKeyError";
+  declare readonly code: "DUPLICATE_RECORD_KEY";
 
   constructor(
     collection: string,

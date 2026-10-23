@@ -5,6 +5,7 @@ type UnitOfWorkAlreadyUsedErrorOptions = Omit<BaseErrorOptions, "code">;
 /** Thrown when `execute()` is called on a unit of work that was already executed. */
 export class UnitOfWorkAlreadyUsedError extends BaseError {
   override readonly name = "UnitOfWorkAlreadyUsedError";
+  declare readonly code: "UOW_ALREADY_USED";
 
   constructor(options?: UnitOfWorkAlreadyUsedErrorOptions) {
     super(

@@ -1,2 +1,7 @@
-export { BaseError } from "./base";
-export type { BaseErrorOptions, ErrorDetails, SerializedError } from "./base";
+export { BaseError, isBaseErrorLike } from "./base";
+export type {
+  BaseErrorLike,
+  BaseErrorOptions,
+  ErrorDetails,
+  SerializedError,
+} from "./base";

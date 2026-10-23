@@ -1,6 +1,6 @@
 {
   "name": "@enardo/uow-repository",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Repository pattern primitives with mapping and unit of work support.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",

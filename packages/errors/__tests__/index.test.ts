@@ -8,8 +8,11 @@ import type { IHttpError } from "~/index";
 import type { HttpErrorOptions } from "~/index";
 
 describe("entry point", () => {
-  it("exports exactly BaseError at runtime", () => {
-    expect(Object.keys(entryPoint).sort()).toEqual(["BaseError"]);
+  it("exports exactly BaseError and isBaseErrorLike at runtime", () => {
+    expect(Object.keys(entryPoint).sort()).toEqual([
+      "BaseError",
+      "isBaseErrorLike",
+    ]);
   });
 
   it("does not export IBaseError nor IHttpError", () => {

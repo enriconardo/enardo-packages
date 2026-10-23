@@ -32,3 +32,16 @@ export interface SerializedError {
   readonly cause?: unknown;
   readonly [key: string]: unknown;
 }
+
+/**
+ * What {@link isBaseErrorLike} proves about a value: the shape of a
+ * {@link BaseError}, not its class.
+ *
+ * Named after `PromiseLike` and `ArrayLike`. A `BaseError` is assignable to
+ * it; it is never narrowed to `BaseError` (ADR 0003).
+ */
+export interface BaseErrorLike {
+  readonly name: string;
+  readonly code: string;
+  readonly details?: ErrorDetails | undefined;
+}

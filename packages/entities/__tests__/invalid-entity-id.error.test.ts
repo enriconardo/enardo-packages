@@ -24,3 +24,12 @@ describe("InvalidEntityIdError", () => {
     expect(error.details).toEqual({ entityId: "   ", reason: "empty" });
   });
 });
+
+describe("InvalidEntityIdError code", () => {
+  it("has the code INVALID_ENTITY_ID, typed as its literal", () => {
+    const error = new InvalidEntityIdError("", "empty");
+
+    expectTypeOf(error.code).toEqualTypeOf<"INVALID_ENTITY_ID">();
+    expect(error.code).toBe("INVALID_ENTITY_ID");
+  });
+});

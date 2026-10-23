@@ -9,6 +9,7 @@ export interface InvalidEntityIdDetails extends Record<string, unknown> {
 
 export class InvalidEntityIdError extends BaseError {
   override readonly name = "InvalidEntityIdError";
+  declare readonly code: "INVALID_ENTITY_ID";
   declare readonly details: InvalidEntityIdDetails;
 
   constructor(entityId: string, reason: InvalidEntityIdReason) {

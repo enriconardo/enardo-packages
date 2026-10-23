@@ -16,6 +16,7 @@ import { serializeError } from "./serialize-error";
  * ```ts
  * export class UserNotFoundError extends BaseError {
  *   override readonly name = "UserNotFoundError";
+ *   declare readonly code: "USER_NOT_FOUND";
  *   declare readonly details: { readonly userId: string };
  *
  *   constructor(userId: string, options?: Pick<BaseErrorOptions, "cause">) {
@@ -29,6 +30,24 @@ import { serializeError } from "./serialize-error";
  * ```
  */
 export abstract class BaseError extends Error {
+  // The brand, on the prototype: `toJSON` never serializes it and a subclass's
+  // fields cannot collide with it. `Symbol.for` is shared by every copy of
+  // this package and every realm, so `isBaseErrorLike` recognizes the errors
+  // of a copy that `instanceof` cannot. Its key is a contract between majors
+  // (ADR 0012).
+  static {
+    Object.defineProperty(
+      this.prototype,
+      Symbol.for("@enardo/errors.BaseError"),
+      {
+        value: true,
+        writable: false,
+        enumerable: false,
+        configurable: false,
+      },
+    );
+  }
+
   /**
    * The name of the concrete class, declared by it as a field
    * (`override readonly name = "UserNotFoundError"`), so that minifiers

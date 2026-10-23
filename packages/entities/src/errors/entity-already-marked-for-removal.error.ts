@@ -7,6 +7,7 @@ import { EntityLifecycleError } from "./entity-lifecycle.error";
  */
 export class EntityAlreadyMarkedForRemovalError extends EntityLifecycleError {
   override readonly name = "EntityAlreadyMarkedForRemovalError";
+  declare readonly code: "ENTITY_ALREADY_MARKED_FOR_REMOVAL";
 
   constructor(context: EntityLifecycleErrorContext) {
     super(

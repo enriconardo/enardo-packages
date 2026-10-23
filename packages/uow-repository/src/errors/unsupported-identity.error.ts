@@ -5,6 +5,7 @@ type UnsupportedIdentityErrorOptions = Omit<BaseErrorOptions, "code">;
 /** Thrown when a primitive identity key can't be derived from an identity. */
 export class UnsupportedIdentityError extends BaseError {
   override readonly name = "UnsupportedIdentityError";
+  declare readonly code: "UNSUPPORTED_IDENTITY";
 
   constructor(identityType: string, options?: UnsupportedIdentityErrorOptions) {
     super(

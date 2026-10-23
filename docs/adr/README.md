@@ -19,6 +19,7 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0009](0009-critic-runs-no-longer-logged.md) | The critic keeps its triggers, and its runs are no longer logged | accepted |
 | [0010](0010-a-vitest-preset-package.md) | The browser test project lives in a vitest preset package | accepted |
 | [0011](0011-only-a-block-moves-into-a-preset.md) | Only a block of configuration that a second package needs moves into a preset; a scalar is repeated with its comment, unless it fits every package on a preset | accepted |
+| [0012](0012-errors-recognized-by-a-brand.md) | An error of the ecosystem is recognized by a brand and its `code`, never by `BaseError`'s identity | accepted |
 
 ## Template
 

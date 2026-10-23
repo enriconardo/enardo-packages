@@ -553,7 +553,7 @@ __tests__/            one *.test.ts per module
 ### Conventions
 
 - Export public API from `src/index.ts`, and export types with `export type`.
-- Put each new error in `src/errors/<name>.error.ts`. It extends `BaseError` with a `name`, an upper-snake-case `code` and `details`, and is re-exported from `src/errors/index.ts`. Add it to the [Errors](#errors) table.
+- Put each new error in `src/errors/<name>.error.ts`. It extends `BaseError` with a `name`, an upper-snake-case `code` declared with `declare readonly code: "<CODE>"` (a code belongs to one class across packages) and `details`, and is re-exported from `src/errors/index.ts`. Add it to the [Errors](#errors) table.
 - In tests, import sources through the `~/` alias, e.g. `import { Repository } from "~/repository"`.
 - `hasPendingChanges()` must always agree with `planFlush()`, and a test checks it.
 - Doc comments explain why code behaves as it does, not only what it does. See [`src/snapshot.ts`](src/snapshot.ts).
