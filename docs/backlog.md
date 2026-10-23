@@ -10,16 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **Hand over `@enardo/env` 2.0 to Cambusa.**
-  - **What:** once 2.0.0 is published (the `publish` skill, a session of its own), a session of its own adds an item to Cambusa's backlog, on a branch as Cambusa's workflow wants, in the form of its `d7cb78a` (an item of its own, *From:* naming `feature/env/readers-only`). It lists the changes of behavior from 1.x:
-    - `createEnv(source)` replaces `envString`, `envNumber`, `envBool` and `env()`: the source is always passed (`process.env`, or `import.meta.env` in the web app), and there is no default parameter;
-    - a reader returns `undefined` for an unset variable (a key that is not an own key, or whose value is `undefined` or `""`), not `null`: a default is `?? value`;
-    - a malformed value throws `EnvMalformedError` (a number outside decimal notation, a boolean other than `true`, `1`, `yes`, `false`, `0`, `no`, a value that is not a string where a string is read), where 1.x fell back to the default; `requireString`, `requireNumber` and `requireBool` throw `EnvMissingError` for an unset one; neither error holds the value;
-    - `loadEnv` is gone: on Node, `process.loadEnvFile(<root>/.env)` before reading (the shell's values win, a missing file throws `ENOENT`); in Vite, `envDir` at the root.
-  - Cambusa's side of the old item: `import.meta.env` passed to the readers in `apps/web/src/lib/config.ts`, and a check of the public config in `vite.config.ts` (only `VITE_`-prefixed variables reach the client).
-  - **Why:** Cambusa calls the 1.x readers and `loadEnv` (`packages/config/src/`, `apps/web/src/lib/config.ts`), and its backlog has no item about env.
-  - **From:** `feature/env/readers-only`, from the architectural review of `@enardo/env` (2026-10-22).
-
 ## To evaluate
 
 - **The vitest `test` block of the Mongo adapters**, identical in `@enardo/transaction-manager-mongo` and `@enardo/uow-repository-mongo` (`globalSetup`, `include`, `hookTimeout`, `testTimeout`): under ADR 0010 and ADR 0011 it moves into `@enardo/vitest-config`. From the `critic`'s run on the spec of `docs/repo/narrow-preset-rule` (2026-10-22).
