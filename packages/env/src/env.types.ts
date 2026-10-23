@@ -12,9 +12,9 @@ export type EnvSource = Readonly<Record<string, unknown>>;
 export interface EnvReader {
   /** The value as it is, or `undefined` if unset. Throws `EnvMalformedError` on a non-string. */
   string(key: string): string | undefined;
-  /** A decimal number, or `undefined` if unset. Throws `EnvMalformedError` on anything else. */
+  /** A decimal number (a finite number value as it is), or `undefined` if unset. Throws `EnvMalformedError` on anything else. */
   number(key: string): number | undefined;
-  /** `true`/`1`/`yes` or `false`/`0`/`no` (any case), or `undefined` if unset. Throws `EnvMalformedError` on anything else. */
+  /** `true`/`1`/`yes` or `false`/`0`/`no` (any case; a boolean value as it is), or `undefined` if unset. Throws `EnvMalformedError` on anything else. */
   bool(key: string): boolean | undefined;
   /** As `string`, but throws `EnvMissingError` if unset. */
   requireString(key: string): string;
