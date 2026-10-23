@@ -12,7 +12,7 @@ const productStore = new MongoDataStore<ProductRecords, ObjectId>({
 const transactionManager = new MongoTransactionManager(client);
 ```
 
-> Published to the `@enardo` registry, version 0.1.0: the API can still change. MongoDB transactions need a replica set or a sharded cluster, even a single-node replica set. A standalone server doesn't work.
+> Published to the `@enardo` registry, version 0.2.0: the API can still change. MongoDB transactions need a replica set or a sharded cluster, even a single-node replica set. A standalone server doesn't work.
 
 ## Contents
 
@@ -42,6 +42,8 @@ You need Node.js 24, pnpm 11, and access to the `@enardo` registry (`https://npm
 pnpm add @enardo/transaction-manager-mongo @enardo/uow-repository @enardo/uow-repository-mongo mongodb
 pnpm add -D mongodb-memory-server
 ```
+
+`@enardo/transaction-manager-mongo` has a peer of its own, which its install line shows.
 
 **2. Save this as `quickstart.mts`** in that package.
 

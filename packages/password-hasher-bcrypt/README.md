@@ -11,7 +11,7 @@ const passwordHash = await passwordHasher.hash(password);
 await passwordHasher.compare(password, passwordHash); // true
 ```
 
-> Published to the `@enardo` registry. `bcrypt` `^5.1.1` is a peer dependency: install it beside the package.
+> Published to the `@enardo` registry. `bcrypt` `^5.1.1` and `@enardo/password-hasher` `^2.0.0` are peer dependencies: install them beside the package.
 
 ## Exports
 

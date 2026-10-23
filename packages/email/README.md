@@ -90,6 +90,8 @@ async function sendOnce(
 }
 ```
 
+An implementation declares this package as a peer dependency, so it throws the classes of the copy that the package installing it resolves. `instanceof` holds where the catching code resolves that copy too: every package of the app takes this package on one specifier (a pnpm catalog entry, in a workspace), and the install has no unmet peer. Where `details` are not needed, `isBaseErrorLike` from `@enardo/errors` and the error's `code` hold in any layout.
+
 ### Implementations
 
 - Hand each `address` to the transport as one address, never inside a string the transport parses: a malformed address can be refused, never turned into other recipients.
