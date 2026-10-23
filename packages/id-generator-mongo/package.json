@@ -1,6 +1,6 @@
 {
   "name": "@enardo/id-generator-mongo",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "MongoDB ObjectId adapter for @enardo/id-generator.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
@@ -30,11 +30,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@enardo/id-generator": "workspace:^"
-  },
   "devDependencies": {
     "@enardo/eslint-config": "workspace:^",
+    "@enardo/id-generator": "workspace:^",
     "@enardo/typescript-config": "workspace:^",
     "@types/node": "catalog:",
     "eslint": "catalog:",
@@ -45,6 +43,7 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
+    "@enardo/id-generator": "workspace:^",
     "mongodb": "^7.5.0"
   }
 }

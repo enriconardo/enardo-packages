@@ -1,6 +1,6 @@
 {
   "name": "@enardo/database-mongo",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A MongoDB database implementation.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
@@ -30,10 +30,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@enardo/database": "workspace:^"
-  },
   "devDependencies": {
+    "@enardo/database": "workspace:^",
     "@enardo/eslint-config": "workspace:^",
     "@enardo/typescript-config": "workspace:^",
     "@types/node": "catalog:",
@@ -45,6 +43,7 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
+    "@enardo/database": "workspace:^",
     "mongodb": "^7.5.0"
   }
 }

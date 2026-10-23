@@ -1,6 +1,6 @@
 {
   "name": "@enardo/transaction-manager-mongo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MongoDB implementation of the @enardo/transaction-manager contracts.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
@@ -32,11 +32,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@enardo/transaction-manager": "workspace:^"
-  },
   "devDependencies": {
     "@enardo/eslint-config": "workspace:^",
+    "@enardo/transaction-manager": "workspace:^",
     "@enardo/typescript-config": "workspace:^",
     "@types/node": "catalog:",
     "eslint": "catalog:",
@@ -48,6 +46,7 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
+    "@enardo/transaction-manager": "workspace:^",
     "mongodb": "^7.5.0"
   }
 }
