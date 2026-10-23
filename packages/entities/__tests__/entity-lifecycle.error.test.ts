@@ -5,10 +5,7 @@ import {
   EntityLifecycleError,
   EntityNotMutableError,
 } from "~/index";
-import type {
-  EntityLifecycleErrorCode,
-  EntityLifecycleErrorContext,
-} from "~/index";
+import type { EntityLifecycleErrorContext } from "~/index";
 
 const context: EntityLifecycleErrorContext = {
   entityType: "user",
@@ -40,10 +37,10 @@ describe("EntityNotMutableError", () => {
     );
   });
 
-  it("has the code ENTITY_NOT_MUTABLE, typed EntityLifecycleErrorCode", () => {
+  it("has the code ENTITY_NOT_MUTABLE, typed as its literal", () => {
     const error = new EntityNotMutableError(context);
 
-    expectTypeOf(error.code).toEqualTypeOf<EntityLifecycleErrorCode>();
+    expectTypeOf(error.code).toEqualTypeOf<"ENTITY_NOT_MUTABLE">();
     expect(error.code).toBe("ENTITY_NOT_MUTABLE");
   });
 
@@ -77,10 +74,12 @@ describe("EntityAlreadyMarkedForRemovalError", () => {
     );
   });
 
-  it("has the code ENTITY_ALREADY_MARKED_FOR_REMOVAL, typed EntityLifecycleErrorCode", () => {
+  it("has the code ENTITY_ALREADY_MARKED_FOR_REMOVAL, typed as its literal", () => {
     const error = new EntityAlreadyMarkedForRemovalError(context);
 
-    expectTypeOf(error.code).toEqualTypeOf<EntityLifecycleErrorCode>();
+    expectTypeOf(
+      error.code,
+    ).toEqualTypeOf<"ENTITY_ALREADY_MARKED_FOR_REMOVAL">();
     expect(error.code).toBe("ENTITY_ALREADY_MARKED_FOR_REMOVAL");
   });
 

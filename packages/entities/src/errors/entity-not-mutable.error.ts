@@ -7,6 +7,7 @@ import { EntityLifecycleError } from "./entity-lifecycle.error";
  */
 export class EntityNotMutableError extends EntityLifecycleError {
   override readonly name = "EntityNotMutableError";
+  declare readonly code: "ENTITY_NOT_MUTABLE";
 
   constructor(context: EntityLifecycleErrorContext) {
     super(
