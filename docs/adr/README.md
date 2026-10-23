@@ -20,7 +20,7 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0010](0010-a-vitest-preset-package.md) | The browser test project lives in a vitest preset package | accepted |
 | [0011](0011-only-a-block-moves-into-a-preset.md) | Only a block of configuration that a second package needs moves into a preset; a scalar is repeated with its comment, unless it fits every package on a preset | accepted |
 | [0012](0012-errors-recognized-by-a-brand.md) | An error of the ecosystem is recognized by a brand and its `code`, never by `BaseError`'s identity | accepted; point 3's open question settled by 0013 |
-| [0013](0013-contract-peer-of-its-adapter.md) | A contract is a peer of the adapter that implements it | proposed |
+| [0013](0013-contract-peer-of-its-adapter.md) | A contract is a peer of the adapter that implements it | accepted |
 
 ## Template
 

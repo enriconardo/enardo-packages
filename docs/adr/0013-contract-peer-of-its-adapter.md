@@ -1,6 +1,6 @@
 # 0013. A contract is a peer of the adapter that implements it
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-23
 - Spec: docs/specs/2026-10-23-contract-peer-of-adapter.md
 
