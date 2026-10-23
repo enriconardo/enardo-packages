@@ -37,4 +37,32 @@ describe("BcryptPasswordHasher", () => {
 
     await expect(hasher.compare(prefix, hashed)).resolves.toBe(true);
   });
+
+  // Hashes made by bcrypt 5.1.1 at cost 4: a hash an app stored before an
+  // upgrade of bcrypt still has to verify.
+  describe("hashes made by bcrypt 5.1.1", () => {
+    const hasher = new BcryptPasswordHasher(4);
+    const hash = "$2b$04$K3jkotAxEI6VAxGGMsYVBua0nImI9fCxSsOQhpjcvi0DKZ/zmbUWS";
+
+    it("should verify the password of a stored hash", async () => {
+      await expect(hasher.compare("P@ssword123", hash)).resolves.toBe(true);
+    });
+
+    it("should reject another password against a stored hash", async () => {
+      await expect(hasher.compare("P@ssword124", hash)).resolves.toBe(false);
+    });
+
+    it("should encode a lone surrogate as U+FFFD", async () => {
+      // The hash of "pw\uD800".
+      const surrogateHash =
+        "$2b$04$kK3eX./9Zx/qFKapeVPk6OxnUqXaw4E6UZbxZ3lpE0Er0w0OFb2Em";
+
+      await expect(hasher.compare("pw�", surrogateHash)).resolves.toBe(true);
+      await expect(hasher.compare("pw\uDC00", surrogateHash)).resolves.toBe(
+        true,
+      );
+      // The match is the U+FFFD, not a dropped character.
+      await expect(hasher.compare("pw", surrogateHash)).resolves.toBe(false);
+    });
+  });
 });
