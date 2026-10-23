@@ -10,6 +10,23 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
+- **Refresh the dev tooling that `pnpm audit` flags.** On 2026-10-23, `pnpm audit` reports 29 advisories over this repo's lockfile (1 critical, 16 high, 11 moderate, 1 low). Those through the dev and test tooling:
+  - `vite` 8.2.2 (patched in 8.2.4) and `@vitest/mocker` 4.1.11 (4.1.12), through `vitest`;
+  - `source-map-js` 1.2.1 (1.2.2), through `vite`'s `postcss`;
+  - `brace-expansion` 5.0.9 (5.0.12), through `eslint`'s `minimatch`;
+  - `follow-redirects` 1.16.0 (1.16.1), through `mongodb-memory-server`.
+
+  Whether each fix is within the ranges of the packages that pull it in is not probed. `pnpm audit` ignores `--filter`: it always reports the whole lockfile. The ones through `bcrypt` are the next item. From the intake of a backlog choice (2026-10-23), which re-ran the audit of `chore/repo/arch-review-skill` on this repo.
+- **`bcrypt` 5 brings `tar` 6 into every app that hashes passwords.** `@enardo/password-hasher-bcrypt` takes `bcrypt` `^5.1.1` as a peer, so an app that runs it installs `bcrypt>@mapbox/node-pre-gyp>tar` 6.2.1: the critical advisory of the audit (`GHSA-23hp-3jrh-7fpw`, patched in 7.5.19), nine high and three moderate, all closed from 7.5.21. `brace-expansion` 1.1.18, through `node-pre-gyp`'s `rimraf`, adds two high and a moderate.
+  - `@mapbox/node-pre-gyp` 1.0.11 requires `tar ^6.1.11`, and every `tar` advisory covers all of 6.x: no refresh within `bcrypt` 5 closes them.
+  - Whether `bcrypt` 6 drops `node-pre-gyp` is not probed. If it does, the fix moves the peer range to `^6`: a new major of the adapter, and its README's notes on the 72-byte limit and lone surrogates re-checked against `bcrypt` 6.
+  - From the intake of a backlog choice (2026-10-23), with the previous item.
+- **Two tests failed once under `pnpm verify` and passed on a re-run**, on 2026-10-23, in a branch that changed only docs and test fixtures (`docs/repo/remove-project-names`).
+  - `@enardo/http-client`, `__tests__/http-client.node.test.ts:197`: *should reject with the very reason when the caller aborts at 50 ms a request to a server that never answers, and close its connection* failed with `connections: expected 0 to be greater than 0`. The test counts the sockets the server saw closed, and under load the abort may come before the client opens one. The cause is not probed.
+  - `@enardo/uow-repository-mongo#test` failed in an earlier run of the same `verify`; its output was not kept, and the package's tests passed on their own (40 of 40). The cause is unknown.
+  - Both ran with the other packages' tests in parallel. The fix of the first is a test that waits for the connection before it aborts; the second needs a reproduction first.
+  - From the `verify` runs of `docs/repo/remove-project-names` (2026-10-23).
+
 ## To evaluate
 
 - **Review the `BaseError`s that report misuse or misconfiguration.** Against ADR 0012 point 6: `UOW_ALREADY_USED`, `MISSING_COLLECTION_CHANGES`, `UNSUPPORTED_IDENTITY`, `INVALID_DATA_STORE_OPTIONS`, `INVALID_EMAIL_SENDER_OPTIONS`, perhaps `ENV_MISSING` and `ENV_MALFORMED`. One branch per package, each a breaking change. The native throws of `src/` (`@enardo/logger`, `retryOnConflict`, `@enardo/http-client`) are consistent with the rule and need nothing. From the spec of `feature/errors/brand-recognition` (2026-10-23).
@@ -53,15 +70,6 @@ In the order approved.
   - That Dockerfile sets the Node version that every test runs on. Under `--filter=...[main]` (`[master]` in `en-monorepo`, where it was probed), a branch that changes only it selects no package (probed), so `pnpm verify` stays green on cached results.
   - `docker/playwright/Dockerfile` had the same blind spot, and `chore/repo/browser-tests` made it a `globalDependencies` entry of `turbo.json`. That alone is not enough: the tests run in the container that is running, so the image has to be rebuilt before the re-check.
   - From the second review of `chore/repo/browser-tests` (2026-10-07).
-- **`pnpm audit` reports 23 advisories over the lockfile** (7 moderate, 14 high, 2 critical), on 2026-10-14, after `chore/email-nodemailer/nodemailer-10`. By package, with a path that reaches it:
-  - `proxy-addr` 2.0.7, critical, patched in 2.0.8: `api-server>@ts-rest/express>express>proxy-addr`;
-  - `tar` 6.2.1, twelve advisories (1 critical, 8 high, 3 moderate), all closed from 7.5.21 (the critical one, `GHSA-23hp-3jrh-7fpw`, from 7.5.19): `password-hasher>bcrypt>@mapbox/node-pre-gyp>tar`;
-  - `react-router` 8.1.0, high, patched in 8.3.0: a web app;
-  - `qs` 6.15.3, two moderate advisories, both closed from 6.16.0: `api-server>@ts-rest/express>express>body-parser>qs`;
-  - `source-map-js` 1.2.1, and `brace-expansion` 1.1.18 and 5.0.9, through the dev tooling (`vitest`, `eslint`) and `bcrypt`'s build.
-
-  `pnpm audit` ignores `--filter`: it always reports the whole lockfile (probed). A lockfile refresh within the current ranges cannot fix two of them: the web app pins `react-router` to exactly `8.1.0`, and `@mapbox/node-pre-gyp` 1.0.11 requires `tar ^6.1.11`, while every `tar` advisory covers all of 6.x. `proxy-addr` and `qs` are within range: express 5.2.1 asks for `proxy-addr ^2.0.7` and `qs ^6.14.0`, body-parser 2.3.0 for `qs ^6.15.2`. Whether `bcrypt` 6 drops `node-pre-gyp` is not probed. From the spec of `chore/repo/arch-review-skill` (2026-10-14), corrected by its review.
-  - The counts are of `en-monorepo`'s lockfile, before the split of `en-monorepo` (`chore/repo/split-repos`, 2026-10-16). Each repo has its own lockfile now, and re-runs `pnpm audit` on it: here, the paths through `password-hasher-bcrypt` and the dev tooling.
 - **Six READMEs name packages they do not depend on.**
   - Since `refactor/email/contract-docs`, the root `CLAUDE.md` says that a package's README never names a package it does not depend on: a README describes its own package, as if published alone.
   - `http-client` names `@enardo/logger`; `http-status`, `@enardo/http-client`; `transaction-manager`, `@enardo/transaction-manager-mongo`; `transaction-manager-mongo`, `@enardo/database-mongo`; `uow-repository`, `@enardo/transaction-manager-mongo` and `@enardo/uow-repository-mongo`; `uow-repository-mongo`, `@enardo/database-mongo`. Found on 2026-10-14 by a lookup of every package name in a README against its package's `dependencies`, `devDependencies` and `peerDependencies`.
@@ -85,11 +93,6 @@ In the order approved.
   - Alternatives to weigh for observability: hooks the app subscribes to (`onRetry`, `onResponse`), which run in browsers too; Node's `diagnostics_channel`, which undici uses and OpenTelemetry reads, Node only; a decorator or middleware around a component, such as `cqrs`' handlers, so that logging is the app's choice, not a base class's.
   - Each package's log points are then judged against the rule, in its own branch.
   - From the architectural review of `@enardo/cqrs` (2026-10-23), and the discussion that followed it.
-- **Two tests failed once under `pnpm verify` and passed on a re-run**, on 2026-10-23, in a branch that changed only docs and test fixtures (`docs/repo/remove-project-names`).
-  - `@enardo/http-client`, `__tests__/http-client.node.test.ts:197`: *should reject with the very reason when the caller aborts at 50 ms a request to a server that never answers, and close its connection* failed with `connections: expected 0 to be greater than 0`. The test counts the sockets the server saw closed, and under load the abort may come before the client opens one. The cause is not probed.
-  - `@enardo/uow-repository-mongo#test` failed in an earlier run of the same `verify`; its output was not kept, and the package's tests passed on their own (40 of 40). The cause is unknown.
-  - Both ran with the other packages' tests in parallel. The fix of the first is a test that waits for the connection before it aborts; the second needs a reproduction first.
-  - From the `verify` runs of `docs/repo/remove-project-names` (2026-10-23).
 
 ## Dropped
 
