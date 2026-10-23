@@ -22,6 +22,12 @@ In the order approved.
 
 ## To evaluate
 
+- **pnpm 12** (12.15.0 on 2026-10-23), deferred while 11 gets fixes: nothing here needs it yet. Tier L. Found in a throwaway clone:
+  - it ignores `npm_config_store_dir`, so the store moves into `node_modules/` and the first install downloads everything again: `pnpm_config_store_dir`, which 11 reads too, goes in `docker/docker-compose.yml` and `docker/README.md`, with the dev container recreated;
+  - the lockfile gains a leading `packageManagerDependencies` document (+158 lines), and `audit --json` counts its entries;
+  - every fresh container downloads a 58 MB native binary, and each install runs a supply-chain check over the network (about 5 s);
+  - `verify:all` and `pack` manifests match 11; turbo's key does not hold the pnpm version, so the checks run with `--force`.
+  - From the intake of `chore/repo/upgrade-pnpm-11-28` and its `critic` run (2026-10-23).
 - **Review the `BaseError`s that report misuse or misconfiguration.** Against ADR 0012 point 6: `UOW_ALREADY_USED`, `MISSING_COLLECTION_CHANGES`, `UNSUPPORTED_IDENTITY`, `INVALID_DATA_STORE_OPTIONS`, `INVALID_EMAIL_SENDER_OPTIONS`, perhaps `ENV_MISSING` and `ENV_MALFORMED`. One branch per package, each a breaking change. The native throws of `src/` (`@enardo/logger`, `retryOnConflict`, `@enardo/http-client`) are consistent with the rule and need nothing. From the spec of `feature/errors/brand-recognition` (2026-10-23).
 - **Architectural review of `@enardo/database` and `@enardo/database-mongo`**, starting from `DatabaseError`'s free `code`, the one exception to point 4 of ADR 0012. From the spec of `feature/errors/brand-recognition` (2026-10-23).
 - **The vitest `test` block of the Mongo adapters**, identical in `@enardo/transaction-manager-mongo` and `@enardo/uow-repository-mongo` (`globalSetup`, `include`, `hookTimeout`, `testTimeout`): under ADR 0010 and ADR 0011 it moves into `@enardo/vitest-config`. From the `critic`'s run on the spec of `docs/repo/narrow-preset-rule` (2026-10-22).
