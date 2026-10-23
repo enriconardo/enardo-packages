@@ -41,7 +41,7 @@ Taken with the user, in the discussion that followed the review (the backlog ite
 Taken by this spec:
 
 5. **The brand is set in a static block** of `BaseError`, with `Object.defineProperty` on `this.prototype`. A getter with a computed key would put the symbol in the public types; a statement after the class would run apart from it. The symbol is not exported: the guard is the API, and the key's string is the contract the ADR names.
-6. **The guard reads `details` as an object, not an array, or `undefined`.** `ErrorDetails` takes no array, so a guard that let one through would claim a type its check does not prove. It does not check the prototype of `details`: an object of another realm has another `Object.prototype`.
+6. **The guard reads `details` as any object, or `undefined`.** `ErrorDetails` is `Readonly<Record<string, unknown>>`: every key of any object reads as `unknown`, so an object proves it, an array or a `Date` included, though the compiler refuses to assign them to it for want of an index signature. A check of the prototype would refuse an object of another realm, which has another `Object.prototype`.
 7. **The guard catches what a read throws, and returns `false`.** It runs in error handlers, where a throw would replace the error being reported.
 8. **The check reads the declarations, not the values passed to `super`**: a code passed through a parameter, as in `EntityLifecycleError`, is only in its type. It therefore needs every concrete class to narrow `code`, which nine classes of three packages do not yet do: they get a `declare readonly code` with the literal their tests already pin. Owner of a literal is the class that declares it; a descendant that declares it again is not a duplicate.
 9. **The check is a Node script with tests of its own**: `scripts/check-error-codes.mjs`, with `typescript` from the catalog as a root `devDependency`, and its tests under `node:test` on fixture trees it writes in a temporary folder. No new library. It runs outside turbo, so no cache hides it.
@@ -60,7 +60,8 @@ Taken by this spec:
   - the opening says which errors extend `BaseError` (ADR 0012, point 6);
   - *Exports* lists the guard and the interface;
   - *Writing an error* says that `declare readonly code` is required in this repo, that a code belongs to one class and is public API;
-  - *Handling an error* recognizes with `isBaseErrorLike`, narrows with a specific class imported from the package that throws it, and says why `instanceof BaseError` is not for recognizing.
+  - *Handling an error* recognizes with `isBaseErrorLike` and the `code`, keeps `instanceof` with a specific class for a class thrown by the package that declares it (ADR 0012, point 3), and says why `instanceof BaseError` is not for recognizing;
+  - *Handling an error* also says that a copy of 1.0.0 has no brand: while packages that allow 1.0.0 are in its tree, an app keeps one copy of `@enardo/errors` at 1.1.0 or later, with `pnpm.overrides`.
 - `CLAUDE.md`: the opening line as in the README; an invariant for the brand's key and `BaseErrorLike`, a contract between majors (ADR 0012, point 2); `isBaseErrorLike` in *Layout*.
 
 ### `@enardo/entities` (1.1.0 → 1.2.0), `@enardo/uow-repository` and `@enardo/uow-repository-mongo` (0.1.0 → 0.1.1)
@@ -86,6 +87,7 @@ Taken by this spec:
   - *To evaluate*: the review of the `BaseError`s that report misuse or misconfiguration (`UOW_ALREADY_USED`, `MISSING_COLLECTION_CHANGES`, `UNSUPPORTED_IDENTITY`, `INVALID_DATA_STORE_OPTIONS`, `INVALID_EMAIL_SENDER_OPTIONS`, perhaps `ENV_MISSING` and `ENV_MALFORMED`), against ADR 0012 point 6, one branch per package; and the native throws the item listed, consistent with the rule, need nothing;
   - *To evaluate*: the architectural review of `@enardo/database` and `@enardo/database-mongo`, starting from `DatabaseError`'s free `code`, the check's one exception;
   - *`@enardo/cqrs` sends the message of a native error to the client*: ADR 0012 points 3 and 7 apply; that branch replaces `instanceof BaseError` and adds a lint rule against it in the presets once no use is left;
+  - *To evaluate*: `retryOnConflict` of `@enardo/uow-repository` recognizes `ConcurrencyConflictError` with `instanceof`, while `@enardo/uow-repository-mongo` throws it from its own copy of the package: with two copies the retry stops silently. The guard and `code === "CONCURRENCY_CONFLICT"` would recognize it (ADR 0012, point 3);
   - this item leaves, in a commit of its own.
 
 ## Test cases
@@ -96,11 +98,11 @@ Taken by this spec:
 2. An instance of a subclass of a concrete subclass → `true`.
 3. An instance of a subclass of a second copy of `BaseError` (`vi.resetModules()`, then `import("~/index")`) → `true`, while `instanceof BaseError` of the first copy is `false`.
 4. A plain object with `[Symbol.for("@enardo/errors.BaseError")]: true`, `name: "X"`, `code: "X"` → `true`. This pins the key's string, the contract between majors.
-5. The same object with `details: undefined`, and with no `details` key → `true`; with `details: { a: 1 }` → `true`.
+5. The same object with `details: undefined`, and with no `details` key → `true`; with `details: { a: 1 }` → `true`; with `details: []` → `true` (decision 6).
 6. Without the brand → `false`: a native `Error`; an `Error` with `code: "ECONNREFUSED"` and a `name`; a plain object with `name`, `code`, `details`.
 7. Not an object → `false`: `null`, `undefined`, `"BaseError"`, `42`, a function carrying the brand key.
 8. The brand with a value other than `true` (`1`, `"true"`) → `false`.
-9. The brand with a wrong shape → `false`, one case each: `code` a number, `code` missing, `name` a number, `details` `null`, `details` an array, `details` a string.
+9. The brand with a wrong shape → `false`, one case each: `code` a number, `code` missing, `name` a number, `details` `null`, `details` a string.
 10. A read that throws → `false`, not a throw: a revoked `Proxy`; an object with the brand whose `code` getter throws.
 11. The key on `BaseError.prototype` has the descriptor `{ value: true, writable: false, enumerable: false, configurable: false }`; an instance has no own symbol key; `toJSON()` of an instance has no symbol key, and `JSON.stringify` of it does not contain `@enardo/errors`.
 
@@ -134,6 +136,7 @@ Each case writes a fixture tree of packages (`src/`, a `tsconfig.json`, a stand-
 ## Risks
 
 - **A guard that lets through what it should not, or misses what it should not**: cases 6–10 for the first, 1–5 for the second.
+- **The transition from 1.0.0**, which has no brand: a tree with 1.0.0 beside 1.1.0 recognizes the errors of neither copy from the other, through the guard or through `instanceof`. Whether pnpm keeps 1.0.0 beside 1.1.0 when an app upgrades only some dependents is not probed: the README tells apps to keep one copy, which removes the question.
 - **The brand in a log**: case 11.
 - **A declared literal that differs from the value passed to `super`**: the compiler does not see it, since `BaseErrorOptions.code` is `string`. The existing tests of each class pin the runtime `code`; the review compares the two in step 3.
 - **The check passes on a tree it does not read** (a package skipped, a class missed): the script prints the number of error classes it read, which C13 compares with the 22 of *Probes*; C12 makes an unreadable package a failure; C13's manual run shows that a missing declaration in the real tree fails.
@@ -144,7 +147,7 @@ Each case writes a fixture tree of packages (`src/`, a `tsconfig.json`, a stand-
 - Turning the `BaseError`s that report misuse or misconfiguration into native errors (decision 4).
 - `DatabaseError`'s form (decision 3).
 - Running `errors`' tests in browsers: its backlog item.
-- Cambusa's errors: its repo follows ADR 0012 when it moves to `@enardo/errors` 1.1.0.
+- Cambusa's errors: its repo follows ADR 0012 when it moves to `@enardo/errors` 1.1.0. Its order: one copy of `@enardo/errors` at 1.1.0 first (`pnpm.overrides`), then the upgrades of the packages that require it; and its two `BAD_REQUEST` classes.
 
 ## Plan
 
