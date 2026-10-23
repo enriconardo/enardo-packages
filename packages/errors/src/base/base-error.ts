@@ -16,6 +16,7 @@ import { serializeError } from "./serialize-error";
  * ```ts
  * export class UserNotFoundError extends BaseError {
  *   override readonly name = "UserNotFoundError";
+ *   declare readonly code: "USER_NOT_FOUND";
  *   declare readonly details: { readonly userId: string };
  *
  *   constructor(userId: string, options?: Pick<BaseErrorOptions, "cause">) {

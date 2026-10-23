@@ -1,6 +1,6 @@
 # @enardo/errors
 
-Root of the error hierarchy of the `@enardo/*` packages and of the projects built on them; an error a caller may handle by `code` extends `BaseError`, in this repo and in the projects. The public contract is in [README.md](./README.md); this file holds the rules for changing the package.
+Root of the error hierarchy of the `@enardo/*` packages and of the projects built on them; an error a caller may handle by `code` extends `BaseError`, in this repo and in the projects; misuse and misconfiguration throw native errors. The public contract is in [README.md](./README.md); this file holds the rules for changing the package.
 
 ## Layout
 
