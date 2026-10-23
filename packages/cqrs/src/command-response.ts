@@ -2,20 +2,21 @@ export interface CommandSuccessResponse<TPayload> {
   success: true;
   payload: TPayload;
   error?: never;
-  exception?: never;
 }
 
-export interface CommandFailureResponse {
+export interface CommandFailureResponse<TCode extends string> {
   success: false;
-  error: string;
-  exception: unknown;
+  error: TCode;
   payload?: never;
 }
 
-export type CommandResponse<TPayload = unknown> =
-  CommandSuccessResponse<TPayload> | CommandFailureResponse;
+export type CommandResponse<TPayload = unknown, TCode extends string = never> =
+  CommandSuccessResponse<TPayload> | CommandFailureResponse<TCode>;
 
-export type CommandSuccessPayload<TResponse extends CommandResponse> = Extract<
-  TResponse,
-  { success: true }
->["payload"];
+export type CommandSuccessPayload<
+  TResponse extends CommandResponse<unknown, string>,
+> = Extract<TResponse, { success: true }>["payload"];
+
+export type CommandFailureCode<
+  TResponse extends CommandResponse<unknown, string>,
+> = Extract<TResponse, { success: false }>["error"];

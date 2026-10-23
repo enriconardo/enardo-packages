@@ -1,6 +1,6 @@
 {
   "name": "@enardo/cqrs",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Minimal CQRS command primitives.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",

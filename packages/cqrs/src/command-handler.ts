@@ -1,7 +1,8 @@
-import { BaseError } from "@enardo/errors";
+import { isBaseErrorLike } from "@enardo/errors";
 import type { Command } from "~/command";
 import type {
   CommandResponse,
+  CommandFailureCode,
   CommandSuccessPayload,
 } from "./command-response";
 import { createNoopLogger, type Logger, withLoggerContext } from "./logger";
@@ -10,12 +11,12 @@ export interface CommandHandlerOptions {
   logger?: Logger;
 }
 
-type CommandPayload<TResponse extends CommandResponse> =
+type CommandPayload<TResponse extends CommandResponse<unknown, string>> =
   CommandSuccessPayload<TResponse>;
 
 export abstract class CommandHandler<
   TCommand extends Command,
-  TResult extends CommandResponse,
+  TResult extends CommandResponse<unknown, string>,
   TOptions extends CommandHandlerOptions = CommandHandlerOptions,
 > {
   protected readonly logger: Logger;
@@ -43,12 +44,26 @@ export abstract class CommandHandler<
       });
       return this.successResponse(result);
     } catch (error) {
-      this.logger.error("Command execution failed.", {
+      const code = this.expectedCode(error);
+      if (code === undefined) {
+        throw error;
+      }
+      this.logger.debug("Command failed with an expected code.", {
         command: commandName,
-        error,
+        error: code,
       });
-      return this.failureResponse(error);
+      return this.failureResponse(code);
     }
+  }
+
+  private expectedCode(
+    error: unknown,
+  ): CommandFailureCode<TResult> | undefined {
+    if (!isBaseErrorLike(error)) {
+      return undefined;
+    }
+    const code = error.code;
+    return this.expectedCodes.find((expected) => expected === code);
   }
 
   protected successResponse(data: CommandPayload<TResult>): TResult {
@@ -58,23 +73,19 @@ export abstract class CommandHandler<
     } as TResult;
   }
 
-  protected failureResponse(error: unknown): TResult {
+  protected failureResponse(code: CommandFailureCode<TResult>): TResult {
     return {
       success: false,
-      error: this.mapErrorToString(error),
-      exception: error,
+      error: code,
     } as TResult;
   }
 
-  protected mapErrorToString(error: unknown): string {
-    if (error instanceof BaseError) {
-      return error.code;
-    } else if (error instanceof Error) {
-      return error.message;
-    }
-
-    return "INTERNAL_ERROR";
-  }
+  /**
+   * The codes of the response type that `execute()` returns as a failure: a
+   * thrown error that `isBaseErrorLike` recognizes, with one of these codes.
+   * Any other error is rethrown. Declare it `as const`; `[]` for none.
+   */
+  protected abstract readonly expectedCodes: readonly CommandFailureCode<TResult>[];
 
   protected abstract handle(
     command: TCommand,
