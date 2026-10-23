@@ -18,7 +18,7 @@ await emailSender.send({
 });
 ```
 
-> Published to the `@enardo` registry. `nodemailer` `^10.1.0` is a peer dependency: install it beside the package.
+> Published to the `@enardo` registry. `nodemailer` `^10.1.0` and `@enardo/email` `^3.0.0` are peer dependencies: install them beside the package.
 
 ## Exports
 

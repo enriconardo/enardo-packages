@@ -1,6 +1,6 @@
 {
   "name": "@enardo/email-nodemailer",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "Nodemailer adapter for @enardo/email.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
@@ -31,10 +31,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@enardo/email": "workspace:^",
     "@enardo/errors": "workspace:^"
   },
   "devDependencies": {
+    "@enardo/email": "workspace:^",
     "@enardo/eslint-config": "workspace:^",
     "@enardo/typescript-config": "workspace:^",
     "@types/node": "catalog:",
@@ -46,6 +46,7 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
+    "@enardo/email": "workspace:^",
     "nodemailer": "^10.1.0"
   }
 }

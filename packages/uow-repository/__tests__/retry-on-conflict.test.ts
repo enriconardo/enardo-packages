@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { BaseError } from "@enardo/errors";
 import type { ITransaction } from "@enardo/transaction-manager";
 import { ConcurrencyConflictError } from "~/errors";
 import { Repository } from "~/repository";
@@ -62,6 +63,42 @@ describe("retryOnConflict", () => {
     expect(run).toHaveBeenCalledOnce();
   });
 
+  it("runs again after a conflict thrown by another copy of the package", async () => {
+    vi.resetModules();
+    const { ConcurrencyConflictError: OtherCopyConflictError } =
+      await import("~/errors");
+    // The premise: the second copy's class is not the first's.
+    expect(OtherCopyConflictError).not.toBe(ConcurrencyConflictError);
+    const run = vi
+      .fn<(attempt: number) => Promise<string>>()
+      .mockRejectedValueOnce(new OtherCopyConflictError("p-1", 1))
+      .mockResolvedValueOnce("done");
+
+    await expect(retryOnConflict(run)).resolves.toBe("done");
+
+    expect(run.mock.calls).toEqual([[1], [2]]);
+  });
+
+  it("rethrows a native error carrying the conflict's code, without running again", async () => {
+    const failure = Object.assign(new Error("not a conflict"), {
+      code: "CONCURRENCY_CONFLICT",
+    });
+    const run = vi.fn(async () => Promise.reject(failure));
+
+    await expect(retryOnConflict(run)).rejects.toBe(failure);
+
+    expect(run).toHaveBeenCalledOnce();
+  });
+
+  it("rethrows a BaseError with another code, without running again", async () => {
+    const failure = new OtherCodeError();
+    const run = vi.fn(async () => Promise.reject(failure));
+
+    await expect(retryOnConflict(run)).rejects.toBe(failure);
+
+    expect(run).toHaveBeenCalledOnce();
+  });
+
   it.each([0, -1, 1.5, Number.NaN])(
     "rejects %s attempts without running",
     async (attempts) => {
@@ -105,6 +142,16 @@ describe("retryOnConflict", () => {
     expect(store.row).toEqual({ value: 11, version: 3 });
   });
 });
+
+/** A branded error with the conflict's name, so only its `code` sets it apart. */
+class OtherCodeError extends BaseError {
+  override readonly name = "ConcurrencyConflictError";
+  declare readonly code: "STORE_UNAVAILABLE";
+
+  constructor() {
+    super("The store is unavailable", { code: "STORE_UNAVAILABLE" });
+  }
+}
 
 interface Counter {
   id: string;

@@ -51,10 +51,10 @@ Packages are published through the `publish` skill, each publish approved by the
 ## Architecture conventions
 
 - **Ports & adapters**, where the app picks the technology or provides its driver: a contract package defines interfaces and technology-agnostic logic (`email`), with no technology; a `<name>-<technology>` package implements it (`email-nodemailer`). Otherwise one package, named for its role, hides the technology (`logger`) until a second implementation, or a driver the app must provide, calls for a split.
-- A driver (`mongodb`, `bcrypt`, `nodemailer`) is a peer and a dev dependency of its adapter. An app lists the driver of every adapter it runs in its own `dependencies`, since pnpm never reports a missing one; another package, only when its own code runs it.
+- A driver (`mongodb`, `bcrypt`, `nodemailer`) and the contract an adapter implements are peer and dev dependencies of the adapter. An app lists both for every adapter it runs in its own `dependencies`, since pnpm never reports a missing one; another package, only when its own code runs it. Every package of an app takes a contract on one specifier, a catalog entry in a workspace (ADR 0013).
 - `@enardo/*` packages never depend on a project's packages, and no file of this repo names a project built on them.
 - One entry point, `src/index.ts` → `dist/index.mjs` + `.d.mts`; the config packages ship their files as they are.
-- An error a caller may handle by `code` extends `BaseError` from `@enardo/errors`; misuse and misconfiguration throw native errors. A concrete class declares its `name` as a field and its codes with `declare readonly code`; a code belongs to one concrete class across packages. Recognize an error with `isBaseErrorLike` and its `code`, never `instanceof BaseError`; `instanceof` with a specific class only as ADR 0012 point 3 says ([its README](packages/errors/README.md)).
+- An error a caller may handle by `code` extends `BaseError` from `@enardo/errors`; misuse and misconfiguration throw native errors. A concrete class declares its `name` as a field and its codes with `declare readonly code`; a code belongs to one concrete class across packages. Recognize an error with `isBaseErrorLike` and its `code`, never `instanceof BaseError`; `instanceof` with a specific class only as ADR 0012 point 3 and ADR 0013 say ([its README](packages/errors/README.md)).
 
 ## Code conventions
 

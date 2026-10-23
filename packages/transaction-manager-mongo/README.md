@@ -11,7 +11,7 @@ await transactionManager.runInTransaction(async ({ session }) => {
 });
 ```
 
-> Published to the `@enardo` registry, version 0.1.0. MongoDB transactions need a replica set or a sharded cluster, even a single-node replica set. A standalone server doesn't work.
+> Published to the `@enardo` registry, version 0.2.0. MongoDB transactions need a replica set or a sharded cluster, even a single-node replica set. A standalone server doesn't work.
 
 ## Exports
 
@@ -23,10 +23,10 @@ await transactionManager.runInTransaction(async ({ session }) => {
 
 ## Usage
 
-Install it from the `@enardo` registry (`https://npm.enriconardo.com`, which needs a token to read), with `mongodb`, its peer:
+Install it from the `@enardo` registry (`https://npm.enriconardo.com`, which needs a token to read), with `@enardo/transaction-manager` and `mongodb`, its peers:
 
 ```sh
-pnpm add @enardo/transaction-manager-mongo mongodb
+pnpm add @enardo/transaction-manager-mongo @enardo/transaction-manager mongodb
 ```
 
 ```ts

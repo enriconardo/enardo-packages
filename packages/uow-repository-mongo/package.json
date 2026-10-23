@@ -1,6 +1,6 @@
 {
   "name": "@enardo/uow-repository-mongo",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "MongoDB data store and transaction manager for @enardo/uow-repository.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
@@ -34,12 +34,12 @@
   },
   "dependencies": {
     "@enardo/errors": "workspace:^",
-    "@enardo/transaction-manager-mongo": "workspace:^",
-    "@enardo/uow-repository": "workspace:^"
+    "@enardo/transaction-manager-mongo": "workspace:^"
   },
   "devDependencies": {
     "@enardo/eslint-config": "workspace:^",
     "@enardo/typescript-config": "workspace:^",
+    "@enardo/uow-repository": "workspace:^",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "mongodb": "^7.6.0",
@@ -50,6 +50,7 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
+    "@enardo/uow-repository": "workspace:^",
     "mongodb": "^7.5.0"
   }
 }

@@ -111,11 +111,10 @@ importers:
         version: 4.1.11(@types/node@26.4.0)(@vitest/browser-playwright@4.1.11)(vite@8.2.2(@types/node@26.4.0))
 
   packages/database-mongo:
-    dependencies:
+    devDependencies:
       '@enardo/database':
         specifier: workspace:^
         version: link:../database
-    devDependencies:
       '@enardo/eslint-config':
         specifier: workspace:^
         version: link:../eslint-config
@@ -177,13 +176,13 @@ importers:
 
   packages/email-nodemailer:
     dependencies:
-      '@enardo/email':
-        specifier: workspace:^
-        version: link:../email
       '@enardo/errors':
         specifier: workspace:^
         version: link:../errors
     devDependencies:
+      '@enardo/email':
+        specifier: workspace:^
+        version: link:../email
       '@enardo/eslint-config':
         specifier: workspace:^
         version: link:../eslint-config
@@ -442,14 +441,13 @@ importers:
         version: 5.9.3
 
   packages/id-generator-mongo:
-    dependencies:
-      '@enardo/id-generator':
-        specifier: workspace:^
-        version: link:../id-generator
     devDependencies:
       '@enardo/eslint-config':
         specifier: workspace:^
         version: link:../eslint-config
+      '@enardo/id-generator':
+        specifier: workspace:^
+        version: link:../id-generator
       '@enardo/typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
@@ -531,14 +529,13 @@ importers:
         version: 5.9.3
 
   packages/password-hasher-bcrypt:
-    dependencies:
-      '@enardo/password-hasher':
-        specifier: workspace:^
-        version: link:../password-hasher
     devDependencies:
       '@enardo/eslint-config':
         specifier: workspace:^
         version: link:../eslint-config
+      '@enardo/password-hasher':
+        specifier: workspace:^
+        version: link:../password-hasher
       '@enardo/typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
@@ -595,14 +592,13 @@ importers:
         version: 4.1.11(@types/node@26.4.0)(@vitest/browser-playwright@4.1.11)(vite@8.2.2(@types/node@26.4.0))
 
   packages/transaction-manager-mongo:
-    dependencies:
-      '@enardo/transaction-manager':
-        specifier: workspace:^
-        version: link:../transaction-manager
     devDependencies:
       '@enardo/eslint-config':
         specifier: workspace:^
         version: link:../eslint-config
+      '@enardo/transaction-manager':
+        specifier: workspace:^
+        version: link:../transaction-manager
       '@enardo/typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
@@ -675,9 +671,6 @@ importers:
       '@enardo/transaction-manager-mongo':
         specifier: workspace:^
         version: link:../transaction-manager-mongo
-      '@enardo/uow-repository':
-        specifier: workspace:^
-        version: link:../uow-repository
     devDependencies:
       '@enardo/eslint-config':
         specifier: workspace:^
@@ -685,6 +678,9 @@ importers:
       '@enardo/typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
+      '@enardo/uow-repository':
+        specifier: workspace:^
+        version: link:../uow-repository
       '@types/node':
         specifier: 'catalog:'
         version: 26.4.0

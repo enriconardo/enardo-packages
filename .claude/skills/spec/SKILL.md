@@ -92,6 +92,7 @@ Each fact the plan relies on is probed in the dev container before the spec stat
   ```
 - **A library's documentation is not a probe.** The cases a library produces (its errors, their types or statuses, its options) come from its installed source, or from running them.
 - **A type declaration is not a probe of a runtime.** What a runtime defines (its globals, its modules) is enumerated in that runtime, every one, not a sample.
+- **An install is probed on the consumer's shape**: a workspace whose packages import the same package, not a one-package app. Packed tarballs go to a local Verdaccio, reached on `127.0.0.1`: pnpm 11 fails on `localhost` (`ECONNREFUSED`).
 - **Advisories.** The version that closes a module's advisories is read from the `patched_versions` of every one of them (`pnpm audit --json`), not from one. The version an upgrade moves to is audited itself, with `npm audit` on a lockfile of that version in a throwaway container: it can bring advisories of its own.
 - **Commands for agents.** A command that a skill, an agent or a `CLAUDE.md` gives to agents is probed on every package it can run on, not on the one at hand.
 - **What an error exposes** is probed on its serialized form (its `toJSON()`, the log it lands in), with the whole `cause` chain, not on its message.

@@ -10,7 +10,7 @@ const idGenerator = new ObjectIdGenerator();
 idGenerator.generate(); // "6ad75f3c94ff8490f95a3d85"
 ```
 
-> Published to the `@enardo` registry. `mongodb` `^7.5.0` is a peer dependency: install it beside the package.
+> Published to the `@enardo` registry. `mongodb` `^7.5.0` and `@enardo/id-generator` `^2.0.0` are peer dependencies: install them beside the package.
 
 ## Exports
 
