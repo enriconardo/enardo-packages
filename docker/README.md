@@ -39,6 +39,8 @@ docker run --rm --network enardo-packages_default -e PLAYWRIGHT_WS_ENDPOINT=ws:/
 
 `./dev.sh up` rebuilds an image when its Dockerfile (`dev/`, `playwright/`) changed. A rebuilt `playwright` image recreates that service only, not the dev container.
 
+**After the dev container's Node changes** (a change to `dev/Dockerfile`, or a newer `node:24-bookworm` pulled): run `./dev.sh up -d`, then `pnpm verify:all --force`. Turbo's key holds neither the Dockerfile nor the Node version, so `pnpm verify` would replay the results cached on the old Node.
+
 ## The `playwright` service (`playwright/`)
 
 The browser tests run in it.

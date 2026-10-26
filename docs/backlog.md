@@ -10,10 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **A change to `docker/dev/Dockerfile` alone re-checks nothing.**
-  - That Dockerfile sets the Node version that every test runs on. Under `--filter=...[main]` (`[master]` in `en-monorepo`, where it was probed), a branch that changes only it selects no package (probed), so `pnpm verify` stays green on cached results.
-  - `docker/playwright/Dockerfile` had the same blind spot, and `chore/repo/browser-tests` made it a `globalDependencies` entry of `turbo.json`. That alone is not enough: the tests run in the container that is running, so the image has to be rebuilt before the re-check.
-  - From the second review of `chore/repo/browser-tests` (2026-10-07).
 - **The logger drops some errors' content:**
   - `AggregateError.errors` is not enumerable, so it is lost;
   - an error from another realm (`vm`) is not recognized; `Error.isError` would recognize it.
