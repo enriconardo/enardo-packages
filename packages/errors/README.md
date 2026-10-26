@@ -67,7 +67,7 @@ A copy of 1.0.0 has no brand. While packages that allow 1.0.0 are in your tree, 
 
 - every own enumerable field (`code`, `details`, and fields a subclass adds), leaving out those whose value is `undefined`;
 - `name`, `message`, and `stack` when defined;
-- `errors` for an `AggregateError` (Node throws one when a connection to a host with several addresses fails, its `message` empty): each `Error` element is serialized like a `cause`, any other element is kept as is, and an `errors` that is not an array is kept as is;
+- `errors` for an `AggregateError`, when defined (Node throws one when a connection to a host with several addresses fails, its `message` empty): each `Error` element is serialized like a `cause`, any other element is kept as is, and an `errors` that is not an array is kept as is;
 - `cause` when defined: an `Error`, whether or not it is a `BaseError`, is serialized the same way, down the whole chain; any other value is kept as is. In `cause` and `errors` alike, an error that is its own ancestor becomes `"[Circular]"`; the same error reached twice without a cycle is serialized at both places. Other fields are copied as they are: an error reachable from one of them that points back up the chain is not detected.
 
 `JSON.stringify` calls it by itself, so it also applies to an error nested inside another object.
