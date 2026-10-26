@@ -36,7 +36,7 @@ export class UserNotFoundError extends BaseError {
 - **`name` is a class field equal to the class name.** It is abstract in `BaseError`, so the compiler rejects a concrete class that forgets it, and minifiers cannot change it the way they change `constructor.name`. The field gets the literal type `"UserNotFoundError"`; a class meant to be extended annotates it `name: string`, otherwise its subclasses cannot declare their own. An abstract intermediate class declares no name.
 - **`code` is required**: it is what code handling the error switches on. A concrete class declares its codes with `declare readonly code`, on itself or on an ancestor. A code identifies one condition: it belongs to one concrete class, across packages, and it is public API, so renaming it is a breaking change.
 - **`details` is an object.** An interface used for it must extend `Record<string, unknown>`; a type alias works as is.
-- **Accept a `cause` and pass it on** when the error wraps another one, instead of pasting the other error's message into your own. `toJSON()` carries the whole `cause` chain into every log: when the other error can hold personal data or secrets (an address, a password in a URL, a response body), pass its identifiers instead, such as its `code`, and document them.
+- **Accept a `cause` and pass it on** when the error wraps another one, instead of pasting the other error's message into your own. `toJSON()` carries the whole `cause` chain into every log, with the elements of an `AggregateError`'s `errors` (their messages, stacks and fields): when the other error can hold personal data or secrets (an address, a password in a URL, a response body), pass its identifiers instead, such as its `code`, and document them.
 - **Narrow with `declare readonly`**, not with generics: `declare` emits nothing, so the values set by the `BaseError` constructor stay, and instances expose the precise types.
 
 ## Handling an error
@@ -67,7 +67,8 @@ A copy of 1.0.0 has no brand. While packages that allow 1.0.0 are in your tree, 
 
 - every own enumerable field (`code`, `details`, and fields a subclass adds), leaving out those whose value is `undefined`;
 - `name`, `message`, and `stack` when defined;
-- `cause` when defined: an `Error`, whether or not it is a `BaseError`, is serialized the same way, down the whole chain; any other value is kept as is; a cycle in the cause chain becomes `"[Circular]"`. Other fields are copied as they are: an error reachable from one of them that points back up the chain is not detected.
+- `errors` for an `AggregateError` (Node throws one when a connection to a host with several addresses fails, its `message` empty): each `Error` element is serialized like a `cause`, any other element is kept as is, and an `errors` that is not an array is kept as is;
+- `cause` when defined: an `Error`, whether or not it is a `BaseError`, is serialized the same way, down the whole chain; any other value is kept as is. In `cause` and `errors` alike, an error that is its own ancestor becomes `"[Circular]"`; the same error reached twice without a cycle is serialized at both places. Other fields are copied as they are: an error reachable from one of them that points back up the chain is not detected.
 
 `JSON.stringify` calls it by itself, so it also applies to an error nested inside another object.
 

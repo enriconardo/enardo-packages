@@ -22,7 +22,8 @@ export interface BaseErrorOptions extends ErrorOptions {
 
 /**
  * What {@link BaseError.toJSON} returns: the error's own enumerable fields,
- * plus `name`, `message`, `stack` and a serialized `cause`.
+ * plus `name`, `message`, `stack`, the serialized `errors` of an
+ * `AggregateError` and a serialized `cause`.
  */
 export interface SerializedError {
   readonly name: string;
