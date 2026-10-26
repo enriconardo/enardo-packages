@@ -303,10 +303,6 @@ describe("send", () => {
     );
   });
 
-  // The cases of feature/email/send-errors: the contract's errors, which
-  // name the refused recipients by index and say whether a retry may
-  // succeed, and a cause that keeps nodemailer's identifiers only.
-
   describe("40: reading the rejection", () => {
     it("40: rejects an Error whose code getter throws as EmailSendFailedError", async () => {
       const rejection = withThrowingGetter(
@@ -380,6 +376,10 @@ describe("send", () => {
     });
     expect(server.messages).toHaveLength(1);
   });
+
+  // The cases of feature/email/send-errors: the contract's errors, which
+  // name the refused recipients by index and say whether a retry may
+  // succeed, and a cause that keeps nodemailer's identifiers only.
 
   // nodemailer's own responseCode is the deferred recipient's 450: a
   // retryable read from it would give true to both.

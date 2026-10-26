@@ -2141,6 +2141,8 @@ describe("HttpClient", () => {
 
         expect(reasonNow(call)).toBe(reason);
         await advanceTo(10_000);
+
+        expect(reasonNow(call)).toBe(reason);
       });
 
       it("should reject with a TimeoutError at 100 ms, before the caller aborts", async () => {
@@ -2154,9 +2156,11 @@ describe("HttpClient", () => {
           client.get(MARKED_PATH, { signal: controller.signal, timeout: 100 }),
         );
         await advanceTo(100);
-        rejectionNow(call, TimeoutError);
+        const error = rejectionNow(call, TimeoutError);
         controller.abort(new Error("stop"));
         await flush();
+
+        expect(reasonNow(call)).toBe(error);
       });
     });
   });

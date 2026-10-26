@@ -33,4 +33,4 @@ __tests__/                             mirrors src/
 ## Public API changes
 
 - JSDoc on every export, and the README updated in the same commit.
-- `database-mongo` keeps a local copy of the part of `Logger` it uses (`src/logger.ts`), so it depends on no logger, and an app passes it this package's `Logger`. Nothing here compiles one against the other: a change to `Logger`'s shape is checked against each copy by hand.
+- `database-mongo` keeps a local copy of the part of `Logger` it uses (`src/logger.ts`), so it depends on no logger, and an app passes it this package's `Logger`. Nothing here compiles one against the other: a change to `Logger`'s shape is checked against it by hand.

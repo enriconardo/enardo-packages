@@ -51,7 +51,7 @@ __tests__/support/               the SMTP server (and its idle servers), header 
 
 ## Errors
 
-- **The errors carry counts, flags, and nodemailer's identifiers**: `code`, `command`, `responseCode`, `originalCode`. They never carry an address, a name, a subject, a body, or nodemailer's error. nodemailer's errors echo addresses in `message`, `response`, `stack`, `rejected` and `rejectedErrors`.
+- **The errors carry indexes, flags, and nodemailer's identifiers**: `code`, `command`, `responseCode`, `originalCode`. They never carry an address, a name, a subject, a body, or nodemailer's error. nodemailer's errors echo addresses in `message`, `response`, `stack`, `rejected` and `rejectedErrors`.
 - **The rejection is a value the sender does not control**: `transport.getSocket`, a callback of the caller's, makes nodemailer reject with whatever it calls back with. Each identifier is read on its own, in a `try`, and only at the top level; so are `rejected` and each entry of `rejectedErrors`, and a list that throws while copied counts as unreadable. A read that throws, or a value of another type, counts as missing. A throw there would replace the error being reported.
 
 ## Tests
