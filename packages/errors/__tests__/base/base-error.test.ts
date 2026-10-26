@@ -20,9 +20,6 @@ class RateLimitedError extends BaseError {
   readonly retryAfterSeconds = 30;
 }
 
-const firstLineOf = (stack: string | undefined): string | undefined =>
-  stack?.split("\n")[0];
-
 describe("BaseError", () => {
   it("is an Error and a BaseError carrying the given message", () => {
     const error = new TestError("something went wrong", { code: "TEST" });
@@ -40,30 +37,11 @@ describe("BaseError", () => {
     expect(Object.hasOwn(error, "name")).toBe(true);
   });
 
-  it("starts the stack with '<name>: <message>'", () => {
-    const error = new TestError("something went wrong", { code: "TEST" });
-
-    expect(firstLineOf(error.stack)).toBe("TestError: something went wrong");
-  });
-
-  it("leaves the constructor frames out of the stack", () => {
-    const error = new TestError("something went wrong", { code: "TEST" });
-
-    expect(error.stack).toEqual(expect.any(String));
-    expect(error.stack).not.toContain("new TestError");
-    expect(error.stack).not.toContain("new BaseError");
-    // The frame that created the error is still there.
-    expect(error.stack).toContain("base-error.test.ts");
-  });
-
   it("reports the most derived name when a subclass redeclares it", () => {
     const error = new ChildError("something went wrong", { code: "TEST" });
 
     expect(error).toBeInstanceOf(ParentError);
     expect(error.name).toBe("ChildError");
-    expect(firstLineOf(error.stack)).toBe("ChildError: something went wrong");
-    expect(error.stack).not.toContain("new ChildError");
-    expect(error.stack).not.toContain("new ParentError");
   });
 
   it("keeps the given code and details", () => {

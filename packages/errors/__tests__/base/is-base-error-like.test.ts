@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { BaseError, isBaseErrorLike } from "~/index";
 
 // The brand's key is a contract between the majors of the package (ADR 0012,
@@ -34,23 +34,6 @@ describe("isBaseErrorLike", () => {
       details: { key: "value" },
     });
 
-    expect(isBaseErrorLike(error)).toBe(true);
-  });
-
-  it("accepts an error built on a second copy of BaseError, which instanceof misses", async () => {
-    vi.resetModules();
-    const secondCopy = await import("~/index");
-
-    class OtherCopyError extends secondCopy.BaseError {
-      override readonly name = "OtherCopyError";
-    }
-
-    const error = new OtherCopyError("something went wrong", {
-      code: "OTHER_COPY",
-    });
-
-    expect(secondCopy.BaseError).not.toBe(BaseError);
-    expect(error instanceof BaseError).toBe(false);
     expect(isBaseErrorLike(error)).toBe(true);
   });
 

@@ -12,7 +12,7 @@ const CIRCULAR = "[Circular]";
  */
 export function serializeError(
   error: Error,
-  seen = new WeakSet<Error>(),
+  seen: WeakSet<Error> = new WeakSet<Error>(),
 ): SerializedError {
   seen.add(error);
 
