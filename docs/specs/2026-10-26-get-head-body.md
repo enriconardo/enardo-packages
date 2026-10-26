@@ -35,11 +35,11 @@ branch: fix/http-client/get-head-body
   - a `RequestOptions` discriminated on `method`: it would stop being an interface, `{ method: m, body }` with `m: HttpMethod` would stop compiling even when `m` is `POST`, and it would not close the path through `get()` and `head()`;
   - doing nothing, with README:126 documenting the `NetworkError`: the error stays logged at `warn` as if the network failed, and says nothing of why.
 - **The check is `body != null` and `method === "GET" || method === "HEAD"`**: empty bodies included, as `fetch` does. Exactly what `HttpMethod` allows, with no case folding: an untyped `get` fails as an untyped `TRACE` does, with a `NetworkError`; checking the method itself would be another task.
-- **The client applies `fetch`'s rule to every `fetchImpl`**, as it does with credentials in the URL. A `fetchImpl` that is not `fetch` (over `node:http`, or a stub) could send `GET` with a body until now, and now gets nothing: strictly a break. It is shipped as a fix, not a new major, if no consumer sends a body with `GET` or `HEAD` through such a `fetchImpl` (open question). The version is the `publish` skill's.
+- **The client applies `fetch`'s rule to every `fetchImpl`**, as it does with credentials in the URL. A `fetchImpl` that is not `fetch` (over `node:http`, or a stub) could send `GET` with a body until now, and now gets nothing: strictly a break. It is shipped as a fix, not a new major: no consumer sends a body with `GET` or `HEAD` today (the user, at checkpoint 1). The version is the `publish` skill's.
 
 ## Open questions
 
-- Does the web app send a body with `GET` or `HEAD`, through `request()`, `get()` or `head()`, with a `fetchImpl` or a test stub that accepts it? A grep in its repo settles whether this ships as a fix (no) or a new major (yes).
+None.
 
 ## Changes
 
