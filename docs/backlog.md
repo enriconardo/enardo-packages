@@ -10,8 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **The `node-app` and `library` presets set no `lib`**, so Node code sees the DOM types: in a Node app, `document.title` compiles. `fix/http/runtime-neutral-types` removed what blocked tightening them: `@enardo/http-client`'s body type no longer needs the DOM lib. Without the DOM, the `fetch` of npm `undici` would also fit `@enardo/http-client`'s `FetchImpl` with no cast (probed in the spec of `feature/http/client-errors`). From the architectural review of `@enardo/http` (2026-09-25).
-  - An app gets a fixed preset when it installs its new version.
 - **The `@throws` tags of `@enardo/http-client` are on the class, not on the methods.** The errors of a request (the caller's `TypeError`s, `NetworkError`, `TimeoutError`, `HttpResponseError`, the `reason` of the `signal`) are in the JSDoc of `HttpClient`; `request()` and the shortcuts have none, so an editor's hover on `client.get(...)` shows no thrown error. Move them to the methods that throw them, or repeat them there in short, and leave the class those of the constructor. Docs only, tier S; the question is the upkeep of the same tags on eight methods. From the review of `fix/http-client/get-head-body` (2026-10-26).
 
 ## To evaluate
@@ -35,7 +33,7 @@ In the order approved.
 - **`@types/node` is ahead of the runtime.**
   - The catalog has `@types/node: ^26.4.0`; the dev container runs Node 24 (`docker/dev/Dockerfile`).
   - `@types/node` 26.4.0 declares globals that Node 24.21.0 does not define: `ErrorEvent`, `QuotaExceededError`, `EventSource`, `Storage`, `localStorage`, `sessionStorage`. A program with the Node types and no DOM lib compiles code that throws a `ReferenceError` at runtime.
-  - Today that program is `tsconfig.node.json` of `@enardo/http-client`, on the `runtime-node.json` preset, and the lint of `runtimeNeutral` covers the gap: `EventSource` through the computed list of browser-only globals, the others through a hand list (`missingOnNode`, in `@enardo/eslint-config`). The other Node packages also get the DOM lib by default: see the item on the presets' `lib`.
+  - Today that program is `tsconfig.node.json` of `@enardo/http-client`, on the `runtime-node.json` preset, and the lint of `runtimeNeutral` covers the gap: `EventSource` through the computed list of browser-only globals, the others through a hand list (`missingOnNode`, in `@enardo/eslint-config`).
   - Aligning `@types/node` with Node 24 would let the typecheck catch these names. Whether `@types/node` 24 declares them is not probed.
   - From the review of `fix/http/runtime-neutral-types`.
 - **The logger drops some errors' content:**
