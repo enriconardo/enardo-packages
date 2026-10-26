@@ -10,7 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **`@enardo/http-client`'s `request()` accepts a body with `GET` and `HEAD`.** `fetch` rejects it (`Request with GET/HEAD method cannot have body.`, probed), so the client reports a `NetworkError` for a request that never went out. Since `fix/http-client/redact-cause`, that error no longer says why: Node's rejection has no `code`, and its `cause` is `{ name: "TypeError" }`. The types of `RequestOptions` could refuse it. From the spec of `feature/http/client-errors` (2026-10-05); the lost reason from the spec of `fix/http-client/redact-cause` (2026-10-06).
 - **The `node-app` and `library` presets set no `lib`**, so Node code sees the DOM types: in a Node app, `document.title` compiles. `fix/http/runtime-neutral-types` removed what blocked tightening them: `@enardo/http-client`'s body type no longer needs the DOM lib. Without the DOM, the `fetch` of npm `undici` would also fit `@enardo/http-client`'s `FetchImpl` with no cast (probed in the spec of `feature/http/client-errors`). From the architectural review of `@enardo/http` (2026-09-25).
   - An app gets a fixed preset when it installs its new version.
 
