@@ -18,6 +18,7 @@ import {
 } from "~/index";
 import type {
   ClientErrorHttpStatus,
+  HTTP_REASON_PHRASES,
   ErrorHttpStatus,
   HttpStatus,
   InformationalHttpStatus,
@@ -89,6 +90,12 @@ describe("status types", () => {
     expectTypeOf(HTTP_STATUS.UNPROCESSABLE_CONTENT).toEqualTypeOf<422>();
     expectTypeOf<
       (typeof HTTP_STATUS)[keyof typeof HTTP_STATUS]
+    >().toEqualTypeOf<HttpStatus>();
+  });
+
+  it("should key the reason phrases by exactly the registered codes", () => {
+    expectTypeOf<
+      keyof typeof HTTP_REASON_PHRASES
     >().toEqualTypeOf<HttpStatus>();
   });
 
