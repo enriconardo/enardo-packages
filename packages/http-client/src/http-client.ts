@@ -27,20 +27,8 @@ const DEFAULT_TIMEOUT = 30_000;
  * HTTP client over the Fetch API, for browsers and Node alike.
  *
  * A response is returned whatever its status, unless the request sets
- * `throwOnError`. Each request logs once, by outcome.
- *
- * @throws {TypeError} From the constructor, when it cannot use `baseUrl` (see
- *   {@link HttpClientOptions.baseUrl}) or `timeout`.
- * @throws {TypeError} From a request, when the URL, the headers or the
- *   timeout cannot be used, the URL has credentials, or a `GET` or `HEAD`
- *   request has a body: no request is made, and nothing is logged.
- * @throws {NetworkError} When no response arrives: the fetch implementation
- *   rejected, and the `cause` is its rejection, reduced to names and codes.
- * @throws {HttpResponseError} With `throwOnError`, when the status is in
- *   400–599.
- * @throws {TimeoutError} When the timeout passes before the request settles:
- *   30 s by default.
- * @throws The `reason` of the request's `signal`, as it is, when it aborts.
+ * `throwOnError`. Each request logs once, by outcome. The errors of a
+ * request are on {@link HttpClient.request}.
  */
 export class HttpClient {
   // The origin and the path of baseUrl, with one trailing "/" dropped: a
@@ -50,6 +38,11 @@ export class HttpClient {
   private readonly logger: Logger;
   private readonly timeout: number | false;
 
+  /**
+   * @throws {TypeError} When it cannot use `baseUrl` (see
+   *   {@link HttpClientOptions.baseUrl}) or `timeout`.
+   * @throws {Error} When there is no `fetchImpl` and no global `fetch`.
+   */
   constructor(options: HttpClientOptions = {}) {
     this.basePrefix =
       options.baseUrl === undefined ? undefined : toBasePrefix(options.baseUrl);
@@ -116,6 +109,16 @@ export class HttpClient {
    *   `URL` is used as it is. Without one, an absolute URL.
    * @returns The `Response` the fetch implementation resolved with, unread,
    *   whatever its status unless `throwOnError` is set.
+   * @throws {TypeError} When the URL, the headers or the timeout cannot be
+   *   used, the URL has credentials, or a `GET` or `HEAD` request has a body:
+   *   no request is made, and nothing is logged.
+   * @throws {NetworkError} When no response arrives: the fetch implementation
+   *   rejected, and the `cause` is its rejection, reduced to names and codes.
+   * @throws {HttpResponseError} With `throwOnError`, when the status is in
+   *   400–599.
+   * @throws {TimeoutError} When the timeout passes before the request settles:
+   *   30 s by default.
+   * @throws The `reason` of the request's `signal`, as it is, when it aborts.
    */
   public async request(
     resource: string | URL,
@@ -261,7 +264,16 @@ export class HttpClient {
     return end.reason;
   }
 
-  /** Sends a `GET` request. See {@link HttpClient.request}. */
+  /**
+   * Sends a `GET` request. See {@link HttpClient.request}.
+   *
+   * @throws {TypeError} When the URL, the headers or the timeout cannot be
+   *   used, or the URL has credentials.
+   * @throws {NetworkError} When no response arrives.
+   * @throws {HttpResponseError} With `throwOnError`, for a status in 400–599.
+   * @throws {TimeoutError} When the timeout passes.
+   * @throws The `reason` of the request's `signal`, when it aborts.
+   */
   public async get(
     resource: string | URL,
     options: Omit<RequestOptions, "method" | "body"> = {},
@@ -269,7 +281,16 @@ export class HttpClient {
     return this.request(resource, { ...options, method: "GET" });
   }
 
-  /** Sends a `POST` request. See {@link HttpClient.request}. */
+  /**
+   * Sends a `POST` request. See {@link HttpClient.request}.
+   *
+   * @throws {TypeError} When the URL, the headers or the timeout cannot be
+   *   used, or the URL has credentials.
+   * @throws {NetworkError} When no response arrives.
+   * @throws {HttpResponseError} With `throwOnError`, for a status in 400–599.
+   * @throws {TimeoutError} When the timeout passes.
+   * @throws The `reason` of the request's `signal`, when it aborts.
+   */
   public async post(
     resource: string | URL,
     body?: HttpBody | null,
@@ -278,7 +299,16 @@ export class HttpClient {
     return this.request(resource, { ...options, method: "POST", body });
   }
 
-  /** Sends a `PUT` request. See {@link HttpClient.request}. */
+  /**
+   * Sends a `PUT` request. See {@link HttpClient.request}.
+   *
+   * @throws {TypeError} When the URL, the headers or the timeout cannot be
+   *   used, or the URL has credentials.
+   * @throws {NetworkError} When no response arrives.
+   * @throws {HttpResponseError} With `throwOnError`, for a status in 400–599.
+   * @throws {TimeoutError} When the timeout passes.
+   * @throws The `reason` of the request's `signal`, when it aborts.
+   */
   public async put(
     resource: string | URL,
     body?: HttpBody | null,
@@ -287,7 +317,16 @@ export class HttpClient {
     return this.request(resource, { ...options, method: "PUT", body });
   }
 
-  /** Sends a `PATCH` request. See {@link HttpClient.request}. */
+  /**
+   * Sends a `PATCH` request. See {@link HttpClient.request}.
+   *
+   * @throws {TypeError} When the URL, the headers or the timeout cannot be
+   *   used, or the URL has credentials.
+   * @throws {NetworkError} When no response arrives.
+   * @throws {HttpResponseError} With `throwOnError`, for a status in 400–599.
+   * @throws {TimeoutError} When the timeout passes.
+   * @throws The `reason` of the request's `signal`, when it aborts.
+   */
   public async patch(
     resource: string | URL,
     body?: HttpBody | null,
@@ -296,7 +335,16 @@ export class HttpClient {
     return this.request(resource, { ...options, method: "PATCH", body });
   }
 
-  /** Sends a `DELETE` request. See {@link HttpClient.request}. */
+  /**
+   * Sends a `DELETE` request. See {@link HttpClient.request}.
+   *
+   * @throws {TypeError} When the URL, the headers or the timeout cannot be
+   *   used, or the URL has credentials.
+   * @throws {NetworkError} When no response arrives.
+   * @throws {HttpResponseError} With `throwOnError`, for a status in 400–599.
+   * @throws {TimeoutError} When the timeout passes.
+   * @throws The `reason` of the request's `signal`, when it aborts.
+   */
   public async delete(
     resource: string | URL,
     options: Omit<RequestOptions, "method" | "body"> = {},
@@ -304,7 +352,16 @@ export class HttpClient {
     return this.request(resource, { ...options, method: "DELETE" });
   }
 
-  /** Sends a `HEAD` request. See {@link HttpClient.request}. */
+  /**
+   * Sends a `HEAD` request. See {@link HttpClient.request}.
+   *
+   * @throws {TypeError} When the URL, the headers or the timeout cannot be
+   *   used, or the URL has credentials.
+   * @throws {NetworkError} When no response arrives.
+   * @throws {HttpResponseError} With `throwOnError`, for a status in 400–599.
+   * @throws {TimeoutError} When the timeout passes.
+   * @throws The `reason` of the request's `signal`, when it aborts.
+   */
   public async head(
     resource: string | URL,
     options: Omit<RequestOptions, "method" | "body"> = {},
