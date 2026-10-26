@@ -18,6 +18,10 @@ export function serializeError(
   ancestors: readonly Error[] = [],
 ): SerializedError {
   const path = [...ancestors, error];
+  const errors =
+    error instanceof AggregateError
+      ? serializeErrors(error.errors as unknown, path)
+      : undefined;
 
   const fields: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(error)) {
@@ -31,9 +35,7 @@ export function serializeError(
     name: error.name,
     message: error.message,
     ...(error.stack === undefined ? {} : { stack: error.stack }),
-    ...(error instanceof AggregateError
-      ? { errors: serializeErrors(error.errors, path) }
-      : {}),
+    ...(errors === undefined ? {} : { errors }),
     ...(error.cause === undefined
       ? {}
       : { cause: serializeCause(error.cause, path) }),

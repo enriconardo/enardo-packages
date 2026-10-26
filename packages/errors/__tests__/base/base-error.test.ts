@@ -451,6 +451,23 @@ describe("BaseError#toJSON", () => {
     });
   });
 
+  it("has no errors key when an AggregateError's errors was replaced by undefined", () => {
+    const cause = new AggregateError([new Error("a")], "");
+    Reflect.set(cause, "errors", undefined);
+    const json = new TestError("request failed", {
+      code: "TEST",
+      cause,
+    }).toJSON();
+
+    expect(Object.keys(json.cause as object)).not.toContain("errors");
+    expect("errors" in (json.cause as object)).toBe(false);
+    expect(json.cause).toEqual({
+      name: "AggregateError",
+      message: "",
+      stack: cause.stack,
+    });
+  });
+
   it("has no errors key for a plain Error cause", () => {
     const json = new TestError("request failed", {
       code: "TEST",
