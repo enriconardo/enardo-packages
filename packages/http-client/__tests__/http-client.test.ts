@@ -606,6 +606,159 @@ describe("HttpClient", () => {
         expect(fetchImpl).not.toHaveBeenCalled();
       });
     });
+
+    // Every fetch rejects a GET or a HEAD with a body before sending it, with
+    // no code to tell why: the client refuses it first, as the caller's
+    // error, whatever the fetchImpl. The mock below accepts any body, so a
+    // request that reached it would resolve.
+    describe("a body with GET or HEAD", () => {
+      const NO_BODY_MESSAGE = "Expected no body with GET or HEAD";
+
+      it.each<HttpMethod>(["GET", "HEAD"])(
+        "should reject %s with a body with a TypeError, with no call and no log",
+        async (method) => {
+          const fetchImpl = createMockFetch(200);
+          const logger = createMockLogger();
+          const client = new HttpClient({
+            baseUrl: BASE_URL,
+            fetchImpl,
+            logger,
+          });
+
+          const error = await rejectionOf(
+            client.request("/users", { method, body: "x" }),
+            TypeError,
+          );
+
+          expect(error).not.toBeInstanceOf(NetworkError);
+          expect(error.message).toBe(NO_BODY_MESSAGE);
+          expect(fetchImpl).not.toHaveBeenCalled();
+          expect(logCallsOf(logger)).toEqual([]);
+        },
+      );
+
+      // Empty bodies count, as they do for fetch; a stream is not let
+      // through by the branch that adds `duplex`. Each body is built per
+      // test: a stream can be read once.
+      it.each<[string, () => NonNullable<RequestOptions["body"]>]>([
+        ["an empty string", () => ""],
+        ["an empty Blob", () => new Blob([])],
+        ["an empty Uint8Array", () => new Uint8Array(0)],
+        ["a ReadableStream", () => createReadableStream("x")],
+      ])(
+        "should reject GET with %s body with the same TypeError, with no call",
+        async (_, createBody) => {
+          const fetchImpl = createMockFetch(200);
+          const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
+
+          const error = await rejectionOf(
+            client.request("/users", { method: "GET", body: createBody() }),
+            TypeError,
+          );
+
+          expect(error.message).toBe(NO_BODY_MESSAGE);
+          expect(fetchImpl).not.toHaveBeenCalled();
+        },
+      );
+
+      // Omit<RequestOptions, "method" | "body"> rejects a body only in an
+      // object literal: options held in a RequestOptions variable carry it.
+      it.each(["get", "head"] as const)(
+        "should reject %s() with options of type RequestOptions holding a body with the same TypeError, with no call and no log",
+        async (name) => {
+          const fetchImpl = createMockFetch(200);
+          const logger = createMockLogger();
+          const client = new HttpClient({
+            baseUrl: BASE_URL,
+            fetchImpl,
+            logger,
+          });
+          const opts: RequestOptions = { body: "x" };
+
+          const error = await rejectionOf(
+            client[name]("/users", opts),
+            TypeError,
+          );
+
+          expect(error.message).toBe(NO_BODY_MESSAGE);
+          expect(fetchImpl).not.toHaveBeenCalled();
+          expect(logCallsOf(logger)).toEqual([]);
+        },
+      );
+
+      it.each([
+        ["null", null],
+        ["undefined", undefined],
+      ])(
+        "should send GET with body: %s, with no body in init",
+        async (_, body) => {
+          const fetchImpl = vi
+            .fn<FetchImpl>()
+            .mockResolvedValue(new Response(null, { status: 200 }));
+          const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
+
+          const response = await client.request("/users", {
+            method: "GET",
+            body,
+          });
+
+          expect(response.status).toBe(200);
+          expect(initSentTo(fetchImpl).body).toBeUndefined();
+        },
+      );
+
+      // The check is limited to GET and HEAD, and an empty body is passed on
+      // as it is.
+      it.each<HttpMethod>(["POST", "PUT", "PATCH", "DELETE", "OPTIONS"])(
+        'should send %s with body: "" as it is',
+        async (method) => {
+          const fetchImpl = vi
+            .fn<FetchImpl>()
+            .mockResolvedValue(new Response(null, { status: 200 }));
+          const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
+
+          await client.request("/users", { method, body: "" });
+
+          expect(initSentTo(fetchImpl).body).toBe("");
+        },
+      );
+
+      // The caller's errors come first: a signal checked before them would
+      // reject with its reason.
+      it("should reject GET with a body and a signal already aborted with the TypeError, not the signal's reason, with no log", async () => {
+        const reason = new Error("stop");
+        const fetchImpl = createMockFetch(200);
+        const logger = createMockLogger();
+        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+
+        const rejection = await reasonOf(
+          client.request("/users", {
+            method: "GET",
+            body: "x",
+            signal: AbortSignal.abort(reason),
+          }),
+        );
+
+        expect(rejection).not.toBe(reason);
+        expect(rejection).toBeInstanceOf(TypeError);
+        expect(rejection).toHaveProperty("message", NO_BODY_MESSAGE);
+        expect(fetchImpl).not.toHaveBeenCalled();
+        expect(logCallsOf(logger)).toEqual([]);
+      });
+
+      it("should reject GET with a body with a message holding no part of the URL", async () => {
+        const fetchImpl = createMockFetch(200);
+        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
+
+        const error = await rejectionOf(
+          client.request("/users?token=secret", { method: "GET", body: "x" }),
+          TypeError,
+        );
+
+        expect(error.message).not.toContain("secret");
+        expect(fetchImpl).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe("request() with no response", () => {

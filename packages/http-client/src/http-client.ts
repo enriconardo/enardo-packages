@@ -32,8 +32,8 @@ const DEFAULT_TIMEOUT = 30_000;
  * @throws {TypeError} From the constructor, when it cannot use `baseUrl` (see
  *   {@link HttpClientOptions.baseUrl}) or `timeout`.
  * @throws {TypeError} From a request, when the URL, the headers or the
- *   timeout cannot be used, or the URL has credentials: no request is made,
- *   and nothing is logged.
+ *   timeout cannot be used, the URL has credentials, or a `GET` or `HEAD`
+ *   request has a body: no request is made, and nothing is logged.
  * @throws {NetworkError} When no response arrives: the fetch implementation
  *   rejected, and the `cause` is its rejection, reduced to names and codes.
  * @throws {HttpResponseError} With `throwOnError`, when the status is in
@@ -134,8 +134,8 @@ export class HttpClient {
     const method = requestMethod ?? (requestBody != null ? "POST" : "GET");
 
     // Checked and built before anything is sent: an invalid timeout, URL or
-    // header, or a URL with credentials, is the caller's error, and reaches
-    // it as a TypeError, not as a NetworkError.
+    // header, a URL with credentials, or a body with GET or HEAD, is the
+    // caller's error, and reaches it as a TypeError, not as a NetworkError.
     const timeout =
       requestTimeout === undefined ? this.timeout : toTimeout(requestTimeout);
     const url = this.makeUrl(resource);
@@ -150,6 +150,13 @@ export class HttpClient {
     // Only a stream gets `duplex`: every other init stays as it was.
     if (requestBody != null && isStreamBody(requestBody)) {
       init.duplex = "half";
+    }
+
+    // fetch rejects it with a TypeError that has no `code`, which would reach
+    // the caller as a NetworkError that does not say why. A fetchImpl that is
+    // not fetch could send it, so the rule holds for every one.
+    if (requestBody != null && (method === "GET" || method === "HEAD")) {
+      throw new TypeError("Expected no body with GET or HEAD");
     }
 
     const loggedUrl = redactUrl(url);

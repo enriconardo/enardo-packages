@@ -374,6 +374,32 @@ describe("HttpClient", () => {
         },
       );
     });
+
+    // Node's fetch rejects a GET with a body too, before connecting, but
+    // with a TypeError of its own that becomes a NetworkError: against the
+    // real one, the client's check is shown to come first.
+    it("should reject GET with a body with the client's TypeError before Node's fetch, and the server should receive no request", async () => {
+      const received: string[] = [];
+      const server = await startServer((req, res) => {
+        received.push(`${String(req.method)} ${String(req.url)}`);
+        res.writeHead(200);
+        res.end();
+      });
+      try {
+        const client = new HttpClient({ baseUrl: server.baseUrl });
+
+        const error = await rejectionOf(
+          client.request("/users", { method: "GET", body: "x" }),
+          TypeError,
+        );
+
+        expect(error).not.toBeInstanceOf(NetworkError);
+        expect(error.message).toBe("Expected no body with GET or HEAD");
+        expect(received).toEqual([]);
+      } finally {
+        await server.close();
+      }
+    });
   });
 
   describe("request() with no response", () => {

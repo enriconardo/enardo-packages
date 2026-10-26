@@ -36,7 +36,7 @@ await client.post("/users", JSON.stringify(user), {
 
 - **The resource**, with a `baseUrl`, is a path under it when it is a string. See [`baseUrl`](#baseurl). Without a `baseUrl`, it is an absolute URL.
 - **The method** defaults to `POST` when there is a body, `GET` otherwise. The shortcuts set it.
-- **The body** is anything `fetch` takes. The client does not serialize it: send JSON as a string, with its `content-type`.
+- **The body** is anything `fetch` takes. The client does not serialize it: send JSON as a string, with its `content-type`. `GET` and `HEAD` take none: the request throws a `TypeError` (see [Errors](#errors)).
 - **A stream body**, a `ReadableStream` or, on Node, an async iterable of `Uint8Array`, is sent with `duplex: "half"`, which `fetch` requires for it.
 - **Not a sync iterable of `Uint8Array`** (a generator, an array of chunks): Node's `fetch` sends it as a string, such as `[object Generator]`.
 
@@ -105,6 +105,7 @@ return (await response.json()) as User;
 | The constructor cannot use `baseUrl` | the `TypeError` of `new URL()`, or one that says why (see [`baseUrl`](#baseurl)) | no |
 | The URL cannot be built: only a string without `baseUrl` can fail | the `TypeError` of `new URL()` | no |
 | The URL has credentials | `TypeError: Expected a request URL without credentials` | no |
+| `GET` or `HEAD` with a body, an empty one included | `TypeError: Expected no body with GET or HEAD` | no |
 | A header cannot be built | the `TypeError` of `Headers`, or `Expected a [name, value] header pair` | no |
 | The constructor or the request cannot use `timeout` | `TypeError: Expected a timeout in milliseconds, an integer from 1 to 2147483647, or false` | no |
 | The request's `signal` aborted, before or during the request | its `reason`, as it is | `debug` |
@@ -112,7 +113,7 @@ return (await response.json()) as User;
 | The timeout passed before the request settled | `TimeoutError` | `warn` |
 | `throwOnError`, and a status in 400–599 | `HttpResponseError` | `warn` |
 
-The first five are the caller's errors: no request goes out, and the client does not log them. They are native `TypeError`s. The messages the client writes hold no part of the URL, but nothing redacts the others. The error of `new URL()` can hold the string it could not parse (a `baseUrl`, or a request's URL), credentials and query string included: on Node, in its own field `input`. An invalid header value appears in the message of `Headers`. A caller that logs them logs those too.
+The first six are the caller's errors: no request goes out, and the client does not log them. They are native `TypeError`s. The messages the client writes hold no part of the URL, but nothing redacts the others. The error of `new URL()` can hold the string it could not parse (a `baseUrl`, or a request's URL), credentials and query string included: on Node, in its own field `input`. An invalid header value appears in the message of `Headers`. A caller that logs them logs those too.
 
 The three classes extend `BaseError` of `@enardo/errors`; none extends another.
 
@@ -123,7 +124,7 @@ The three classes extend `BaseError` of `@enardo/errors`; none extends another.
 ```
 
 - Each link is an `Error` of this realm (not one from `vm`) with a string `name`. A rejection that is not one gives no `cause`; deeper in the chain, such a value ends it. The chain keeps 10 links at most.
-- Node's `fetch` gives no code when it refuses to send a request, so the reason, which was in the message, is lost. For `GET` or `HEAD` with a body, the `cause` is `{ name: "TypeError" }`; for a port it blocks, or a redirect to a `Location` with credentials, `{ name: "TypeError", cause: { name: "Error" } }`.
+- Node's `fetch` gives no code when it refuses to send a request, so the reason, which was in the message, is lost. For a port it blocks, or a redirect to a `Location` with credentials, the `cause` is `{ name: "TypeError", cause: { name: "Error" } }`.
 - The client keeps nothing else of the rejection. To see it whole while debugging, wrap `fetchImpl`:
 
 ```ts
@@ -208,6 +209,7 @@ interface FetchInit {
 ```
 
 - It is called with a `URL` and that init, never with a `Request`: npm `undici` and `node-fetch` do not recognize a global `Request`.
+- It is not called for a `GET` or `HEAD` with a body: the client refuses it first, whatever the `fetchImpl`.
 - It is called with `globalThis` as `this`, so a browser's `fetch` works.
 - `init.signal` aborts when the request's `signal` does, with its reason, or when the timeout passes, with the `TimeoutError`. Pass it on to `fetch`, which then stops the request: Node's `fetch` closes the connection. `request()` settles at that moment either way.
 - A function of the URL alone, a stub, or a wrapper fits the type. It does not have to accept everything `fetch` accepts.

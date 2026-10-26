@@ -104,7 +104,8 @@ export interface RequestOptions {
   /**
    * A stream body (a `ReadableStream`, or on Node an async iterable of
    * `Uint8Array`) is sent with `duplex: "half"`, which fetch requires for
-   * it. Any other body is passed to fetch as it is.
+   * it. Any other body is passed to fetch as it is. `GET` and `HEAD` take
+   * none: the request throws a `TypeError`, an empty body included.
    */
   body?: HttpBody | null;
   /** Added to the URL's query string. */
