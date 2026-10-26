@@ -12,7 +12,7 @@ await unitOfWork.execute(async () => {
 // Committed in one transaction: an update of p-1 that sets only `price`, and an insert of p-2.
 ```
 
-> Published to the `@enardo` registry, version 0.1.2: the API can still change. The package ships no database adapters. For MongoDB, use [`@enardo/uow-repository-mongo`](../uow-repository-mongo/README.md). For any other database, write a `DataStore` and an `ITransactionManager` for your driver.
+> Published to the `@enardo` registry, version 0.1.2: the API can still change. The package ships no database adapters: install an adapter package for your database, or write a `DataStore` and an `ITransactionManager` for your driver.
 
 ## Contents
 
@@ -39,7 +39,7 @@ The work is split between the package and your code:
 | `UnitOfWork` | this package | Runs your use case, collects the planned writes of every registered repository, and runs them in one transaction |
 | `Mapper` | you | Converts an entity to and from its records, and reads its identity |
 | `DataStore` | you | Reads records with their version, and applies changes after checking the version, with your database driver |
-| `ITransactionManager` | you, or a package such as `@enardo/transaction-manager-mongo` | Opens, commits and rolls back a transaction with your driver. The contract comes from [`@enardo/transaction-manager`](../transaction-manager/README.md). |
+| `ITransactionManager` | you, or an adapter package | Opens, commits and rolls back a transaction with your driver. The contract comes from [`@enardo/transaction-manager`](../transaction-manager/README.md). |
 
 ## Quick start
 
@@ -191,7 +191,7 @@ What happened:
 - When the use case finished, the repository compared p-1 with its snapshot and planned an update whose `set` holds only `price`, expected to still be at version 1. It planned p-2 as an insert, with no version to check.
 - Both writes ran in the same transaction, `tx-1`. p-1 is now at version 2, and p-2 at version 1.
 
-Next, replace the `Map` with your database: see [MongoDB adapters](#mongodb-adapters).
+Next, replace the `Map` with your database: an adapter package, or a `DataStore` of your own that follows the [DataStore contract](#datastore-contract).
 
 ## Configuration and usage
 
@@ -297,27 +297,6 @@ it("round-trips stored records", async () => {
   expect(products.hasPendingChanges()).toBe(false);
 });
 ```
-
-### MongoDB adapters
-
-[`@enardo/uow-repository-mongo`](../uow-repository-mongo/README.md) implements `DataStore` for MongoDB, for aggregates stored in one collection or in a root collection plus child collections. [`@enardo/transaction-manager-mongo`](../transaction-manager-mongo/README.md) implements `ITransactionManager`. With the `ProductRecords` types from the quick start:
-
-```ts
-import { MongoTransactionManager } from "@enardo/transaction-manager-mongo";
-import { MongoDataStore } from "@enardo/uow-repository-mongo";
-
-const productStore = new MongoDataStore<ProductRecords, string>({
-  client,
-  collections: {
-    products: { collection: db.collection("products"), root: true },
-  },
-});
-const transactionManager = new MongoTransactionManager(client);
-```
-
-The store keeps the version in the `_version` field of the root document, checks and increments it before any other write, and reads an aggregate that spans several collections in one snapshot session. Its README covers the options, `ObjectId` identities and the limits.
-
-When an aggregate spans several collections, the version write on the root document also serializes use cases that change only the children. While one transaction has written the root document, MongoDB answers a second one with a transient `WriteConflict`, and `withTransaction` retries it. Once the first commits, the retry no longer matches the old version and fails with `ConcurrencyConflictError`.
 
 ### DataStore contract
 

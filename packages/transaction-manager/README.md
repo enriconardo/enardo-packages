@@ -1,6 +1,6 @@
 # @enardo/transaction-manager
 
-The transaction contracts shared by the `@enardo/*` packages and the projects built on them. The package holds types only: implementations live in their own packages, such as [`@enardo/transaction-manager-mongo`](../transaction-manager-mongo/README.md), so that code depending on the contracts doesn't depend on a database driver.
+The transaction contracts shared by the `@enardo/*` packages and the projects built on them. The package holds types only: implementations live in their own packages, one per database driver, so that code depending on the contracts doesn't depend on a database driver.
 
 ## Exports
 

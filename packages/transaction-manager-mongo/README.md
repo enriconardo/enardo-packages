@@ -35,7 +35,7 @@ new MongoTransactionManager(client, options);
 
 | Argument | Type | Required |
 | --- | --- | --- |
-| `client` | a connected `MongoClient`, for example `MongoDatabase.getClient()` from `@enardo/database-mongo` | yes |
+| `client` | a connected `MongoClient` | yes |
 | `options.transactionOptions` | `TransactionOptions` from `mongodb`: read concern, write concern, read preference | no: the client's defaults apply |
 
 ```ts

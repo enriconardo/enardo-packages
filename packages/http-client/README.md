@@ -17,7 +17,7 @@ An HTTP client over the Fetch API. It runs unchanged in browsers and on Node 24,
 | `QueryValue` | A value of `query`: an array repeats the key, `null` and `undefined` leave it out. |
 | `HeadersInput`, `HeadersInputRecord`, `HeadersInputIterable` | What `headers` accepts: a `Headers`, a record, or `[name, value]` pairs. |
 | `FetchImpl`, `FetchInit` | The type of `fetchImpl`, and the init it receives. See [`fetchImpl`](#fetchimpl). |
-| `Logger`, `LoggerMetadata` | What `logger` must implement. A logger of `@enardo/logger` fits it. |
+| `Logger`, `LoggerMetadata` | What `logger` must implement. The type is structural: any logger with these methods fits it. |
 
 ## Requests
 
