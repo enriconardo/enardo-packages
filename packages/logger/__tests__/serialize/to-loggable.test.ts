@@ -1,4 +1,5 @@
 import { BaseError } from "@enardo/errors";
+import type { SerializedError } from "@enardo/errors";
 import { describe, expect, it } from "vitest";
 import { toLoggable } from "~/serialize/to-loggable";
 import {
@@ -11,6 +12,35 @@ import {
 
 class ConnectionLostError extends BaseError {
   override readonly name = "ConnectionLostError";
+}
+
+/** A BaseError whose toJSON() marks its output, to show that it was called. */
+class MarkedError extends BaseError {
+  override readonly name = "MarkedError";
+
+  override toJSON(): SerializedError {
+    return { ...super.toJSON(), via: "toJSON" };
+  }
+}
+
+/** Node's shape on a failed dual-stack connect: empty message, a code. */
+function connectAggregate(): {
+  aggregate: AggregateError;
+  first: Error;
+  second: Error;
+} {
+  const first = new Error("a");
+  const second = new Error("b");
+  const aggregate = Object.assign(new AggregateError([first, second], ""), {
+    code: "ECONNREFUSED",
+  });
+  return { aggregate, first, second };
+}
+
+/** The own keys of a converted object, in order. */
+function keysOf(value: unknown): string[] {
+  expect(value).toBeTypeOf("object");
+  return Object.keys(value ?? {});
 }
 
 /** Sets `cause` the way the `Error` constructor does: own, not enumerable. */
@@ -161,6 +191,119 @@ describe("toLoggable", () => {
         message: "connection lost",
         stack: error.stack,
       });
+    });
+  });
+
+  describe("an AggregateError", () => {
+    it("keeps its errors, converted, after its code, name, message and stack", () => {
+      const { aggregate, first, second } = connectAggregate();
+
+      const result = toLoggable({ err: aggregate });
+
+      expect(result).toEqual({
+        err: {
+          code: "ECONNREFUSED",
+          name: "AggregateError",
+          message: "",
+          stack: aggregate.stack,
+          errors: [
+            { name: "Error", message: "a", stack: first.stack },
+            { name: "Error", message: "b", stack: second.stack },
+          ],
+        },
+      });
+      expect(keysOf(ownField(result, "err")).slice(-2)).toEqual([
+        "stack",
+        "errors",
+      ]);
+    });
+
+    it("writes its errors before its cause", () => {
+      const aggregate = new AggregateError([new Error("a")], "", {
+        cause: new Error("root"),
+      });
+
+      const result = toLoggable(aggregate);
+
+      expect(keysOf(result).slice(-3)).toEqual(["stack", "errors", "cause"]);
+    });
+
+    it("converts an element that is a BaseError through its toJSON()", () => {
+      const element = new MarkedError("query failed", {
+        code: "QUERY_FAILED",
+        cause: new Error("socket closed"),
+      });
+      const aggregate = new AggregateError([element], "");
+      const expected = element.toJSON();
+
+      expect(ownField(toLoggable(aggregate), "errors")).toEqual([expected]);
+    });
+
+    it("replaces an element that is the AggregateError itself with [Circular]", () => {
+      const other = new Error("other");
+      const aggregate = new AggregateError([other], "self");
+      aggregate.errors.push(aggregate);
+
+      expect(toLoggable(aggregate)).toEqual({
+        name: "AggregateError",
+        message: "self",
+        stack: aggregate.stack,
+        errors: [
+          { name: "Error", message: "other", stack: other.stack },
+          "[Circular]",
+        ],
+      });
+    });
+
+    it("replaces an element whose read throws with [Unserializable], keeping the other elements", () => {
+      const second = new Error("b");
+      const aggregate = new AggregateError([new Error("a"), second], "");
+      Object.defineProperty(aggregate.errors, 0, {
+        get(): never {
+          throw new Error("element read failed");
+        },
+        enumerable: true,
+      });
+
+      expect(ownField(toLoggable(aggregate), "errors")).toEqual([
+        "[Unserializable]",
+        { name: "Error", message: "b", stack: second.stack },
+      ]);
+    });
+
+    it("replaces errors whose getter throws with [Unserializable], keeping its name, message and stack", () => {
+      const aggregate = new AggregateError([new Error("a")], "failed");
+      const stack = aggregate.stack;
+      Object.defineProperty(aggregate, "errors", {
+        get(): never {
+          throw new Error("errors read failed");
+        },
+      });
+
+      expect(toLoggable(aggregate)).toEqual({
+        name: "AggregateError",
+        message: "failed",
+        stack,
+        errors: "[Unserializable]",
+      });
+    });
+
+    it("gives no errors key to a plain Error", () => {
+      expect(toLoggable(new Error("boom"))).not.toHaveProperty("errors");
+    });
+
+    it("converts a BaseError whose cause is an AggregateError, through the plain-Error path, to the same shape as its toJSON()", () => {
+      const { aggregate } = connectAggregate();
+      const error = new ConnectionLostError("connection lost", {
+        code: "CONNECTION_LOST",
+        cause: aggregate,
+      });
+      const expected = error.toJSON();
+      // toJSON takes precedence: hide it so that the plain-Error path runs and
+      // the comparison can fail.
+      Object.defineProperty(error, "toJSON", { value: undefined });
+
+      expect(toLoggable(error)).toEqual(expected);
     });
   });
 

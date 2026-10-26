@@ -10,7 +10,8 @@ const UNSERIALIZABLE = "[Unserializable]";
  *   `BaseError`) keeps control of what reaches the logs.
  * - Any other `Error` becomes its own enumerable fields plus `name`,
  *   `message`, `stack` and `cause`, which are not enumerable and would be
- *   lost. This is the shape of `BaseError.toJSON()`.
+ *   lost, plus the `errors` of an `AggregateError`, each element converted
+ *   in turn. This is the shape of `BaseError.toJSON()`.
  * - An object that is its own ancestor becomes `"[Circular]"`; a `bigint`
  *   becomes its decimal string; a value whose conversion throws becomes
  *   `"[Unserializable]"`, and its siblings are kept.
@@ -80,6 +81,10 @@ function convertError(
 ): Record<string, unknown> {
   const fields = convertFields(error, ancestors);
   const stack = convertValue(() => error.stack, ancestors);
+  const errors =
+    error instanceof AggregateError
+      ? convertValue(() => error.errors as unknown, ancestors)
+      : undefined;
   const cause = convertValue(() => error.cause, ancestors);
 
   return {
@@ -87,6 +92,7 @@ function convertError(
     name: convertValue(() => error.name, ancestors),
     message: convertValue(() => error.message, ancestors),
     ...(stack === undefined ? {} : { stack }),
+    ...(errors === undefined ? {} : { errors }),
     ...(cause === undefined ? {} : { cause }),
   };
 }
