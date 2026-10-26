@@ -59,8 +59,8 @@ export function thrownBy<E>(
 }
 
 /**
- * The markers that the refused addresses of the tests carry: no error or log
- * may hold them.
+ * The markers that the refused addresses of the tests carry: no error may
+ * hold them.
  */
 export const ADDRESS_MARKERS = /attacker|victim|evil/i;
 

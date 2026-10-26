@@ -8,7 +8,6 @@ import { NodemailerEmailSender } from "@enardo/email-nodemailer";
 const emailSender = new NodemailerEmailSender({
   transport: { host: "smtp.example.com", port: 587, auth: { user, pass } },
   defaultFrom: { address: "noreply@example.com", name: "Example" },
-  logger,
 });
 
 await emailSender.send({
@@ -25,11 +24,10 @@ await emailSender.send({
 | Export | Meaning |
 | --- | --- |
 | `NodemailerEmailSender` | Implements `EmailSender` |
-| `NodemailerEmailSenderOptions` | The constructor options: `transport`, `defaultFrom`, `logger` |
+| `NodemailerEmailSenderOptions` | The constructor options: `transport`, `defaultFrom` |
 | `NodemailerSmtpOptions` | nodemailer's SMTP options, with no pool and no LMTP |
 | `InvalidEmailSenderOptionsError` | What the constructor throws: see [Errors](#errors) |
 | `InvalidEmailSenderOptionsReason` | The type of its `details.reason` |
-| `Logger`, `LoggerMetadata` | What `logger` must implement |
 
 `send` rejects with the errors of `@enardo/email`, which the package does not re-export: import them from there.
 
@@ -43,7 +41,7 @@ await emailSender.send({
 
   An error thrown while nodemailer reads the options (a `logger` in `transport` that throws included), such as for a `url` it cannot parse, or for legacy SES options (`ECONFIG`), becomes an `InvalidEmailSenderOptionsError` with the reason `transport-options`. Its `cause` holds the `name` and `code` of what nodemailer threw, each only when it is a string, and nothing else: the error's message and fields can hold the URL, password included.
 - **`defaultFrom`**: the sender of a message without `from`. Its address is checked by the constructor, which throws when it is refused (see [Addresses](#addresses)).
-- **`logger`**: see [Logs](#logs).
+- **nodemailer's own logger** is off unless `transport` sets `logger`. When it is on, it logs the recipients and the server's text.
 
 ## Addresses
 
@@ -73,21 +71,21 @@ It refuses some valid addresses too:
 
 `send` resolves once the relay has accepted the message for every recipient. It rejects with the errors of `@enardo/email`:
 
-| When | Rejects with | Sent | Logged |
-| --- | --- | --- | --- |
-| `to` is an empty list | `InvalidEmailMessageError`, `{ field: "to", reason: "empty" }` | no | no |
-| an address is refused | `InvalidEmailMessageError`, `{ field, reason: "address" }`, with `index` in `to` | no | no |
-| a `subject`, `text` or `html` that is not a string (`html` absent only when `undefined`) | `InvalidEmailMessageError`, `{ field, reason: "type" }` | no | no |
-| neither `from` nor `defaultFrom` | `InvalidEmailMessageError`, `{ field: "from", reason: "missing" }` | no | no |
-| the relay refused recipients, some or all | `EmailRecipientsRefusedError`, `{ refused }`: `{ index, retryable }` for each | to the others, if any | `warn` |
-| any other failure: the connection refused or lost, a timeout, authentication failed, the sender or the message refused, `maxRecipients` exceeded | `EmailSendFailedError`, `{ retryable }`, with nodemailer's identifiers in `cause` | maybe: a lost answer can follow a delivered message | `warn` |
+| When | Rejects with | Sent |
+| --- | --- | --- |
+| `to` is an empty list | `InvalidEmailMessageError`, `{ field: "to", reason: "empty" }` | no |
+| an address is refused | `InvalidEmailMessageError`, `{ field, reason: "address" }`, with `index` in `to` | no |
+| a `subject`, `text` or `html` that is not a string (`html` absent only when `undefined`) | `InvalidEmailMessageError`, `{ field, reason: "type" }` | no |
+| neither `from` nor `defaultFrom` | `InvalidEmailMessageError`, `{ field: "from", reason: "missing" }` | no |
+| the relay refused recipients, some or all | `EmailRecipientsRefusedError`, `{ refused }`: `{ index, retryable }` for each | to the others, if any |
+| any other failure: the connection refused or lost, a timeout, authentication failed, the sender or the message refused, `maxRecipients` exceeded | `EmailSendFailedError`, `{ retryable }`, with nodemailer's identifiers in `cause` | maybe: a lost answer can follow a delivered message |
 
 - **Never a throw.** `send` never throws: every failure is a rejection.
 - **The caller's values.** It never writes into the message or the options. A getter of yours that throws makes `send` reject with what it threw.
 - **`refused`** lists every entry of `to` that the relay refused. nodemailer writes the domain of an address in lowercase, and sends two addresses that differ only there once: both entries are listed.
 - **`retryable`**, for a refused recipient, is true when the relay answered its `RCPT TO` with a `4xx`. For an `EmailSendFailedError`, it is false on a `5xx` reply, true on a `4xx`, and, with neither, true when a connection failed, timed out or was lost: to the relay, to an HTTP `proxy`, or to an OAuth2 token endpoint. Those are nodemailer's `ECONNECTION`, `ESOCKET`, `ETIMEDOUT`, `EDNS` and `EFETCH`, and the system's `ECONNREFUSED`, `ECONNRESET`, `ENOTFOUND`, `EAI_AGAIN`, `EHOSTUNREACH`, `ENETUNREACH` and `EPIPE`, as `code` or `originalCode`. Some misconfigurations give those codes too: a wrong host or port, or a token URL that nodemailer cannot request (`ftp:`, or `https:` to a plain HTTP server, both `EFETCH`). Bound your retries.
   - Not retryable: `EPROXY` (a proxy that answers with an error or closes before the tunnel, or a missing socks module), `ETLS`, `EOAUTH2` (a token endpoint's answer nodemailer cannot use), and an `EAUTH` with no `originalCode`. Each mixes misconfigurations with outages: a token endpoint that answers `503` comes out permanent.
-- **`cause`** of an `EmailSendFailedError` holds nodemailer's identifiers, each when present: `code` (`ESOCKET`, `EENVELOPE`, `EAUTH`, …, or the system's own, `ECONNREFUSED`, from a proxy's socket), `command` (`CONN`, `MAIL FROM`, `DATA`, …), `responseCode`, and `originalCode`, the code nodemailer replaced with its own: the system's under `ESOCKET` or `EDNS` (`ECONNREFUSED`, `ENOTFOUND`), or nodemailer's under `EAUTH` (`EFETCH`, `EOAUTH2`). It has none of nodemailer's other fields, which echo the addresses the server sent back, nor the server's text; nodemailer's own logger shows that text (see [Logs](#logs)).
+- **`cause`** of an `EmailSendFailedError` holds nodemailer's identifiers, each when present: `code` (`ESOCKET`, `EENVELOPE`, `EAUTH`, …, or the system's own, `ECONNREFUSED`, from a proxy's socket), `command` (`CONN`, `MAIL FROM`, `DATA`, …), `responseCode`, and `originalCode`, the code nodemailer replaced with its own: the system's under `ESOCKET` or `EDNS` (`ECONNREFUSED`, `ENOTFOUND`), or nodemailer's under `EAUTH` (`EFETCH`, `EOAUTH2`). It has none of nodemailer's other fields, which echo the addresses the server sent back, nor the server's text; nodemailer's own logger shows that text (see [Options](#options)).
 
 **Options of a send:**
 - `tags` are dropped: SMTP has nowhere to keep them. A dropped tag loses no mail.
@@ -101,22 +99,6 @@ It refuses some valid addresses too:
 | `InvalidEmailSenderOptionsError` | `INVALID_EMAIL_SENDER_OPTIONS` | `{ reason: "no-transport" \| "pool" \| "not-smtp" \| "default-from" \| "transport-options" }`; `not-smtp` covers LMTP too |
 
 It extends `BaseError` of `@enardo/errors`. Its message and `details` hold no address. For `transport-options`, the `cause` is `{ name, code }` of the error nodemailer threw, each left out when missing or not a string, and absent when both are.
-
-## Logs
-
-Pass a `logger` to get the logs below. When it has a `child` method, the sender calls it once, with the context `"NodemailerEmailSender"`.
-
-| Outcome | Level | Message | Metadata |
-| --- | --- | --- | --- |
-| the message passed the checks, before it is sent | `debug` | `Sending email.` | `{ recipientsCount, hasHtmlBody, hasTextBody }` |
-| sent | `info` | `Email sent.` | `{ recipientsCount }` |
-| `EmailRecipientsRefusedError` | `warn` | `Email recipients refused.` | `{ recipientsCount, refused }`: how many entries `refused` lists |
-| `EmailSendFailedError` | `warn` | `Email send failed.` | `{ recipientsCount }`, plus `code`, `command`, `responseCode` and `originalCode` when the rejection has them: the fields of its `cause` |
-
-- **Nothing personal.** The logs carry no address, name, subject or body, and not the error itself.
-- **Levels.** A failure is logged at `warn`: you rethrow or log the error, at the level you judge right.
-- **The caller's errors** of the table above are not logged.
-- **nodemailer's own logger** is off unless `transport` sets `logger`. When it is on, it logs the recipients.
 
 ## Against `@enardo/email`'s contract
 

@@ -17,7 +17,6 @@ import type {
 } from "@enardo/email";
 import { envelopeFormOf, isAcceptedAddress } from "./address";
 import { InvalidEmailSenderOptionsError } from "./errors";
-import { createNoopLogger, type Logger, withLoggerContext } from "./logger";
 
 /**
  * nodemailer's SMTP options, from which the sender creates its transporter.
@@ -39,7 +38,6 @@ export interface NodemailerEmailSenderOptions {
   transport: NodemailerSmtpOptions;
   /** The sender of a message without `from`. Its address is checked here. */
   defaultFrom?: EmailRecipient;
-  logger?: Logger;
 }
 
 /**
@@ -47,12 +45,11 @@ export interface NodemailerEmailSenderOptions {
  * from `transport` and that holds no connection between sends.
  *
  * It accepts only the addresses that nodemailer hands to the relay unchanged
- * (see the README), and logs no address, name, subject or body.
+ * (see the README).
  */
 export class NodemailerEmailSender implements EmailSender {
   private readonly transporter: Transporter<SMTPTransport.SentMessageInfo>;
   private readonly defaultFrom?: Mailbox;
-  private readonly logger: Logger;
 
   /**
    * @throws {InvalidEmailSenderOptionsError} when there is no `transport`,
@@ -70,11 +67,6 @@ export class NodemailerEmailSender implements EmailSender {
         () => new InvalidEmailSenderOptionsError("default-from"),
       );
     }
-
-    this.logger = withLoggerContext(
-      options.logger ?? createNoopLogger(),
-      "NodemailerEmailSender",
-    );
   }
 
   /**
@@ -96,18 +88,10 @@ export class NodemailerEmailSender implements EmailSender {
   // implementation never reads it.
   async send(message: EmailMessage): Promise<void> {
     const mailOptions = this.toMailOptions(message);
-    const recipientsCount = mailOptions.to.length;
     // Taken before the send: nodemailer writes into the mailboxes it gets.
     const envelope = mailOptions.to.map(({ address }) =>
       envelopeFormOf(address),
     );
-
-    // Counts and flags only: no address, name, subject or body.
-    this.logger.debug("Sending email.", {
-      recipientsCount,
-      hasHtmlBody: Boolean(mailOptions.html),
-      hasTextBody: Boolean(mailOptions.text),
-    });
 
     let info: SMTPTransport.SentMessageInfo;
     try {
@@ -120,38 +104,17 @@ export class NodemailerEmailSender implements EmailSender {
         identifiers.code === "EENVELOPE" && identifiers.command === "RCPT TO"
           ? refusalOf(rejection, envelope)
           : undefined;
-      throw refusal
-        ? this.refused(refusal, recipientsCount)
-        : this.failed(identifiers, recipientsCount);
+      throw refusal ?? this.failed(identifiers);
     }
 
     // SMTPTransport lists every recipient the relay refused in `rejected`.
     if (info.rejected.length > 0) {
       const refusal = refusalOf(info, envelope);
-      throw refusal
-        ? this.refused(refusal, recipientsCount)
-        : this.failed({}, recipientsCount);
+      throw refusal ?? this.failed({});
     }
-
-    this.logger.info("Email sent.", { recipientsCount });
   }
 
-  private refused(
-    refusal: EmailRecipientsRefusedError,
-    recipientsCount: number,
-  ): EmailRecipientsRefusedError {
-    this.logger.warn("Email recipients refused.", {
-      recipientsCount,
-      refused: refusal.details.refused.length,
-    });
-    return refusal;
-  }
-
-  private failed(
-    identifiers: Identifiers,
-    recipientsCount: number,
-  ): EmailSendFailedError {
-    this.logger.warn("Email send failed.", { recipientsCount, ...identifiers });
+  private failed(identifiers: Identifiers): EmailSendFailedError {
     const cause = causeOf(identifiers);
     return new EmailSendFailedError(
       { retryable: isRetryable(identifiers) },
@@ -257,7 +220,7 @@ function toMailbox(recipient: unknown, refuse: () => Error): Mailbox {
   return trimmed ? { name: trimmed, address } : { address };
 }
 
-/** nodemailer's identifiers of a failure: the logs and the cause carry them. */
+/** nodemailer's identifiers of a failure: the cause carries them. */
 interface Identifiers {
   code?: string;
   command?: string;
