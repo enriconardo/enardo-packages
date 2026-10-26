@@ -10,6 +10,10 @@ src/base/base-error.types.ts    BaseErrorOptions, BaseErrorLike, ErrorDetails, S
 src/base/is-base-error-like.ts  isBaseErrorLike, the guard on the brand
 src/base/serialize-error.ts     the serializer behind toJSON (internal, not exported)
 __tests__/                      mirrors src/, plus index.test.ts (public surface) and types.test.ts (type-level)
+tsconfig.browser.json           src/ alone, as a browser sees it: DOM libs, no Node types (runtime-browser.json)
+tsconfig.node.json              src/ alone, as Node sees it: Node types, no DOM libs (runtime-node.json)
+eslint.config.js                runtimeNeutral of @enardo/eslint-config
+vitest.config.ts                the test projects: node (every file), browser (all but *.node.test.ts, browserProject())
 ```
 
 ## Invariants
@@ -41,9 +45,11 @@ __tests__/                      mirrors src/, plus index.test.ts (public surface
   - `code` being exactly `string` after `instanceof`, never `any`.
 - Every new class gets tests for:
   - its `name`;
-  - its stack header, `<name>: <message>`;
+  - its stack header, `<name>: <message>`, in a `*.node.test.ts`: the header is V8's, Firefox and WebKit write none;
   - its default `code`;
   - `cause` propagation.
+- `src/` runs in browsers and on Node, and so does every test but the `*.node.test.ts` files, as `@enardo/http-client`'s `CLAUDE.md` describes (*Checks*). Node only: the stack's shape (V8's header and its skipped constructor frames), and a second copy of the package through `vi.resetModules()`, which does not evaluate the modules again in browser mode.
+- Exported types are written out: the two runtime programs require it (`isolatedDeclarations`, in their presets).
 - A literal field type is widened by `expectTypeOf(value)`: read it in type position instead (`expectTypeOf<MyError["name"]>()`).
 - `new` of an abstract class under `@ts-expect-error` has an error type: return it through a function typed `() => unknown` (the `compileOnly` helper), or type-aware lint reports an unsafe return.
 

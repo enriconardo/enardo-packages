@@ -10,11 +10,10 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **Runtime checks for `@enardo/errors` and `@enardo/http-status`.**
-  - Both run in browsers and on Node: a web app imports `http-status`, and gets `errors` through `@enardo/http-client`; a server imports both.
-  - Neither has the checks `fix/http/runtime-neutral-types` gave `@enardo/http-client`: one typecheck of `src/` per runtime, `isolatedDeclarations`, lint rules against one runtime's imports and globals.
-  - Their `src/` passes both runtime typechecks only after types are written out: the runtime presets now hold `isolatedDeclarations` (`feature/env/readers-only`), and opting in, `@enardo/errors` fails it at `src/base/serialize-error.ts:15` (TS9011) and `@enardo/http-status` at `src/reason-phrases.ts:11` and `src/registry.ts:14` (TS9010, two `Object.freeze({...})` exports). Found with `tsc --noEmit --isolatedDeclarations` in each (2026-10-22).
-  - Giving them the same checks is a matter of opting in to the presets of `feature/repo/runtime-neutral-presets`: `runtime-browser.json` and `runtime-node.json`, `runtimeNeutral`, and `browserProject()` for their tests (root `CLAUDE.md`, *Testing*), after those types are written out.
+- **Runtime checks for `@enardo/http-status`.**
+  - It runs in browsers and on Node: a web app imports it, directly and through `@enardo/http-client`; a server imports it too.
+  - It lacks the checks `fix/http/runtime-neutral-types` gave `@enardo/http-client` and `chore/errors/runtime-checks` gave `@enardo/errors`: one typecheck of `src/` per runtime, `isolatedDeclarations`, lint rules against one runtime's imports and globals, the browser tests.
+  - Its `src/` passes both runtime typechecks only after types are written out: `src/reason-phrases.ts:11` and `src/registry.ts:14` fail `isolatedDeclarations` (TS9010, two `Object.freeze({...})` exports). For `HTTP_STATUS`, a local `as const` literal and `export const HTTP_STATUS: Readonly<typeof REGISTRY> = Object.freeze(REGISTRY)` pass, with a structurally equal declaration; the same form for `HTTP_REASON_PHRASES` still fails TS9010, likely on its computed keys `[HTTP_STATUS.X]` (probed at the intake of `chore/errors/runtime-checks`, 2026-10-26).
   - From the spec of `fix/http/runtime-neutral-types`; the browser tests from the spec of `chore/repo/browser-tests` (2026-10-07).
 - **A change to `docker/dev/Dockerfile` alone re-checks nothing.**
   - That Dockerfile sets the Node version that every test runs on. Under `--filter=...[main]` (`[master]` in `en-monorepo`, where it was probed), a branch that changes only it selects no package (probed), so `pnpm verify` stays green on cached results.

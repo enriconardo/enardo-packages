@@ -290,6 +290,9 @@ importers:
       '@enardo/typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
+      '@enardo/vitest-config':
+        specifier: workspace:^
+        version: link:../vitest-config
       '@types/node':
         specifier: 'catalog:'
         version: 26.4.0
