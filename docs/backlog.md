@@ -10,6 +10,17 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
+- **Runtime checks for `@enardo/errors` and `@enardo/http-status`.**
+  - Both run in browsers and on Node: a web app imports `http-status`, and gets `errors` through `@enardo/http-client`; a server imports both.
+  - Neither has the checks `fix/http/runtime-neutral-types` gave `@enardo/http-client`: one typecheck of `src/` per runtime, `isolatedDeclarations`, lint rules against one runtime's imports and globals.
+  - Their `src/` passes both runtime typechecks only after types are written out: the runtime presets now hold `isolatedDeclarations` (`feature/env/readers-only`), and opting in, `@enardo/errors` fails it at `src/base/serialize-error.ts:15` (TS9011) and `@enardo/http-status` at `src/reason-phrases.ts:11` and `src/registry.ts:14` (TS9010, two `Object.freeze({...})` exports). Found with `tsc --noEmit --isolatedDeclarations` in each (2026-10-22).
+  - Giving them the same checks is a matter of opting in to the presets of `feature/repo/runtime-neutral-presets`: `runtime-browser.json` and `runtime-node.json`, `runtimeNeutral`, and `browserProject()` for their tests (root `CLAUDE.md`, *Testing*), after those types are written out.
+  - From the spec of `fix/http/runtime-neutral-types`; the browser tests from the spec of `chore/repo/browser-tests` (2026-10-07).
+- **A change to `docker/dev/Dockerfile` alone re-checks nothing.**
+  - That Dockerfile sets the Node version that every test runs on. Under `--filter=...[main]` (`[master]` in `en-monorepo`, where it was probed), a branch that changes only it selects no package (probed), so `pnpm verify` stays green on cached results.
+  - `docker/playwright/Dockerfile` had the same blind spot, and `chore/repo/browser-tests` made it a `globalDependencies` entry of `turbo.json`. That alone is not enough: the tests run in the container that is running, so the image has to be rebuilt before the re-check.
+  - From the second review of `chore/repo/browser-tests` (2026-10-07).
+
 ## To evaluate
 
 - **pnpm 12** (12.15.0 on 2026-10-23), deferred while 11 gets fixes: nothing here needs it yet. Tier L. Found in a throwaway clone:
@@ -22,12 +33,6 @@ In the order approved.
 - **Architectural review of `@enardo/database` and `@enardo/database-mongo`**, starting from `DatabaseError`'s free `code`, the one exception to point 4 of ADR 0012. From the spec of `feature/errors/brand-recognition` (2026-10-23).
 - **The vitest `test` block of the Mongo adapters**, identical in `@enardo/transaction-manager-mongo` and `@enardo/uow-repository-mongo` (`globalSetup`, `include`, `hookTimeout`, `testTimeout`): under ADR 0010 and ADR 0011 it moves into `@enardo/vitest-config`. From the `critic`'s run on the spec of `docs/repo/narrow-preset-rule` (2026-10-22).
 - **The M trigger of the `critic` is worded for the main agent to judge.** "A decision comes from a discussion with the user" covers, read as written, every M spec with a decision taken with the user, as the template defines *Decisions*; the main agent, whom ADR 0007 deems unable to tell when it has drifted, decides which qualify. Options: a condition it does not judge, such as the user saying at intake whether the spec gets a run, or every M spec with a decision marked as the user's. From the `critic`'s run on the spec of `chore/repo/evaluate-critic` (2026-10-22).
-- **Runtime checks for `@enardo/errors` and `@enardo/http-status`.**
-  - Both run in browsers and on Node: a web app imports `http-status`, and gets `errors` through `@enardo/http-client`; a server imports both.
-  - Neither has the checks `fix/http/runtime-neutral-types` gave `@enardo/http-client`: one typecheck of `src/` per runtime, `isolatedDeclarations`, lint rules against one runtime's imports and globals.
-  - Their `src/` passes both runtime typechecks only after types are written out: the runtime presets now hold `isolatedDeclarations` (`feature/env/readers-only`), and opting in, `@enardo/errors` fails it at `src/base/serialize-error.ts:15` (TS9011) and `@enardo/http-status` at `src/reason-phrases.ts:11` and `src/registry.ts:14` (TS9010, two `Object.freeze({...})` exports). Found with `tsc --noEmit --isolatedDeclarations` in each (2026-10-22).
-  - Giving them the same checks is a matter of opting in to the presets of `feature/repo/runtime-neutral-presets`: `runtime-browser.json` and `runtime-node.json`, `runtimeNeutral`, and `browserProject()` for their tests (root `CLAUDE.md`, *Testing*), after those types are written out.
-  - From the spec of `fix/http/runtime-neutral-types`; the browser tests from the spec of `chore/repo/browser-tests` (2026-10-07).
 - **`@types/node` is ahead of the runtime.**
   - The catalog has `@types/node: ^26.4.0`; the dev container runs Node 24 (`docker/dev/Dockerfile`).
   - `@types/node` 26.4.0 declares globals that Node 24.21.0 does not define: `ErrorEvent`, `QuotaExceededError`, `EventSource`, `Storage`, `localStorage`, `sessionStorage`. A program with the Node types and no DOM lib compiles code that throws a `ReferenceError` at runtime.
@@ -51,10 +56,6 @@ In the order approved.
   - Every test of `@enardo/http-client` that runs in a browser stubs `fetchImpl`. What only a real `fetch` does in a browser stays untested there: CORS, a stream body and `duplex`, redirects, its rejections. Node's `fetch` is tested against local servers.
   - A page would need a server it can reach: Vitest's own, or one in the dev container exposed through Playwright's `exposeNetwork`.
   - From the spec of `chore/repo/browser-tests` (2026-10-07).
-- **A change to `docker/dev/Dockerfile` alone re-checks nothing.**
-  - That Dockerfile sets the Node version that every test runs on. Under `--filter=...[main]` (`[master]` in `en-monorepo`, where it was probed), a branch that changes only it selects no package (probed), so `pnpm verify` stays green on cached results.
-  - `docker/playwright/Dockerfile` had the same blind spot, and `chore/repo/browser-tests` made it a `globalDependencies` entry of `turbo.json`. That alone is not enough: the tests run in the container that is running, so the image has to be rebuilt before the re-check.
-  - From the second review of `chore/repo/browser-tests` (2026-10-07).
 - **`BcryptPasswordHasher` reads only the first 72 bytes of a password.**
   - bcrypt 6.0.0 ignores what follows them, counted in UTF-8: two passwords that share their first 72 bytes match the same hash. `@enardo/password-hasher-bcrypt`'s README documents it, and its tests pin it.
   - An app that caps no password length, such as one whose routes take `z.string().min(1)`, passes it whatever the user types.
