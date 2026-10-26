@@ -52,7 +52,8 @@ command_runs() {
   grep -qx ' *0' <<<"$ppids"
 }
 
-# Zombies do not count: PID 1 here (sleep infinity) never reaps them.
+# Zombies do not count: one whose parent has not reaped it yet ended all the
+# same.
 has_live_process() {
   local sid stats
   for sid in "$@"; do

@@ -13,6 +13,9 @@ services:
         UID: ${DEV_UID:-1000}
         GID: ${DEV_GID:-1000}
     working_dir: /workspaces/enardo-packages
+    # PID 1 is `sleep infinity`, which never reaps the processes that exec'd
+    # commands orphan: docker's init reaps them.
+    init: true
     stdin_open: true
     tty: true
     environment:
