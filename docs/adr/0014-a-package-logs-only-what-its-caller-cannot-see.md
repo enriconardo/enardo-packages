@@ -21,12 +21,12 @@ A failure that is both logged and thrown is logged twice once the caller logs it
 2. **Never what the caller gets.** No log of an error the package throws or rejects with, of a failure it returns as a value, or of a success the caller awaits.
 3. **At `debug` or `warn` only.** `warn` for what the app may have to act on, `debug` for the rest. `info` and `error` are the app's.
 4. **Through an optional `Logger`**, a no-op by default, as a local structural copy that holds the levels the package uses.
-5. **A package with nothing to log takes no `logger`**: no option, no copy of `Logger`, no exported type. It takes one again, as a minor, with its first log point.
+5. **A package with no log point under the rule takes no `logger`**: no option, no copy of `Logger`, no exported type. Point 1 allows a log, it does not require one: an event the caller cannot see stays unlogged until an app needs it. The package takes a `logger` again, as a minor, with its first log point.
 
 ## Consequences
 
-- `cqrs`, `email-nodemailer` and `http-client` have nothing left to log, and lose their `logger`, each in a new major. `cqrs`' base classes lose their `options` with it: without the logger they would hold a bag that only the subclass reads, so a handler takes its dependencies in its own constructor. `database-mongo` is judged against the rule in a branch of its own.
-- An app that relied on a package's logs logs what it gets: the rejection, the response, the result. A log of every HTTP request or every command is a wrapper of the app's, around `request()`, `fetchImpl` or `execute()`.
+- None of the current log points of `cqrs`, `email-nodemailer` and `http-client` survives the rule, so they lose their `logger`, in a breaking release each. `http-client` swallows failures the caller cannot see (a cancel that throws, a late rejection, an error body it cannot read, which the caller gets as `undefined`): they stay unlogged, as they are today, until an app asks. `cqrs`' base classes lose their `options` with it: without the logger they would hold a bag that only the subclass reads, so a handler takes its dependencies in its own constructor. `database-mongo` is judged against the rule in a branch of its own.
+- An app that relied on a package's logs logs what it gets: the rejection, the response, the result. A log of every HTTP request or every command is a wrapper of the app's, around `request()`, `fetchImpl` or `execute()`. What such a wrapper logs is the app's to redact: the URL it has holds the query string, and `http-client` exports no redaction of its own.
 - What reaches the logs from a package's failures is what its errors' `toJSON()` holds: their redaction rules carry the weight that the package's own logs shared.
 - An app cannot react in code to an event that a package only logs, such as counting retries. A hook for it waits for an app that needs one.
 
