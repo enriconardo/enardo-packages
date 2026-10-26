@@ -1,6 +1,6 @@
 # @enardo/http-status
 
-HTTP status codes and pure helpers over them, shared by the `@enardo/*` packages and the projects built on them. The package has no dependencies, so anything can depend on it: `@enardo/http-client`, API contracts and servers.
+HTTP status codes and pure helpers over them, shared by the `@enardo/*` packages and the projects built on them. The package has no dependencies, so anything can depend on it: HTTP clients, API contracts and servers.
 
 RFC 9110 is the reference for classes, and for names and reason phrases of the codes it defines; the other codes follow the [IANA registry](https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml).
 

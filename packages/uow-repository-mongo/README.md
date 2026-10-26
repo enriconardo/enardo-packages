@@ -258,6 +258,7 @@ Besides the `DataStore` methods, the store reads aggregates by any filter on the
 - **Format.** The version is a number stored in the `_version` field of the root document, or in `versionField` if you set it. An insert writes version 1, and every checked write increments it with `$inc`.
 - **Documents without a version.** A root document without the field, for example one written before this package was used, reads as version 0. A write expecting version 0 matches a missing or `null` field and sets it to 1, so existing data needs no migration.
 - **Conflicts.** When `apply` or `delete` expects a version and the root document no longer has it, they throw `ConcurrencyConflictError` before writing anything else. The transaction rolls back, and `retryOnConflict` from the core package can run the use case again.
+- **Aggregates across collections.** The version write on the root document also serializes use cases that change only the children. While one transaction has written the root document, MongoDB answers a second one with a transient `WriteConflict`, and `withTransaction` retries it. Once the first commits, the retry no longer matches the old version and fails with `ConcurrencyConflictError`.
 - **Unconditional deletes.** `delete` with no expected version, which is what `remove()` on an entity you didn't load produces, deletes the root and its children whatever the version, and succeeds even if nothing exists.
 
 ### What each write does
@@ -275,23 +276,6 @@ Driver errors, such as a duplicate key (code 11000) from a unique index, reach t
 ### Transactions
 
 Run the unit of work with `MongoTransactionManager` from [`@enardo/transaction-manager-mongo`](../transaction-manager-mongo/README.md), and declare its context on the unit of work: `new UnitOfWork<IMongoTransaction>(transactionManager)`. Every write of the store passes the transaction's session, so the writes of all repositories commit or roll back together. That package's README covers the transaction options and retries.
-
-### With `@enardo/database-mongo`
-
-`MongoDatabase` exposes what the store and the transaction manager need once it is connected:
-
-```ts
-await database.connect();
-
-const client = database.getClient();
-const productStore = new MongoDataStore<ProductRecords, ObjectId>({
-  client,
-  collections: {
-    products: { collection: database.getDb().collection("products"), root: true },
-  },
-});
-const transactionManager = new MongoTransactionManager(client);
-```
 
 ### Limits
 
