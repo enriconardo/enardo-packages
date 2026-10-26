@@ -10,8 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **The `@throws` tags of `@enardo/http-client` are on the class, not on the methods.** The errors of a request (the caller's `TypeError`s, `NetworkError`, `TimeoutError`, `HttpResponseError`, the `reason` of the `signal`) are in the JSDoc of `HttpClient`; `request()` and the shortcuts have none, so an editor's hover on `client.get(...)` shows no thrown error. Move them to the methods that throw them, or repeat them there in short, and leave the class those of the constructor. Docs only, tier S; the question is the upkeep of the same tags on eight methods. From the review of `fix/http-client/get-head-body` (2026-10-26).
-
 ## To evaluate
 
 - **pnpm 12** (12.15.0 on 2026-10-23), deferred while 11 gets fixes: nothing here needs it yet. Tier L. Found in a throwaway clone:
