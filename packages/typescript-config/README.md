@@ -7,11 +7,13 @@ The tsconfig presets every `@enardo/*` package extends, and the projects built o
 | Preset | For | Adds (to `base.json`, except the two `runtime-*` presets, which extend nothing) |
 | --- | --- | --- |
 | `base.json` | every preset | ES2022, ESM, `moduleResolution: bundler`, `strict`, `isolatedModules`, `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch` |
-| `library.json` | packages built with tsdown | `~/*` alias, `src` and `__tests__` included, `dist` as output |
-| `node-app.json` | Node apps (`api-server`), bundled by tsdown; `tsc` only typechecks | `~/*` alias, `src` and `__tests__` included, no declarations |
+| `library.json` | packages built with tsdown | `lib` ES2022 (no DOM), `~/*` alias, `src` and `__tests__` included, `dist` as output |
+| `node-app.json` | Node apps (`api-server`), bundled by tsdown; `tsc` only typechecks | `lib` ES2022 (no DOM), `~/*` alias, `src` and `__tests__` included, no declarations |
 | `react-app.json` | Vite apps (`web`) | JSX, DOM libs, `vite/client` types, `~/*` alias |
 | `runtime-browser.json` | the browser program of a package whose `src/` runs in browsers and on Node | `lib` ES2022 with the DOM, no types, `src` alone included, `isolatedDeclarations` |
 | `runtime-node.json` | the Node program of the same package | `lib` ES2022, the `node` types, `src` alone included, `isolatedDeclarations` |
+
+A library whose `src/` runs in browsers overrides `lib` with the DOM, as the *Overrides* example shows.
 
 The two runtime presets extend nothing: they are laid over a package's own `tsconfig.json`, through an `extends` array, so the package keeps its overrides and its `paths`.
 
