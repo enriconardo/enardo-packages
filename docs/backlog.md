@@ -17,6 +17,7 @@ In the order approved.
   - Alternatives to weigh for observability: hooks the app subscribes to (`onRetry`, `onResponse`), which run in browsers too; Node's `diagnostics_channel`, which undici uses and OpenTelemetry reads, Node only; a decorator or middleware around a component, such as `cqrs`' handlers, so that logging is the app's choice, not a base class's.
   - Each package's log points are then judged against the rule, in its own branch.
   - From the architectural review of `@enardo/cqrs` (2026-10-23), and the discussion that followed it.
+- **What `database-mongo` logs.** Its log points judged against ADR 0014 (a package logs only what its caller cannot see, at `debug` or `warn`). The `error` of a failed `connect()` (`mongo.database.ts:82`), which it rethrows; the `debug` flag, which duplicates the logger's level; the drop of an index, a change the caller does not see, which the rule allows it to log. From the spec of `feature/repo/what-a-package-logs` (2026-10-26).
 
 ## To evaluate
 

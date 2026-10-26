@@ -1,6 +1,6 @@
 # 0014. A package logs only what its caller cannot see
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-26
 - Spec: docs/specs/2026-10-26-what-a-package-logs.md
 
