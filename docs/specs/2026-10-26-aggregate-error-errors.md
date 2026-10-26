@@ -24,7 +24,9 @@ Two serializers drop it: `serializeError` of `@enardo/errors`, behind every `Bas
 - After `pnpm exec turbo run build --filter=@enardo/logger... --filter=@enardo/errors... --force`, on `main`: a `BaseError` whose `cause` is that `AggregateError` → `toJSON()` gives `cause: { code: "ECONNREFUSED", name: "AggregateError", message: "", stack }`, no `errors`.
 - On `main`, `toLoggable({ err: aggregate })` → `{ err: { code, name, message, stack } }`, no `errors`.
 - `serializeError`'s `seen` (`packages/errors/src/base/serialize-error.ts:13`) is a set of the errors already visited, never emptied: on a chain, a repeat is a cycle; on a tree (one error in `errors` twice, or in `errors` and as `cause`), it is not. `toLoggable` already tracks ancestors (`packages/logger/src/serialize/to-loggable.ts:42`).
-- That browsers' `AggregateError` has the same descriptor is not probed: the tests of both packages run in the browser project too, and show it.
+- That browsers' `AggregateError` has the same descriptor is not probed: the tests of `@enardo/errors` run in its browser project too, and show it. `@enardo/logger` is Node only, with no browser project.
+- Paths in this repo (the `critic`'s run): `@enardo/database-mongo` logs the driver's error on a failed connect (`mongo.database.ts:82`); with driver 7.6.0 and a dual-stack lookup, the chain is `MongoServerSelectionError` → `MongoNetworkError` → `AggregateError`, and the top message already lists both addresses. `@enardo/http-client`'s `NetworkError` reduces its cause to `name` and `code` (`network-error.ts:76-99`) and never reads `errors`. The gain is for apps that log a raw `net`, `http` or `fetch` error, or wrap one as a `BaseError`'s `cause`, as the errors README recommends.
+- `SerializedError`'s index signature (`base-error.types.ts:33`) already types an `errors` key as `unknown`, with `noPropertyAccessFromIndexSignature` off; `__tests__/types.test.ts:166-172` pins its exact shape, so a declared `errors` field fails it (the `critic`'s run: `Expected 1 arguments, but got 0.`).
 
 ## Decisions
 
@@ -35,6 +37,7 @@ Two serializers drop it: `serializeError` of `@enardo/errors`, behind every `Bas
 - **An element of `errors` is treated as a cause is**: an `Error` serialized the same way, anything else kept as is (in the logger: converted as any value).
 - **An `errors` that is not an array** (replaced by a caller) is kept as is, as `cause` is; in the logger, converted as any value.
 - **Key order:** `errors` after `stack`, before `cause`.
+- **No `errors` field on `SerializedError`**: the index signature already types it, and the interface's JSDoc names it. The type, and its test, stay as they are.
 
 ## Open questions
 
@@ -47,8 +50,8 @@ None.
 - `serializeError`: for an `AggregateError`, an `errors` key holding its `errors`, each `Error` element serialized like a cause (`"[Circular]"` for an ancestor), any other element as is; an `errors` that is not an array, as is.
 - Cycle detection moves from visited to ancestors: an error is `"[Circular]"` only when it is on the path from the root to itself, so the same error reached twice without a cycle is serialized at both places.
 - A read of `errors` that throws makes `toJSON()` throw, as a throwing `message` or `stack` already does: unchanged rule, not guarded here (the logger guards).
-- `SerializedError`: `readonly errors?: unknown`, with JSDoc (the serialized elements of an `AggregateError`'s `errors`).
-- README, *Logging: `toJSON()`*: the `errors` of an `AggregateError`, and a cycle defined as a return to an ancestor.
+- JSDoc of `SerializedError` (`base-error.types.ts:23-26`) and of `BaseError.toJSON` (`base-error.ts:71-78`), which list the keys: the `errors` of an `AggregateError`. The type itself does not change.
+- README, *Logging: `toJSON()`*: the `errors` of an `AggregateError`, and a cycle defined as a return to an ancestor. *Accept a `cause`* (README:39): the chain's errors include an `AggregateError`'s elements, with their messages, stacks and fields.
 
 ### `@enardo/logger` (1.1.0 → 1.2.0)
 
@@ -83,7 +86,8 @@ None.
 15. An element whose read throws (a getter on index 0 via `Object.defineProperty` on the array) → `"[Unserializable]"`, the other elements kept.
 16. `errors` redefined as a getter that throws → `errors: "[Unserializable]"`, `name`, `message`, `stack` kept.
 17. A plain `Error` → no `errors` key.
-18. Through `createConsoleLogger` with the `json` format: a log call with an `AggregateError` in metadata, on the call's metadata, a child's and the defaults (package `CLAUDE.md`, *Tests*) → the line holds `errors` with the elements' messages.
+18. A `BaseError` whose `cause` is the aggregate of case 1, its `toJSON` hidden (as the existing case at `to-loggable.test.ts:60-72`) → `toLoggable` gives what its `toJSON()` gives: the two serializers stay in step.
+19. Through `createConsoleLogger` with the `json` format: a log call with an `AggregateError` in metadata, on the call's metadata, a child's and the defaults (package `CLAUDE.md`, *Tests*) → the line holds `errors` with the elements' messages.
 
 ## Risks
 
@@ -94,10 +98,11 @@ None.
 
 - `SuppressedError`, errors of another realm (see *Decisions*).
 - `serializeError` calling a nested cause's `toJSON()` (its own backlog item).
+- `@enardo/http-client`: a fetch failure still logs its `NetworkError`'s reduced cause, `{ name: "AggregateError", code }`, by design.
 
 ## Plan
 
 1. `[repo] docs`: the backlog item leaves *Queued*, its second point goes to *Dropped*.
-2. `@enardo/errors`, test-first: cases 1–9 fail for the missing `errors` key, case 10 passes already (it guards the existing shape); 7 and 8 then pass only with ancestors, not with the visited set kept; then `serializeError`, `SerializedError`, README, version 1.2.0.
-3. `@enardo/logger`, test-first: cases 12–18 fail; then `convertError`, JSDoc, README, `CLAUDE.md`, version 1.2.0.
+2. `@enardo/errors`, test-first: cases 1–9 fail for the missing `errors` key, case 10 passes already (it guards the existing shape); 7 and 8 then pass only with ancestors, not with the visited set kept; then `serializeError`, the JSDoc of `SerializedError` and `toJSON`, README, version 1.2.0.
+3. `@enardo/logger`, test-first: cases 12–16, 18 and 19 fail, 17 passes already; then `convertError`, JSDoc, README, `CLAUDE.md`, version 1.2.0.
 4. `pnpm verify`.
