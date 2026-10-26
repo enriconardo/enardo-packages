@@ -103,6 +103,7 @@ Each fact the plan relies on is probed in the dev container before the spec stat
 - **A value the code does not control.** When the code starts reading one where it used to pass it along (a rejection, an abort reason, a parsed body), the spec states what happens when a read throws, and when the value is cyclic or very deep. On an error path, a throw replaces the error being reported.
 - **A copy of a caller's value** changes what a library reads downstream: a spread keeps own enumerable properties only, and loses the prototype, its getters and the non-enumerable ones. Check what the library produced from the value.
 - **A tool that refuses a mismatch** (a version, a protocol): probe every level it could compare, patch, minor and major, not only one it refuses.
+- **The version a change ships in** comes from the registry's published versions (the `publish` skill, *The registry*), not from the manifest: an unpublished version takes the change as it is.
 
 ## Designing the test cases
 
