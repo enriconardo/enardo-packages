@@ -15,4 +15,3 @@ export type {
   HeadersInputRecord,
   HeadersInputIterable,
 } from "./header";
-export type { Logger, LoggerMetadata } from "./logger";

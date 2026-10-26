@@ -8,8 +8,6 @@ import type {
   HeadersInputRecord,
   HttpClientOptions,
   HttpMethod,
-  Logger,
-  LoggerMetadata,
   NetworkErrorCause,
   QueryValue,
   RequestOptions,
@@ -41,8 +39,6 @@ describe("entry point", () => {
     expectTypeOf<HeadersInput>().not.toBeAny();
     expectTypeOf<HeadersInputRecord>().not.toBeAny();
     expectTypeOf<HeadersInputIterable>().not.toBeAny();
-    expectTypeOf<Logger>().not.toBeAny();
-    expectTypeOf<LoggerMetadata>().not.toBeAny();
     expectTypeOf<FetchImpl>().not.toBeAny();
     expectTypeOf<FetchInit>().not.toBeAny();
     expectTypeOf<NetworkErrorCause>().not.toBeAny();

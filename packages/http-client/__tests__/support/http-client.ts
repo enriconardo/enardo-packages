@@ -1,6 +1,6 @@
 import { expect, expectTypeOf, vi } from "vitest";
 import type { Mock } from "vitest";
-import type { FetchImpl, FetchInit, Logger } from "~/index";
+import type { FetchImpl, FetchInit } from "~/index";
 
 // The helpers of the HttpClient tests, shared by http-client.test.ts and
 // http-client.node.test.ts. A page loads this module: it imports nothing
@@ -9,9 +9,9 @@ import type { FetchImpl, FetchInit, Logger } from "~/index";
 export const BASE_URL = "https://api.example.com";
 
 // A marker in the query string and in the fragment, which must not come out
-// of an error or a log, and the URL reduced to its origin and path. No
-// credentials: the client rejects a URL with credentials before any error or
-// log, so these tests cannot pass one through the client.
+// of an error, and the URL reduced to its origin and path. No credentials:
+// the client rejects a URL with credentials before any request, so these
+// tests cannot pass one through the client.
 // errors/http-response-error.test.ts covers the redaction of credentials in
 // `details.url`.
 export const MARKED_URL =
@@ -82,35 +82,6 @@ export async function* createAsyncChunks(
   }
 }
 
-export interface MockLogger extends Logger {
-  debug: Mock<Logger["debug"]>;
-  info: Mock<Logger["info"]>;
-  warn: Mock<Logger["warn"]>;
-  error: Mock<Logger["error"]>;
-  child: Mock<NonNullable<Logger["child"]>>;
-}
-
-export function createMockLogger(): MockLogger {
-  const logger: MockLogger = {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    // The child logs through the same mocks, so every log lands here.
-    child: vi.fn<NonNullable<Logger["child"]>>(() => logger),
-  };
-  return logger;
-}
-
-const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
-
-/** Every call on the four log methods, as `[level, ...arguments]`. */
-export function logCallsOf(logger: MockLogger): unknown[][] {
-  return LOG_LEVELS.flatMap((level) =>
-    logger[level].mock.calls.map((args) => [level, ...args]),
-  );
-}
-
 /** What `promise` rejects with. Fails when `promise` resolves. */
 export async function reasonOf(promise: Promise<unknown>): Promise<unknown> {
   return promise.then(
@@ -165,24 +136,8 @@ export const compileOnly = (run: () => unknown): void => {
 };
 
 // The request of the timeout and signal cases: against BASE_URL, it is
-// MARKED_URL, logged as REDUCED_URL.
+// MARKED_URL.
 export const MARKED_PATH = "/v1/users?token=q-secret#frag-secret";
-
-/** The one log of a request to MARKED_PATH that timed out after 100 ms. */
-export function timedOutLog(error: unknown): unknown[] {
-  return [
-    "warn",
-    "HTTP request timed out.",
-    { method: "GET", url: REDUCED_URL, timeout: 100, error },
-  ];
-}
-
-/** The one log of a request to MARKED_PATH that the caller aborted: no reason. */
-export const ABORTED_LOG: unknown[] = [
-  "debug",
-  "HTTP request aborted.",
-  { method: "GET", url: REDUCED_URL },
-];
 
 /** A fetchImpl whose promise never settles, and that ignores init.signal. */
 export function createPendingFetch(): Mock<FetchImpl> {
