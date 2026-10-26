@@ -668,12 +668,14 @@ describe("HttpClient", () => {
       });
     };
 
+    // At 100 ms, a loaded machine could time out before the server had
+    // accepted the connection, which leaves no socket to check.
     it("should reject with a TimeoutError a request to a server that never answers, and close its connection", async () => {
       const server = await serve(neverAnswer);
       const client = new HttpClient({ baseUrl: server.baseUrl });
 
       const call = await trackUntilSettled(
-        client.get("/", { timeout: 100 }),
+        client.get("/", { timeout: 500 }),
         DEADLINE,
       );
 
@@ -681,16 +683,24 @@ describe("HttpClient", () => {
       await expectSocketsClosed(server);
     });
 
-    it("should reject with the very reason when the caller aborts at 50 ms a request to a server that never answers, and close its connection", async () => {
-      const server = await serve(neverAnswer);
+    // The abort waits for the request to reach the server: one at a fixed
+    // delay could come, on a loaded machine, before any connection.
+    it("should reject with the very reason when the caller aborts a request that a server received and never answers, and close its connection", async () => {
+      let received = (): void => undefined;
+      const requestReceived = new Promise<void>((resolve) => {
+        received = resolve;
+      });
+      const server = await serve(() => {
+        received();
+      });
       const client = new HttpClient({ baseUrl: server.baseUrl });
       const reason = new Error("stop");
       const controller = new AbortController();
 
       const sent = client.get("/", { signal: controller.signal });
-      setTimeout(() => {
-        controller.abort(reason);
-      }, 50);
+      const arrival = await trackUntilSettled(requestReceived, DEADLINE);
+      expect(arrival().state, "the request's arrival").toBe("fulfilled");
+      controller.abort(reason);
       const call = await trackUntilSettled(sent, DEADLINE);
 
       expect(reasonNow(call)).toBe(reason);
