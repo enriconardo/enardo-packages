@@ -1,17 +1,6 @@
-/**
- * Registered HTTP status codes, keyed by their reason phrase in
- * SCREAMING_SNAKE_CASE: RFC 9110 where it defines the code, otherwise the IANA
- * registry.
- *
- * Frozen at runtime and literal-typed at compile time. Codes that RFC 9110
- * reserves as "(Unused)" (306, 418) are deliberately absent.
- *
- * @example
- * ```ts
- * res.status(HTTP_STATUS.NOT_FOUND);
- * ```
- */
-export const HTTP_STATUS = Object.freeze({
+// The literal, so that isolatedDeclarations can write out its type for the
+// frozen export below.
+const REGISTRY = {
   CONTINUE: 100,
   SWITCHING_PROTOCOLS: 101,
   PROCESSING: 102,
@@ -81,7 +70,22 @@ export const HTTP_STATUS = Object.freeze({
   /** @deprecated IANA: obsoleted, RFC 2774 moved to Historic. */
   NOT_EXTENDED: 510,
   NETWORK_AUTHENTICATION_REQUIRED: 511,
-} as const);
+} as const;
+
+/**
+ * Registered HTTP status codes, keyed by their reason phrase in
+ * SCREAMING_SNAKE_CASE: RFC 9110 where it defines the code, otherwise the IANA
+ * registry.
+ *
+ * Frozen at runtime and literal-typed at compile time. Codes that RFC 9110
+ * reserves as "(Unused)" (306, 418) are deliberately absent.
+ *
+ * @example
+ * ```ts
+ * res.status(HTTP_STATUS.NOT_FOUND);
+ * ```
+ */
+export const HTTP_STATUS: Readonly<typeof REGISTRY> = Object.freeze(REGISTRY);
 
 /** Any registered status code: the closed union of the values of {@link HTTP_STATUS}. */
 export type HttpStatus = (typeof HTTP_STATUS)[keyof typeof HTTP_STATUS];

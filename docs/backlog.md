@@ -10,11 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **Runtime checks for `@enardo/http-status`.**
-  - It runs in browsers and on Node: a web app imports it, directly and through `@enardo/http-client`; a server imports it too.
-  - It lacks the checks `fix/http/runtime-neutral-types` gave `@enardo/http-client` and `chore/errors/runtime-checks` gave `@enardo/errors`: one typecheck of `src/` per runtime, `isolatedDeclarations`, lint rules against one runtime's imports and globals, the browser tests.
-  - Its `src/` passes both runtime typechecks only after types are written out: `src/reason-phrases.ts:11` and `src/registry.ts:14` fail `isolatedDeclarations` (TS9010, two `Object.freeze({...})` exports). For `HTTP_STATUS`, a local `as const` literal and `export const HTTP_STATUS: Readonly<typeof REGISTRY> = Object.freeze(REGISTRY)` pass, with a structurally equal declaration; the same form for `HTTP_REASON_PHRASES` still fails TS9010, likely on its computed keys `[HTTP_STATUS.X]` (probed at the intake of `chore/errors/runtime-checks`, 2026-10-26).
-  - From the spec of `fix/http/runtime-neutral-types`; the browser tests from the spec of `chore/repo/browser-tests` (2026-10-07).
 - **A change to `docker/dev/Dockerfile` alone re-checks nothing.**
   - That Dockerfile sets the Node version that every test runs on. Under `--filter=...[main]` (`[master]` in `en-monorepo`, where it was probed), a branch that changes only it selects no package (probed), so `pnpm verify` stays green on cached results.
   - `docker/playwright/Dockerfile` had the same blind spot, and `chore/repo/browser-tests` made it a `globalDependencies` entry of `turbo.json`. That alone is not enough: the tests run in the container that is running, so the image has to be rebuilt before the re-check.

@@ -9,17 +9,22 @@ src/registry.ts        HTTP_STATUS, HttpStatus, the derived class types
 src/reason-phrases.ts  HTTP_REASON_PHRASES, getReasonPhrase
 src/guards.ts          isHttpStatus, class guards, known guards
 __tests__/             one file per module, plus types.test.ts (type-level)
+tsconfig.browser.json  src/ alone, as a browser sees it: DOM libs, no Node types (runtime-browser.json)
+tsconfig.node.json     src/ alone, as Node sees it: Node types, no DOM libs (runtime-node.json)
+eslint.config.js       runtimeNeutral of @enardo/eslint-config
+vitest.config.ts       the test projects: node (every file), browser (all but *.node.test.ts, browserProject())
 ```
 
 ## Invariants
 
 - **Leaf package.** No runtime dependencies, no `@enardo/*` imports. `@enardo/http-client` depends on this package, so importing it back creates a cycle.
-- **`HTTP_STATUS` is the single source of truth.** Class types are derived from `HttpStatus` by first digit, never listed by hand. No array, set or map may repeat the codes, except `HTTP_REASON_PHRASES`, which the compiler checks against `HttpStatus` in both directions (`satisfies`).
+- **`HTTP_STATUS` is the single source of truth.** Class types are derived from `HttpStatus` by first digit, never listed by hand. No array, set or map may repeat the codes, except `HTTP_REASON_PHRASES`, which the compiler checks against `HttpStatus` in both directions: a missing phrase in `src/` (`satisfies`), a phrase for an unregistered code in `types.test.ts` (exact keys).
 - **A type predicate never claims more than its runtime check proves.**
   - Class guards (`is<Class>Status(status: number): boolean`) check an integer range, accept unregistered codes and carry no type predicate.
   - Known guards (`isKnown<Class>Status(value: unknown): value is <Class>HttpStatus`) are exactly `isHttpStatus(value) && <class guard>(value)`. They are the only guards that narrow.
   - A new guard picks one of the two families; it does not mix them.
-- **Constants are frozen `as const` objects**, never a TS `enum`.
+- **Constants are frozen `as const` objects**, never a TS `enum`. Each export is typed `Readonly<typeof LITERAL>` over a local `as const` literal, with plain keys: `isolatedDeclarations`, in the runtime presets, rejects an inferred export, computed keys (TS9038) and the type of a `satisfies` expression, so `satisfies` goes on the identifier.
+- **`src/` runs in browsers and on Node**, and so does every test but `*.node.test.ts` files (none today), as `@enardo/http-client`'s `CLAUDE.md` describes (*Checks*).
 - **Nothing else re-exports this package.** Consumers depend on it directly, so the codes have a single import path.
 
 ## Registry
