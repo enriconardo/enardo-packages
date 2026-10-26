@@ -10,12 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **Two tests failed once under `pnpm verify` and passed on a re-run**, on 2026-10-23, in a branch that changed only docs and test fixtures (`docs/repo/remove-project-names`).
-  - `@enardo/http-client`, `__tests__/http-client.node.test.ts:197`: *should reject with the very reason when the caller aborts at 50 ms a request to a server that never answers, and close its connection* failed with `connections: expected 0 to be greater than 0`. The test counts the sockets the server saw closed, and under load the abort may come before the client opens one. The cause is not probed.
-  - `@enardo/uow-repository-mongo#test` failed in an earlier run of the same `verify`; its output was not kept, and the package's tests passed on their own (40 of 40). The cause is unknown.
-  - Both ran with the other packages' tests in parallel. The fix of the first is a test that waits for the connection before it aborts; the second needs a reproduction first.
-  - From the `verify` runs of `docs/repo/remove-project-names` (2026-10-23).
-
 ## To evaluate
 
 - **pnpm 12** (12.15.0 on 2026-10-23), deferred while 11 gets fixes: nothing here needs it yet. Tier L. Found in a throwaway clone:
