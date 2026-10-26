@@ -20,6 +20,17 @@ In the order approved.
   - That Dockerfile sets the Node version that every test runs on. Under `--filter=...[main]` (`[master]` in `en-monorepo`, where it was probed), a branch that changes only it selects no package (probed), so `pnpm verify` stays green on cached results.
   - `docker/playwright/Dockerfile` had the same blind spot, and `chore/repo/browser-tests` made it a `globalDependencies` entry of `turbo.json`. That alone is not enough: the tests run in the container that is running, so the image has to be rebuilt before the re-check.
   - From the second review of `chore/repo/browser-tests` (2026-10-07).
+- **The logger drops some errors' content:**
+  - `AggregateError.errors` is not enumerable, so it is lost;
+  - an error from another realm (`vm`) is not recognized; `Error.isError` would recognize it.
+  - From the review of `fix/logger/serialize-nested-errors`.
+- **What a package logs.** A decision for every package, with an ADR.
+  - Four packages take an optional `Logger`, a no-op by default: `@enardo/cqrs`, `@enardo/database-mongo`, `@enardo/email-nodemailer`, `@enardo/http-client`. (`cqrs` logs at `debug` only since `fix/cqrs/expected-failures-as-values`: it rethrows what it does not expect.) The mechanism matches common practice (Fastify, AWS SDK v3's `logger`, KafkaJS's `logCreator`, Prisma's `log`), as do the local structural copies of `Logger`. What they log, and at what level, has no rule.
+  - Each of the other three logs a failure that it also throws or returns: `database-mongo` at `error` (`mongo.database.ts:82`), `email-nodemailer` and `http-client` at `warn`. The caller gets the error and logs it again; the package decides a level it cannot know. `email-nodemailer` also logs at `info` the success the caller awaits (`nodemailer-email-sender.ts:136`).
+  - The common rule for a library: log only what the caller cannot see (a retry, a fallback, a reconnection, a timeout before giving up, an error swallowed in a background task or a cleanup), at `debug` or `warn`; never both log and throw an error ("log or throw"), and leave `error` to the app. Fewer log points are also fewer places for personal data or secrets to leak.
+  - Alternatives to weigh for observability: hooks the app subscribes to (`onRetry`, `onResponse`), which run in browsers too; Node's `diagnostics_channel`, which undici uses and OpenTelemetry reads, Node only; a decorator or middleware around a component, such as `cqrs`' handlers, so that logging is the app's choice, not a base class's.
+  - Each package's log points are then judged against the rule, in its own branch.
+  - From the architectural review of `@enardo/cqrs` (2026-10-23), and the discussion that followed it.
 
 ## To evaluate
 
@@ -39,10 +50,6 @@ In the order approved.
   - Today that program is `tsconfig.node.json` of `@enardo/http-client`, on the `runtime-node.json` preset, and the lint of `runtimeNeutral` covers the gap: `EventSource` through the computed list of browser-only globals, the others through a hand list (`missingOnNode`, in `@enardo/eslint-config`).
   - Aligning `@types/node` with Node 24 would let the typecheck catch these names. Whether `@types/node` 24 declares them is not probed.
   - From the review of `fix/http/runtime-neutral-types`.
-- **The logger drops some errors' content:**
-  - `AggregateError.errors` is not enumerable, so it is lost;
-  - an error from another realm (`vm`) is not recognized; `Error.isError` would recognize it.
-  - From the review of `fix/logger/serialize-nested-errors`.
 - **Default exports in `@enardo/database` and `@enardo/database-mongo`** (`DatabaseError`, `MongoDatabase`): the only ones left in `packages/*/src` after `chore/http/package-hygiene`. `no-restricted-exports` with `restrictDefaultExports`, on `src/` in the presets, would keep them out. From the spec of `chore/http/package-hygiene`.
 - **A `/// <reference types="node" />` in a `src/` hides every Node global from the browser program** (`@enardo/http-client`'s `tsconfig.browser.json`, or any package's on `runtime-browser.json`), and no check reports it: `@types/node` is a devDependency, and `@typescript-eslint/triple-slash-reference` with its defaults lets the directive through. `"@typescript-eslint/triple-slash-reference": ["error", { types: "never" }]` on `src/**` would close it, in `runtimeNeutral`. From the review of `chore/http/package-hygiene`.
 - **`@enardo/http-client` reads an error body whole, with no size limit.** With `throwOnError`, an upstream that sends a large error body fills the caller's memory. The `res.json()` before `feature/http/client-errors` did the same. From the spec of `feature/http/client-errors` (2026-10-05).
@@ -66,13 +73,6 @@ In the order approved.
   - The rule of `feature/email/send-errors` counts as retryable, without a reply code, a connection that failed, timed out or was lost: to the relay, a proxy or an OAuth2 token endpoint. An answer that a retry may change is left out. A token endpoint that answers `503` gives `EAUTH`, `AUTH XOAUTH2`, with no `originalCode` for an HTML body (nodemailer's `JSON.parse` throws), and with `originalCode: "EOAUTH2"` for RFC 6749's `temporarily_unavailable`. A proxy that accepts the connection and closes it before the tunnel gives `EPROXY`.
   - Each of these codes also covers misconfigurations, a proxy that refuses its credentials or a token answer nodemailer cannot use, which is why the user kept them permanent. Telling the two apart needs what the sender keeps out of its identifiers: the HTTP status, or the proxy's answer.
   - From the second review of `feature/email/send-errors` (2026-10-20), which probed them.
-- **What a package logs.** A decision for every package, with an ADR.
-  - Four packages take an optional `Logger`, a no-op by default: `@enardo/cqrs`, `@enardo/database-mongo`, `@enardo/email-nodemailer`, `@enardo/http-client`. (`cqrs` logs at `debug` only since `fix/cqrs/expected-failures-as-values`: it rethrows what it does not expect.) The mechanism matches common practice (Fastify, AWS SDK v3's `logger`, KafkaJS's `logCreator`, Prisma's `log`), as do the local structural copies of `Logger`. What they log, and at what level, has no rule.
-  - Each of the other three logs a failure that it also throws or returns: `database-mongo` at `error` (`mongo.database.ts:82`), `email-nodemailer` and `http-client` at `warn`. The caller gets the error and logs it again; the package decides a level it cannot know. `email-nodemailer` also logs at `info` the success the caller awaits (`nodemailer-email-sender.ts:136`).
-  - The common rule for a library: log only what the caller cannot see (a retry, a fallback, a reconnection, a timeout before giving up, an error swallowed in a background task or a cleanup), at `debug` or `warn`; never both log and throw an error ("log or throw"), and leave `error` to the app. Fewer log points are also fewer places for personal data or secrets to leak.
-  - Alternatives to weigh for observability: hooks the app subscribes to (`onRetry`, `onResponse`), which run in browsers too; Node's `diagnostics_channel`, which undici uses and OpenTelemetry reads, Node only; a decorator or middleware around a component, such as `cqrs`' handlers, so that logging is the app's choice, not a base class's.
-  - Each package's log points are then judged against the rule, in its own branch.
-  - From the architectural review of `@enardo/cqrs` (2026-10-23), and the discussion that followed it.
 
 ## Dropped
 
