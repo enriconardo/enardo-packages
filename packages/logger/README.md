@@ -77,7 +77,7 @@ The message is written as given: `%s` and other printf tokens are never interpol
 - **Bound once.** The defaults and a child's metadata are converted when the logger is created: a later change to the object does not reach the logs. A call's metadata is converted at the call.
 - **Conversion.** Every value is turned into one that serializes completely, and no metadata makes a call throw:
   - a value with a `toJSON()` method is replaced by its result, so an error class that controls its serialized form keeps control of what it logs;
-  - any other `Error` keeps its own fields, plus `name`, `message`, `stack` and `cause`, its causes converted the same way;
+  - any other `Error` keeps its own fields, plus `name`, `message`, `stack` and `cause`, its causes converted the same way; an `AggregateError` also keeps its `errors`, each element converted the same way;
   - a `bigint` becomes its decimal string, and an object that contains itself becomes `"[Circular]"` where it recurs;
   - a field whose read or conversion throws becomes `"[Unserializable]"`, and the other fields are kept;
   - metadata that is not a record at runtime is written under one `metadata` field.

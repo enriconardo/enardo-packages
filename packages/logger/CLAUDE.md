@@ -22,7 +22,7 @@ __tests__/                             mirrors src/
 - **No metadata `timestamp`** in the entry the adapter builds: the entry's time comes from the console format alone, since logform keeps a value already on the entry.
 - **Precedence**: the call's `level` and `message`, then the call's metadata, then the child's (an inner child over an outer one), then the defaults.
 - **Bound metadata** (the defaults, a child's) is converted once, when the logger is created: a later mutation does not reach the logs.
-- **`toLoggable`** calls a value's `toJSON()` before treating it as an `Error`, so a `BaseError` keeps control of what it logs; reads one field at a time, so a field that throws costs only itself; and writes fields with `defineProperty`, so a `__proto__` key stays a field.
+- **`toLoggable`** calls a value's `toJSON()` before treating it as an `Error`, so a `BaseError` keeps control of what it logs; reads one field at a time, so a field that throws costs only itself; and writes fields with `defineProperty`, so a `__proto__` key stays a field. An `AggregateError` keeps its `errors`, which are not enumerable.
 
 ## Tests
 

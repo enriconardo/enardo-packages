@@ -7,14 +7,21 @@ const CIRCULAR = "[Circular]";
  * third-party error, and its message and stack matter as much.
  *
  * `message`, `stack` and `cause` are not enumerable, so `JSON.stringify` alone
- * would drop them. `seen` holds the errors already on the chain, so a cycle
- * becomes a marker instead of an infinite recursion.
+ * would drop them; neither is the `errors` of an `AggregateError`, which
+ * carries what a failed connection to several addresses reports. `ancestors`
+ * holds the errors on the path from the root to this one, so a return to one
+ * of them becomes a marker instead of an infinite recursion, while an error
+ * reached twice without a cycle is serialized at both places.
  */
 export function serializeError(
   error: Error,
-  seen: WeakSet<Error> = new WeakSet<Error>(),
+  ancestors: readonly Error[] = [],
 ): SerializedError {
-  seen.add(error);
+  const path = [...ancestors, error];
+  const errors =
+    error instanceof AggregateError
+      ? serializeErrors(error.errors as unknown, path)
+      : undefined;
 
   const fields: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(error)) {
@@ -28,16 +35,24 @@ export function serializeError(
     name: error.name,
     message: error.message,
     ...(error.stack === undefined ? {} : { stack: error.stack }),
+    ...(errors === undefined ? {} : { errors }),
     ...(error.cause === undefined
       ? {}
-      : { cause: serializeCause(error.cause, seen) }),
+      : { cause: serializeCause(error.cause, path) }),
   };
 }
 
-function serializeCause(cause: unknown, seen: WeakSet<Error>): unknown {
+// `errors` is writable: a caller can replace it with any value.
+function serializeErrors(errors: unknown, path: readonly Error[]): unknown {
+  return Array.isArray(errors)
+    ? (errors as unknown[]).map((element) => serializeCause(element, path))
+    : errors;
+}
+
+function serializeCause(cause: unknown, path: readonly Error[]): unknown {
   if (!(cause instanceof Error)) {
     return cause;
   }
 
-  return seen.has(cause) ? CIRCULAR : serializeError(cause, seen);
+  return path.includes(cause) ? CIRCULAR : serializeError(cause, path);
 }

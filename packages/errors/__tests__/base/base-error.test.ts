@@ -266,6 +266,217 @@ describe("BaseError#toJSON", () => {
     });
   });
 
+  it("keeps the errors of an AggregateError cause, serialized in order", () => {
+    const a = new Error("a");
+    const b = new Error("b");
+    const cause = Object.assign(new AggregateError([a, b], ""), {
+      code: "ECONNREFUSED",
+    });
+    const json = new TestError("request failed", {
+      code: "TEST",
+      cause,
+    }).toJSON();
+
+    expect(json.cause).toEqual({
+      code: "ECONNREFUSED",
+      name: "AggregateError",
+      message: "",
+      stack: cause.stack,
+      errors: [
+        { name: "Error", message: "a", stack: a.stack },
+        { name: "Error", message: "b", stack: b.stack },
+      ],
+    });
+  });
+
+  it("serializes a BaseError element of errors with its code and its cause", () => {
+    const inner = new Error("disk full");
+    const element = new TestError("write failed", {
+      code: "WRITE_FAILED",
+      cause: inner,
+    });
+    const cause = new AggregateError([element], "");
+    const json = new TestError("request failed", {
+      code: "TEST",
+      cause,
+    }).toJSON();
+
+    expect(json.cause).toEqual({
+      name: "AggregateError",
+      message: "",
+      stack: cause.stack,
+      errors: [
+        {
+          code: "WRITE_FAILED",
+          name: "TestError",
+          message: "write failed",
+          stack: element.stack,
+          cause: { name: "Error", message: "disk full", stack: inner.stack },
+        },
+      ],
+    });
+  });
+
+  it("keeps an element of errors that is not an Error as is", () => {
+    const a = new Error("a");
+    const objectElement = { x: 1 };
+    const cause = new AggregateError([a, "b", objectElement, null], "");
+    const json = new TestError("request failed", {
+      code: "TEST",
+      cause,
+    }).toJSON();
+
+    expect(json.cause).toEqual({
+      name: "AggregateError",
+      message: "",
+      stack: cause.stack,
+      errors: [
+        { name: "Error", message: "a", stack: a.stack },
+        "b",
+        { x: 1 },
+        null,
+      ],
+    });
+    const errors = (json.cause as { errors: unknown[] }).errors;
+    expect(errors[2]).toBe(objectElement);
+  });
+
+  it("keeps an empty errors of an AggregateError", () => {
+    const cause = new AggregateError([], "");
+    const json = new TestError("request failed", {
+      code: "TEST",
+      cause,
+    }).toJSON();
+
+    expect(json.cause).toEqual({
+      name: "AggregateError",
+      message: "",
+      stack: cause.stack,
+      errors: [],
+    });
+  });
+
+  it("replaces an AggregateError holding itself in errors with '[Circular]'", () => {
+    const a = new Error("a");
+    const cause = new AggregateError([a], "");
+    cause.errors.push(cause);
+    const error = new TestError("request failed", { code: "TEST", cause });
+
+    expect(() => error.toJSON()).not.toThrow();
+    expect(error.toJSON().cause).toEqual({
+      name: "AggregateError",
+      message: "",
+      stack: cause.stack,
+      errors: [{ name: "Error", message: "a", stack: a.stack }, "[Circular]"],
+    });
+  });
+
+  it("replaces the wrapping BaseError in errors with '[Circular]'", () => {
+    const cause = new AggregateError([], "");
+    const error = new TestError("request failed", { code: "TEST", cause });
+    cause.errors.push(error);
+
+    expect(() => error.toJSON()).not.toThrow();
+    expect(error.toJSON().cause).toEqual({
+      name: "AggregateError",
+      message: "",
+      stack: cause.stack,
+      errors: ["[Circular]"],
+    });
+  });
+
+  it("serializes the same Error twice in errors at both places", () => {
+    const repeated = new Error("refused");
+    const cause = new AggregateError([repeated, repeated], "");
+    const json = new TestError("request failed", {
+      code: "TEST",
+      cause,
+    }).toJSON();
+
+    const serialized = {
+      name: "Error",
+      message: "refused",
+      stack: repeated.stack,
+    };
+    expect(json.cause).toEqual({
+      name: "AggregateError",
+      message: "",
+      stack: cause.stack,
+      errors: [serialized, serialized],
+    });
+  });
+
+  it("serializes an Error both in errors and as the cause at both places, errors before cause", () => {
+    const shared = new Error("refused");
+    const cause = new AggregateError([shared], "", { cause: shared });
+    const json = new TestError("request failed", {
+      code: "TEST",
+      cause,
+    }).toJSON();
+
+    const serialized = {
+      name: "Error",
+      message: "refused",
+      stack: shared.stack,
+    };
+    expect(json.cause).toEqual({
+      name: "AggregateError",
+      message: "",
+      stack: cause.stack,
+      errors: [serialized],
+      cause: serialized,
+    });
+    expect(Object.keys(json.cause as object)).toEqual([
+      "name",
+      "message",
+      "stack",
+      "errors",
+      "cause",
+    ]);
+  });
+
+  it("keeps an errors replaced by a value that is not an array as is", () => {
+    const cause = new AggregateError([new Error("a")], "");
+    Reflect.set(cause, "errors", "x");
+    const json = new TestError("request failed", {
+      code: "TEST",
+      cause,
+    }).toJSON();
+
+    expect(json.cause).toEqual({
+      name: "AggregateError",
+      message: "",
+      stack: cause.stack,
+      errors: "x",
+    });
+  });
+
+  it("has no errors key when an AggregateError's errors was replaced by undefined", () => {
+    const cause = new AggregateError([new Error("a")], "");
+    Reflect.set(cause, "errors", undefined);
+    const json = new TestError("request failed", {
+      code: "TEST",
+      cause,
+    }).toJSON();
+
+    expect(Object.keys(json.cause as object)).not.toContain("errors");
+    expect("errors" in (json.cause as object)).toBe(false);
+    expect(json.cause).toEqual({
+      name: "AggregateError",
+      message: "",
+      stack: cause.stack,
+    });
+  });
+
+  it("has no errors key for a plain Error cause", () => {
+    const json = new TestError("request failed", {
+      code: "TEST",
+      cause: new Error("connection refused"),
+    }).toJSON();
+
+    expect(Object.keys(json.cause as object)).not.toContain("errors");
+  });
+
   it("keeps message, stack and cause when nested in a serialized object (issue 1)", () => {
     const cause = new Error("connection refused");
     const error = new TestError("request failed", {

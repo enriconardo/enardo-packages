@@ -136,4 +136,52 @@ describe("createConsoleLogger", () => {
       expect(output.lines()).toEqual(["info: [api] msg\ntrace"]);
     });
   });
+
+  describe("an AggregateError in the metadata", () => {
+    function aggregate(): AggregateError {
+      return new AggregateError(
+        [
+          new Error("connect ECONNREFUSED 127.0.0.1:59999"),
+          new Error("connect ECONNREFUSED ::1:59999"),
+        ],
+        "",
+      );
+    }
+
+    const expected = {
+      err: {
+        name: "AggregateError",
+        errors: [
+          { message: "connect ECONNREFUSED 127.0.0.1:59999" },
+          { message: "connect ECONNREFUSED ::1:59999" },
+        ],
+      },
+    };
+
+    it("writes its errors from the call's metadata", () => {
+      createConsoleLogger({ format: "json", timestamp: false }).error("msg", {
+        err: aggregate(),
+      });
+
+      expect(parse(output.lines()[0])).toMatchObject(expected);
+    });
+
+    it("writes its errors from a child's metadata", () => {
+      createConsoleLogger({ format: "json", timestamp: false })
+        .child({ context: "C", metadata: { err: aggregate() } })
+        .error("msg");
+
+      expect(parse(output.lines()[0])).toMatchObject(expected);
+    });
+
+    it("writes its errors from the default metadata", () => {
+      createConsoleLogger({
+        format: "json",
+        timestamp: false,
+        defaultMetadata: { err: aggregate() },
+      }).error("msg");
+
+      expect(parse(output.lines()[0])).toMatchObject(expected);
+    });
+  });
 });

@@ -70,9 +70,9 @@ export abstract class BaseError extends Error {
 
   /**
    * The error as a plain object, for logs: its own enumerable fields, plus
-   * `name`, `message`, `stack` and the whole `cause` chain, which
-   * `JSON.stringify` would otherwise drop. Keys whose value is `undefined`
-   * are left out.
+   * `name`, `message`, `stack`, the `errors` of an `AggregateError` and the
+   * whole `cause` chain, which `JSON.stringify` would otherwise drop. Keys
+   * whose value is `undefined` are left out.
    *
    * Never send it in an HTTP response: it carries `details` and the stack.
    */
