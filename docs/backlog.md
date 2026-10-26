@@ -59,6 +59,7 @@ In the order approved.
   - The rule of `feature/email/send-errors` counts as retryable, without a reply code, a connection that failed, timed out or was lost: to the relay, a proxy or an OAuth2 token endpoint. An answer that a retry may change is left out. A token endpoint that answers `503` gives `EAUTH`, `AUTH XOAUTH2`, with no `originalCode` for an HTML body (nodemailer's `JSON.parse` throws), and with `originalCode: "EOAUTH2"` for RFC 6749's `temporarily_unavailable`. A proxy that accepts the connection and closes it before the tunnel gives `EPROXY`.
   - Each of these codes also covers misconfigurations, a proxy that refuses its credentials or a token answer nodemailer cannot use, which is why the user kept them permanent. Telling the two apart needs what the sender keeps out of its identifiers: the HTTP status, or the proxy's answer.
   - From the second review of `feature/email/send-errors` (2026-10-20), which probed them.
+- **`pnpm verify` fails under load**, on a different suite each run: a browser session that does not connect in time, a `MongoMemoryReplSet` slow to start, a CPU-bound test past its 5 s. Each suite passes alone, and all of them with `turbo run test --concurrency=1`; `integrate.sh` runs verify too. Measure which resource runs out (CPU, memory, the `playwright` service's sessions) before choosing between a cap in `verify`, one in the browser project of `@enardo/vitest-config`, or larger timeouts. From `fix/repo/aggregate-error-errors` (2026-10-26), four red runs in a row.
 
 ## Dropped
 
