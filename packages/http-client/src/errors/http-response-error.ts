@@ -41,8 +41,8 @@ export class HttpResponseError extends BaseError {
 
   /**
    * The response's body: the parsed value when it is JSON, the text
-   * otherwise, `undefined` when it is empty or could not be read. Not
-   * enumerable.
+   * otherwise, `undefined` when it is empty, over 1 MiB or could not be
+   * read. Not enumerable.
    */
   declare readonly body: unknown;
 
