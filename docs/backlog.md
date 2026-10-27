@@ -10,7 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **Architectural review of `@enardo/database` and `@enardo/database-mongo`**, starting from `DatabaseError`'s free `code`, the one exception to point 4 of ADR 0012. From the spec of `feature/errors/brand-recognition` (2026-10-23). Also: `connect()`'s `@throws {DatabaseError}` while the `catch` rethrows the driver's error as it is; and the drop of an index by several processes connecting at once (each lists the index, a later `dropIndex` probably rejects and fails its `connect()`: not probed). From the spec of `feature/errors/brand-recognition` (2026-10-23). The gaps, from the spec of `feature/database-mongo/log-per-adr-0014` (2026-10-27). Also the default exports (`DatabaseError`, `MongoDatabase`), the only ones left in `packages/*/src` after `chore/http/package-hygiene`: `no-restricted-exports` with `restrictDefaultExports`, on `src/` in the presets, would keep them out. From the spec of `chore/http/package-hygiene`.
 - **`@enardo/http-client` reads an error body whole, with no size limit.** With `throwOnError`, an upstream that sends a large error body fills the caller's memory. The `res.json()` before `feature/http/client-errors` did the same. From the spec of `feature/http/client-errors` (2026-10-05).
 
 ## To evaluate
