@@ -93,6 +93,7 @@ This package is the example of the opt-in. Another package whose `src/` runs in 
 
 **Timers:**
 - The timeout cases with a stub run under fake timers; those with Node's `fetch`, under real ones.
+- A stub stream whose `pull` enqueues at once never yields to a timer: a read of it ends only when the stream does, so a case that relies on a timeout uses a real server, or a stream that closes or waits (`createEndlessStream`).
 - A check that needs a real body to have been read, such as the rejection of an `HttpResponseError` with its body, waits for the request to settle: Firefox reads a body later than the other runtimes, after more than one real macrotask. A check of what has settled at an instant of the fake clock (`track`, `advanceTo`, `rejectionNow`) stays valid when nothing it checks waits on such a read.
 - `errorsReachingProcess` listens on `process` on Node, and on the page in a browser. It waits with timers captured before any test fakes them.
 
