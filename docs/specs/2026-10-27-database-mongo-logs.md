@@ -28,11 +28,11 @@ Of the events the caller cannot see (a collection created, a validator applied, 
 
 ## Decisions
 
-- **"Collection created" and "index dropped" stay**, both at `debug`, unconditionally: the logger's level filters them. `warn` for a drop was considered: a drop may be wanted, an index removed from the schema on purpose; it waits for an app that needs it. Not kept: the validator updated and the indexes ensured, which run on every `connect()` and do not say whether anything changed (whether they can tell is not probed, and is left to the branch that brings them back). The other option, no logger at all as in the other three packages, was not taken: a dropped index leaves no other trace.
+- **"Collection created" stays at `debug`, "index dropped" at `warn`**, unconditionally: the logger's level filters them. A drop may be wanted, an index removed from the schema on purpose, but it may also remove an index the app created by hand, and it cannot be undone: the app may have to act on it (ADR 0014 point 3). At `debug` it would be filtered out at `@enardo/logger`'s default level, `info` (`packages/logger/src/logger.ts:47`), and moving it to `warn` later would add a required method to the local `Logger`, a new major; 2.0.0 is already one. It logs once per index removed, not on every `connect()`. Not kept: the validator updated and the indexes ensured, which run on every `connect()` and do not say whether anything changed (whether they can tell is not probed, and is left to the branch that brings them back). The other option, no logger at all as in the other three packages, was not taken: a dropped index leaves no other trace.
 - **`debug` and `debugNamespace` are removed.** The context is fixed, `"MongoDatabase"`, with `{ dbName }` as metadata: two instances are told apart by `dbName`.
 - **No log of a failed `connect()`**: the caller gets the rejection (ADR 0014 point 2).
 - **The kept log follows the logger's level**: with the flag gone, an app whose logger is at `debug` gets the two logs where it got nothing by default before.
-- **The local `Logger` keeps `debug` and the optional `child`**; `error` goes. A logger that still has `error` stays assignable.
+- **The local `Logger` holds `debug`, `warn` and the optional `child`**; `error` goes. A logger that still has `error` stays assignable; one without `warn` no longer is.
 - **The README** is left to the architectural review of the package (*To evaluate* in the backlog), which has not run.
 - **The version stays 2.0.0**: unpublished, it takes the change as it is.
 
@@ -42,9 +42,9 @@ None.
 
 ## Changes
 
-- `src/mongo.database.ts`: no `debug` field; the child logger's context fixed to `"MongoDatabase"`; two `debug` calls, `Collection '<name>' created.` after `createCollection` and `Index '<index>' dropped from collection '<name>'.` after `dropIndex`; every other log call removed, the `catch` of `connect()` included (cleanup and rethrow stay). The class JSDoc example loses `debug` and `debugNamespace`.
+- `src/mongo.database.ts`: no `debug` field; the child logger's context fixed to `"MongoDatabase"`; a `debug` call, `Collection '<name>' created.`, after `createCollection`, and a `warn` call, `Index '<index>' dropped from collection '<name>'.`, after `dropIndex`; every other log call removed, the `catch` of `connect()` included (cleanup and rethrow stay). The class JSDoc example loses `debug` and `debugNamespace`.
 - `src/mongo.database.types.ts`: `debug` and `debugNamespace` removed, with their `@property` lines.
-- `src/logger.ts`: `error` removed from `Logger` and from the no-op logger.
+- `src/logger.ts`: `error` replaced by `warn` in `Logger` and in the no-op logger.
 - `docs/backlog.md`: the item removed; the `@throws` gap added to the item of the architectural review of `@enardo/database` and `@enardo/database-mongo`.
 
 ## Test cases
@@ -52,7 +52,7 @@ None.
 In `__tests__/mongo.database.test.ts`; the mock logger keeps spies for `debug`, `info`, `warn`, `error`, `child`.
 
 1. A schema whose collection does not exist: `connect()` → `debug` called once, with `"Collection 'users' created."`; no other logger method called.
-2. A schema whose collection exists (`listCollections` returns it), with indexes, and an extra index `old_idx` that gets dropped: `connect()` → `collMod`, `createIndexes` and `dropIndex("old_idx")` called; `debug` called once, with `"Index 'old_idx' dropped from collection 'users'."`; no other logger method called.
+2. A schema whose collection exists (`listCollections` returns it), with indexes, and an extra index `old_idx` that gets dropped: `connect()` → `collMod`, `createIndexes` and `dropIndex("old_idx")` called; `warn` called once, with `"Index 'old_idx' dropped from collection 'users'."`; no other logger method called.
 3. `connect()` with no schemas, then `disconnect()` → no logger method called.
 4. `client.connect()` rejects with an `Error("Connection refused")`: `connect()` rejects with that same error instance, `close()` called once, no logger method called.
 5. The child logger → `child` called once with `{ context: "MongoDatabase", metadata: { dbName: "test-db" } }`.
@@ -72,5 +72,5 @@ The four tests listed under *Probes* go: 1 and 4 replace two of them, the two ot
 
 ## Plan
 
-1. **Tests first** (cases 1–6): 1, 2 and 4 fail on `main` (1 and 2: no log without the flag; 4: the `error` call); 3, 5 and 6 pass on `main` and guard what stays. Then the changes of `src/`; `pnpm verify` green; one commit.
+1. **Tests first** (cases 1–6): 1, 2 and 4 fail on `main` (1: no log without the flag; 2: the drop logged at `debug`, and only with the flag; 4: the `error` call); 3, 5 and 6 pass on `main` and guard what stays. Then the changes of `src/`; `pnpm verify` green; one commit.
 2. **Backlog**: the item removed and the `@throws` gap added to the item of the architectural review, in a commit of its own.
