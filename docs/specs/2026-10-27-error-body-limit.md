@@ -60,7 +60,7 @@ None.
 1. A 500 whose body is `"a"` repeated `L` times → `body` is that string (exactly the limit is kept).
 2. A 500 whose body is `"a"` repeated `L + 1` times, in one chunk → `body` is `undefined`; the `headers` are the answer's.
 3. A 500 whose body is `"é"` repeated `L / 2` times (`L` bytes in UTF-8) → `body` is that string; with `L / 2 + 1` of them (`L / 2 + 1` characters, `L + 2` bytes) → `body` is `undefined`: bytes are counted, not characters.
-4. A 500 whose stream enqueues 64 KiB chunks on each pull and never closes, with its source's `cancel` a spy, and `timeout: 5000` → rejects with an `HttpResponseError` (not a `TimeoutError`), `body` `undefined`; the spy was called once, with `undefined` (the client's cancel has no reason); the source was pulled fewer than 32 times (the read stopped near 17 chunks, not at the timeout).
+4. A 500 whose stream enqueues a 64 KiB chunk on each pull and closes after the 64th (4 MiB), with its source's `cancel` a spy → `body` is `undefined`; the spy was called once, with `undefined` (the client's cancel has no reason); the source was pulled fewer than 32 times (the read stopped near 17 chunks). Finite on purpose: a stream that enqueues on each pull and never closes keeps the read in microtasks, so no timer fires, and the red run builds a 512 MiB string until V8 throws `RangeError` (the `critic`'s probe, about 700 MB). The stream that never ends is case 8, against a server.
 5. An answer that is not a `Response`, with no `getReader`, `text` a spy resolving with `"a"` repeated `L + 1` times → `body` is that string, `text` called once (the `text()` path stays unbounded, as the README says).
 6. A 500 whose stream sends `L + 1` bytes and whose source's `cancel` throws, then, in a second run, rejects → `body` is `undefined`, an `HttpResponseError` in both runs; nothing reaches the process (`errorsReachingProcess`).
 
@@ -79,6 +79,6 @@ In `__tests__/http-client.node.test.ts`, with Node's `fetch` and local servers:
 
 ## Plan
 
-1. Test-first: cases 1–9, red for the expected reason (2, 3's second half, 6, 7, 9 give the body read whole; 4 and 8 reject with a `TimeoutError`), then the limit in `readText` and `readBody`, with their JSDoc. Cases 1, 3's first half and 5 pass already, and pin what must not change. Commit: `[@enardo/http-client] fix: stop reading an error body past a limit`.
+1. Test-first: cases 1–9, red for the expected reason (2, 3's second half, 4, 6, 7, 9 give the body read whole, and 4 pulls all 64 chunks; 8 rejects with a `TimeoutError`), then the limit in `readText` and `readBody`, with their JSDoc. Cases 1, 3's first half and 5 pass already, and pin what must not change. Commit: `[@enardo/http-client] fix: stop reading an error body past a limit`.
 2. Docs: the JSDoc of `HttpResponseError.body` and `throwOnError`, `README.md`, the package's `CLAUDE.md`. Commit: `[@enardo/http-client] docs: document the error body limit`.
 3. Backlog: remove the item. Commit: `[repo] docs: remove the error body limit item`.
