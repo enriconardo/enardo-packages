@@ -369,7 +369,9 @@ function cancelQuietly(cancel: () => unknown): void {
 /**
  * The body of an error response: the parsed value when it is JSON, the text
  * otherwise, `undefined` when it is empty, over 1 MiB or cannot be read.
- * Reading it releases the connection, which an unread body would hold.
+ * Over the limit it is not the text cut there: a cut JSON body does not
+ * parse, and a cut text looks whole. Reading it releases the connection,
+ * which an unread body would hold.
  */
 async function readBody(
   response: Response,
