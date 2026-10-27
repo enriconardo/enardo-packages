@@ -26,6 +26,11 @@ export function browserProject() {
     extends: true,
     test: {
       name: "browser",
+      // One page per browser at a time. By default each browser opens one
+      // per CPU but one, and `pnpm verify` runs several of these packages
+      // at once: the pages saturated the CPU, and a session missed vitest's
+      // 60 s connectTimeout. One page each is also faster, alone or not.
+      fileParallelism: false,
       // A page cannot load what imports node:*: the tests that need Node
       // are in *.node.test.ts files, and run on Node only.
       exclude: [...configDefaults.exclude, "**/*.node.test.ts"],

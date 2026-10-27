@@ -6,7 +6,7 @@ The vitest presets of the `@enardo/*` packages, and the projects built on them. 
 
 | Preset | For | Runs |
 | --- | --- | --- |
-| `browserProject()` | packages whose `src/` runs in browsers | every test file but `*.node.test.ts`, in Chromium, Firefox and WebKit, headless, with no screenshots of failures |
+| `browserProject()` | packages whose `src/` runs in browsers | every test file but `*.node.test.ts`, in Chromium, Firefox and WebKit, one file at a time in each browser, headless, with no screenshots of failures |
 
 It returns a project to put in `test.projects`, next to the package's own `node` project, which keeps running every file. It extends the root config (`extends: true`), so the `~` alias and the other options apply to both.
 
