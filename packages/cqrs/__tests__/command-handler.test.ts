@@ -1,9 +1,8 @@
-import { type Mock, describe, expect, expectTypeOf, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   Command,
   CommandHandler,
   type CommandFailureCode,
-  type CommandHandlerOptions,
   type CommandResponse,
 } from "~/index";
 import {
@@ -31,69 +30,64 @@ interface Payload {
 type Codes = "EMAIL_TAKEN" | "EMAIL_INVALID";
 type TestResponse = CommandResponse<Payload, Codes>;
 
-interface TestOptions extends CommandHandlerOptions {
-  run: () => Promise<Payload>;
-}
-
 /** Lists both codes of its response type. */
-class TestHandler extends CommandHandler<
-  TestCommand,
-  TestResponse,
-  TestOptions
-> {
+class TestHandler extends CommandHandler<TestCommand, TestResponse> {
   protected override readonly expectedCodes = [
     "EMAIL_TAKEN",
     "EMAIL_INVALID",
   ] as const;
 
+  constructor(private readonly run: () => Promise<Payload>) {
+    super();
+  }
+
   protected override handle(): Promise<Payload> {
-    return this.options.run();
+    return this.run();
   }
 }
 
 /** Lists only one of the two codes of its response type. */
-class OnlyInvalidHandler extends CommandHandler<
-  TestCommand,
-  TestResponse,
-  TestOptions
-> {
+class OnlyInvalidHandler extends CommandHandler<TestCommand, TestResponse> {
   protected override readonly expectedCodes = ["EMAIL_INVALID"] as const;
 
+  constructor(private readonly run: () => Promise<Payload>) {
+    super();
+  }
+
   protected override handle(): Promise<Payload> {
-    return this.options.run();
+    return this.run();
   }
 }
 
 /** A response type with no code, and an empty list. */
 class NoCodesHandler extends CommandHandler<
   TestCommand,
-  CommandResponse<Payload>,
-  TestOptions
+  CommandResponse<Payload>
 > {
   protected override readonly expectedCodes = [];
 
+  constructor(private readonly run: () => Promise<Payload>) {
+    super();
+  }
+
   protected override handle(): Promise<Payload> {
-    return this.options.run();
+    return this.run();
   }
 }
 
-interface SyncThrowOptions extends CommandHandlerOptions {
-  thrown: unknown;
-}
-
 /** A `handle()` that is not `async`, and throws before returning a promise. */
-class SyncThrowingHandler extends CommandHandler<
-  TestCommand,
-  TestResponse,
-  SyncThrowOptions
-> {
+class SyncThrowingHandler extends CommandHandler<TestCommand, TestResponse> {
   protected override readonly expectedCodes = [
     "EMAIL_TAKEN",
     "EMAIL_INVALID",
   ] as const;
 
+  constructor(private readonly thrown: unknown) {
+    super();
+  }
+
   protected override handle(): Promise<Payload> {
-    throw this.options.thrown;
+    throw this.thrown;
   }
 }
 
@@ -113,7 +107,7 @@ const emailTaken = (): TestError =>
 describe("CommandHandler", () => {
   describe("execute", () => {
     it("resolves to a success with the payload handle() returns", async () => {
-      const handler = new TestHandler({ run: returning({ id: "1" }) });
+      const handler = new TestHandler(returning({ id: "1" }));
 
       await expect(handler.execute(new TestCommand())).resolves.toStrictEqual({
         success: true,
@@ -122,7 +116,7 @@ describe("CommandHandler", () => {
     });
 
     it("resolves to a failure with only the code of a BaseError with a listed code", async () => {
-      const handler = new TestHandler({ run: throwing(emailTaken()) });
+      const handler = new TestHandler(throwing(emailTaken()));
 
       await expect(handler.execute(new TestCommand())).resolves.toStrictEqual({
         success: false,
@@ -132,35 +126,33 @@ describe("CommandHandler", () => {
 
     it("rejects with the same BaseError when its code is not listed", async () => {
       const error = new TestError("OTHER_CODE");
-      const handler = new TestHandler({ run: throwing(error) });
+      const handler = new TestHandler(throwing(error));
 
       await expect(handler.execute(new TestCommand())).rejects.toBe(error);
     });
 
     it("rejects with an Error that has a listed code but no brand", async () => {
       const error = unbrandedError("EMAIL_TAKEN");
-      const handler = new TestHandler({ run: throwing(error) });
+      const handler = new TestHandler(throwing(error));
 
       await expect(handler.execute(new TestCommand())).rejects.toBe(error);
     });
 
     it("rejects with a native Error, whose message never becomes a failure", async () => {
       const error = new Error("getaddrinfo EAI_AGAIN smtp.internal.corp.test");
-      const handler = new TestHandler({ run: throwing(error) });
+      const handler = new TestHandler(throwing(error));
 
       await expect(handler.execute(new TestCommand())).rejects.toBe(error);
     });
 
     it("rejects with a thrown string", async () => {
-      const handler = new TestHandler({ run: throwing("boom") });
+      const handler = new TestHandler(throwing("boom"));
 
       await expect(handler.execute(new TestCommand())).rejects.toBe("boom");
     });
 
     it("resolves to a failure for a branded error that is not an instance of this copy's BaseError", async () => {
-      const handler = new TestHandler({
-        run: throwing(brandedObject("EMAIL_TAKEN")),
-      });
+      const handler = new TestHandler(throwing(brandedObject("EMAIL_TAKEN")));
 
       await expect(handler.execute(new TestCommand())).resolves.toStrictEqual({
         success: false,
@@ -170,28 +162,28 @@ describe("CommandHandler", () => {
 
     it("rejects with the same branded object when reading its code throws", async () => {
       const thrown = brandedObjectWithThrowingCode();
-      const handler = new TestHandler({ run: throwing(thrown) });
+      const handler = new TestHandler(throwing(thrown));
 
       await expect(handler.execute(new TestCommand())).rejects.toBe(thrown);
     });
 
     it("rejects with a BaseError whose code is in the response type but not in the list", async () => {
       const error = emailTaken();
-      const handler = new OnlyInvalidHandler({ run: throwing(error) });
+      const handler = new OnlyInvalidHandler(throwing(error));
 
       await expect(handler.execute(new TestCommand())).rejects.toBe(error);
     });
 
     it("rejects with any BaseError when the list is empty", async () => {
       const error = emailTaken();
-      const handler = new NoCodesHandler({ run: throwing(error) });
+      const handler = new NoCodesHandler(throwing(error));
 
       await expect(handler.execute(new TestCommand())).rejects.toBe(error);
     });
 
     describe("when handle() throws synchronously", () => {
       it("returns a promise that resolves to the failure of a listed BaseError", async () => {
-        const handler = new SyncThrowingHandler({ thrown: emailTaken() });
+        const handler = new SyncThrowingHandler(emailTaken());
         let result: unknown;
 
         expect(() => {
@@ -206,7 +198,7 @@ describe("CommandHandler", () => {
 
       it("returns a promise that rejects with a native Error", async () => {
         const error = new Error("sync failure");
-        const handler = new SyncThrowingHandler({ thrown: error });
+        const handler = new SyncThrowingHandler(error);
         let result: unknown;
 
         expect(() => {
@@ -215,66 +207,6 @@ describe("CommandHandler", () => {
         expect(result).toBeInstanceOf(Promise);
         await expect(result).rejects.toBe(error);
       });
-    });
-  });
-
-  describe("logging", () => {
-    // Wider than `Logger`: `error` is a spy, so that a call to it shows.
-    type LogMethod = (
-      message: string,
-      metadata?: Record<string, unknown>,
-    ) => void;
-
-    function createSpyLogger(): {
-      debug: Mock<LogMethod>;
-      error: Mock<LogMethod>;
-    } {
-      return { debug: vi.fn<LogMethod>(), error: vi.fn<LogMethod>() };
-    }
-
-    it("logs only the start at debug, and nothing at error, when it rethrows", async () => {
-      const logger = createSpyLogger();
-      const handler = new TestHandler({
-        logger,
-        run: throwing(
-          new Error("getaddrinfo EAI_AGAIN smtp.internal.corp.test"),
-        ),
-      });
-
-      await expect(handler.execute(new TestCommand())).rejects.toThrow(
-        "getaddrinfo EAI_AGAIN smtp.internal.corp.test",
-      );
-
-      expect(logger.debug).toHaveBeenCalledTimes(1);
-      expect(logger.debug.mock.calls[0]?.[0]).toBe("Executing command.");
-      expect(logger.error).not.toHaveBeenCalled();
-    });
-
-    it("logs an expected failure at debug with the command and the code", async () => {
-      const logger = createSpyLogger();
-      const handler = new TestHandler({ logger, run: throwing(emailTaken()) });
-
-      await handler.execute(new TestCommand());
-
-      expect(logger.debug).toHaveBeenCalledWith(
-        "Command failed with an expected code.",
-        { command: "TestCommand", error: "EMAIL_TAKEN" },
-      );
-    });
-
-    it("logs a success at debug with the command", async () => {
-      const logger = createSpyLogger();
-      const handler = new TestHandler({
-        logger,
-        run: returning({ id: "1" }),
-      });
-
-      await handler.execute(new TestCommand());
-
-      expect(logger.debug).toHaveBeenCalledWith(
-        "Command executed successfully.",
-        { command: "TestCommand" },
-      );
     });
   });
 
@@ -312,7 +244,7 @@ describe("CommandHandler", () => {
         "EMAIL_TAKEN" | "EMAIL_INVALID"
       >();
 
-      const response = await new DerivedHandler({}).execute(new TestCommand());
+      const response = await new DerivedHandler().execute(new TestCommand());
 
       if (!response.success) {
         switch (response.error) {
@@ -389,9 +321,9 @@ describe("CommandHandler", () => {
     });
 
     it("narrows the failure branch to the codes of the response type, with no exception", async () => {
-      const response = await new TestHandler({
-        run: returning({ id: "1" }),
-      }).execute(new TestCommand());
+      const response = await new TestHandler(returning({ id: "1" })).execute(
+        new TestCommand(),
+      );
 
       if (!response.success) {
         expectTypeOf(response.error).toEqualTypeOf<
@@ -410,9 +342,9 @@ describe("CommandHandler", () => {
     });
 
     it("types the error of a response with no code as never", async () => {
-      const response = await new NoCodesHandler({
-        run: returning({ id: "1" }),
-      }).execute(new TestCommand());
+      const response = await new NoCodesHandler(returning({ id: "1" })).execute(
+        new TestCommand(),
+      );
 
       if (!response.success) {
         expectTypeOf(response.error).toBeNever();

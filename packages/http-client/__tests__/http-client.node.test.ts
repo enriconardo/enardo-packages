@@ -27,8 +27,6 @@ import {
   createMockFetch,
   createReadableStream,
   createAsyncChunks,
-  createMockLogger,
-  logCallsOf,
   rejectionOf,
   thrownBy,
   MARKED_PATH,
@@ -38,7 +36,7 @@ import {
   rejectionNow,
   advanceTo,
 } from "./support/http-client";
-import type { MockLogger, Settlement } from "./support/http-client";
+import type { Settlement } from "./support/http-client";
 
 // The tests of HttpClient that need Node: its fetch and local servers,
 // util.inspect, getEventListeners, and what only Node puts on an error
@@ -302,23 +300,20 @@ describe("HttpClient", () => {
   // The URL, the headers and the init are built before the call: what they
   // throw comes out as it is, and no request goes out.
   describe("request() building the request", () => {
-    it("should reject an invalid URL with the TypeError of new URL(), with no call and no log", async () => {
+    it("should reject an invalid URL with the TypeError of new URL(), with no call", async () => {
       const fetchImpl = createMockFetch(200);
-      const logger = createMockLogger();
-      const client = new HttpClient({ fetchImpl, logger });
+      const client = new HttpClient({ fetchImpl });
 
       const error = await rejectionOf(client.get("not a url"), TypeError);
 
       expect(error).not.toBeInstanceOf(NetworkError);
       expect(error).toHaveProperty("code", "ERR_INVALID_URL");
       expect(fetchImpl).not.toHaveBeenCalled();
-      expect(logCallsOf(logger)).toEqual([]);
     });
 
-    it("should reject an invalid header name with a TypeError, with no call and no log", async () => {
+    it("should reject an invalid header name with a TypeError, with no call", async () => {
       const fetchImpl = createMockFetch(200);
-      const logger = createMockLogger();
-      const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+      const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
 
       const error = await rejectionOf(
         client.get("/users", { headers: { "bad name": "v" } }),
@@ -329,7 +324,6 @@ describe("HttpClient", () => {
       // Node's wording: the tests run on Node only.
       expect(error.message).toMatch(/invalid header name/);
       expect(fetchImpl).not.toHaveBeenCalled();
-      expect(logCallsOf(logger)).toEqual([]);
     });
 
     describe("a URL with credentials", () => {
@@ -357,11 +351,10 @@ describe("HttpClient", () => {
           resource: "https://:hunter2@api.example.com/?token=q-secret",
         },
       ])(
-        "should reject $url with a TypeError holding no part of the URL, with no call and no log",
+        "should reject $url with a TypeError holding no part of the URL, with no call",
         async ({ resource, baseUrl }) => {
           const fetchImpl = createMockFetch(200);
-          const logger = createMockLogger();
-          const client = new HttpClient({ baseUrl, fetchImpl, logger });
+          const client = new HttpClient({ baseUrl, fetchImpl });
 
           const error = await rejectionOf(client.get(resource), TypeError);
 
@@ -369,7 +362,6 @@ describe("HttpClient", () => {
             "Expected a request URL without credentials",
           );
           expect(fetchImpl).not.toHaveBeenCalled();
-          expect(logCallsOf(logger)).toEqual([]);
           expectNoMarkerInspected(error, CREDENTIALS_MARKERS);
         },
       );
@@ -457,27 +449,16 @@ describe("HttpClient", () => {
         await closing;
       });
 
-      /** Fails when a marker is in the JSON of a logged argument. */
-      function expectNoMarkerLogged(logger: MockLogger): void {
-        const calls = logCallsOf(logger);
-        expect(calls).not.toEqual([]);
-
-        // The logger's context goes into every log too.
-        const loggedArguments = [
-          ...calls.flatMap(([, ...args]) => args),
-          ...logger.child.mock.calls.flat(),
-        ];
-        for (const argument of loggedArguments) {
-          const json = JSON.stringify(argument);
-          for (const marker of MARKERS) {
-            expect(json, marker).not.toContain(marker);
-          }
+      /** Fails when a marker is in the JSON of `error`. */
+      function expectNoMarkerInJson(error: NetworkError): void {
+        const json = JSON.stringify(error);
+        for (const marker of MARKERS) {
+          expect(json, marker).not.toContain(marker);
         }
       }
 
-      it("should reject a refused connection with a NetworkError whose cause keeps the ECONNREFUSED code, and log no marker", async () => {
-        const logger = createMockLogger();
-        const client = new HttpClient({ logger });
+      it("should reject a refused connection with a NetworkError whose cause keeps the ECONNREFUSED code", async () => {
+        const client = new HttpClient();
 
         const error = await rejectionOf(
           client.get(`http://127.0.0.1:${String(closedPort)}/`),
@@ -488,13 +469,12 @@ describe("HttpClient", () => {
           name: "TypeError",
           cause: { name: "Error", code: "ECONNREFUSED" },
         });
-        expectNoMarkerLogged(logger);
+        expectNoMarkerInJson(error);
       });
 
       // The client rejects a URL with credentials before the call: only a
       // fetchImpl that builds its own URL gives one to Node's fetch.
-      it("should reject a URL to which fetchImpl adds credentials with a NetworkError whose cause is a bare TypeError, and log no marker", async () => {
-        const logger = createMockLogger();
+      it("should reject a URL to which fetchImpl adds credentials with a NetworkError whose cause is a bare TypeError", async () => {
         const client = new HttpClient({
           fetchImpl: (url, init) => {
             const marked = new URL(url);
@@ -503,7 +483,6 @@ describe("HttpClient", () => {
             marked.search = "?token=q-secret";
             return fetch(marked, init);
           },
-          logger,
         });
 
         const error = await rejectionOf(
@@ -512,12 +491,11 @@ describe("HttpClient", () => {
         );
 
         expect(error.cause).toStrictEqual({ name: "TypeError" });
-        expectNoMarkerLogged(logger);
+        expectNoMarkerInJson(error);
       });
 
-      it("should reject a redirect to a Location that does not parse with a NetworkError whose cause keeps ERR_INVALID_URL, and log no marker", async () => {
-        const logger = createMockLogger();
-        const client = new HttpClient({ logger });
+      it("should reject a redirect to a Location that does not parse with a NetworkError whose cause keeps ERR_INVALID_URL", async () => {
+        const client = new HttpClient();
 
         const error = await rejectionOf(
           client.get(`${redirectBaseUrl}/redirect`),
@@ -525,12 +503,11 @@ describe("HttpClient", () => {
         );
 
         expect(error.cause?.cause?.code).toBe("ERR_INVALID_URL");
-        expectNoMarkerLogged(logger);
+        expectNoMarkerInJson(error);
       });
 
-      it("should reject a malformed response with a NetworkError whose cause keeps HTTPParserError, and log no marker", async () => {
-        const logger = createMockLogger();
-        const client = new HttpClient({ logger });
+      it("should reject a malformed response with a NetworkError whose cause keeps HTTPParserError", async () => {
+        const client = new HttpClient();
 
         const error = await rejectionOf(
           client.get(malformedResponseUrl),
@@ -538,7 +515,7 @@ describe("HttpClient", () => {
         );
 
         expect(error.cause?.cause?.name).toBe("HTTPParserError");
-        expectNoMarkerLogged(logger);
+        expectNoMarkerInJson(error);
       });
     });
   });
@@ -557,10 +534,9 @@ describe("HttpClient", () => {
     describe("already aborted, behind a caller's error", () => {
       const ABORTED = AbortSignal.abort(new Error("stop"));
 
-      it("should reject an invalid URL with the TypeError of new URL(), with no call and no log", async () => {
+      it("should reject an invalid URL with the TypeError of new URL(), with no call", async () => {
         const fetchImpl = createMockFetch(200);
-        const logger = createMockLogger();
-        const client = new HttpClient({ fetchImpl, logger });
+        const client = new HttpClient({ fetchImpl });
 
         const error = await rejectionOf(
           client.get("not a url", { signal: ABORTED }),
@@ -569,13 +545,11 @@ describe("HttpClient", () => {
 
         expect(error).toHaveProperty("code", "ERR_INVALID_URL");
         expect(fetchImpl).not.toHaveBeenCalled();
-        expect(logCallsOf(logger)).toEqual([]);
       });
 
-      it("should reject an invalid header name with a TypeError, with no call and no log", async () => {
+      it("should reject an invalid header name with a TypeError, with no call", async () => {
         const fetchImpl = createMockFetch(200);
-        const logger = createMockLogger();
-        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
 
         const error = await rejectionOf(
           client.get(MARKED_PATH, {
@@ -588,7 +562,6 @@ describe("HttpClient", () => {
         // Node's wording: the tests run on Node only.
         expect(error.message).toMatch(/invalid header name/);
         expect(fetchImpl).not.toHaveBeenCalled();
-        expect(logCallsOf(logger)).toEqual([]);
       });
     });
 

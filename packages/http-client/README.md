@@ -11,20 +11,19 @@ An HTTP client over the Fetch API. It runs unchanged in browsers and on Node 24,
 | `NetworkError` | Thrown when no response arrived. See [Errors](#errors). |
 | `TimeoutError` | Thrown when the timeout passed before the request settled. See [Errors](#errors). |
 | `NetworkErrorCause` | The `cause` of a `NetworkError`: the names and codes of what `fetchImpl` rejected with. See [Errors](#errors). |
-| `HttpClientOptions` | Constructor options: `baseUrl`, `fetchImpl`, `logger`, `timeout`. |
+| `HttpClientOptions` | Constructor options: `baseUrl`, `fetchImpl`, `timeout`. |
 | `RequestOptions` | Request options: `method`, `headers`, `body`, `query`, `throwOnError`, `signal`, `timeout`. |
 | `HttpMethod` | The methods the client sends. |
 | `QueryValue` | A value of `query`: an array repeats the key, `null` and `undefined` leave it out. |
 | `HeadersInput`, `HeadersInputRecord`, `HeadersInputIterable` | What `headers` accepts: a `Headers`, a record, or `[name, value]` pairs. |
 | `FetchImpl`, `FetchInit` | The type of `fetchImpl`, and the init it receives. See [`fetchImpl`](#fetchimpl). |
-| `Logger`, `LoggerMetadata` | What `logger` must implement. The type is structural: any logger with these methods fits it. |
 
 ## Requests
 
 ```ts
 import { HttpClient } from "@enardo/http-client";
 
-const client = new HttpClient({ baseUrl: "https://api.example.com", logger });
+const client = new HttpClient({ baseUrl: "https://api.example.com" });
 
 const response = await client.get("/users", { query: { page: 2, tag: ["a", "b"] } });
 // GET https://api.example.com/users?page=2&tag=a&tag=b
@@ -100,20 +99,20 @@ return (await response.json()) as User;
 
 ## Errors
 
-| When | Thrown | Logged |
-| --- | --- | --- |
-| The constructor cannot use `baseUrl` | the `TypeError` of `new URL()`, or one that says why (see [`baseUrl`](#baseurl)) | no |
-| The URL cannot be built: only a string without `baseUrl` can fail | the `TypeError` of `new URL()` | no |
-| The URL has credentials | `TypeError: Expected a request URL without credentials` | no |
-| `GET` or `HEAD` with a body, an empty one included | `TypeError: Expected no body with GET or HEAD` | no |
-| A header cannot be built | the `TypeError` of `Headers`, or `Expected a [name, value] header pair` | no |
-| The constructor or the request cannot use `timeout` | `TypeError: Expected a timeout in milliseconds, an integer from 1 to 2147483647, or false` | no |
-| The request's `signal` aborted, before or during the request | its `reason`, as it is | `debug` |
-| No response arrived: `fetchImpl` rejected or threw | `NetworkError` | `warn` |
-| The timeout passed before the request settled | `TimeoutError` | `warn` |
-| `throwOnError`, and a status in 400–599 | `HttpResponseError` | `warn` |
+| When | Thrown |
+| --- | --- |
+| The constructor cannot use `baseUrl` | the `TypeError` of `new URL()`, or one that says why (see [`baseUrl`](#baseurl)) |
+| The URL cannot be built: only a string without `baseUrl` can fail | the `TypeError` of `new URL()` |
+| The URL has credentials | `TypeError: Expected a request URL without credentials` |
+| `GET` or `HEAD` with a body, an empty one included | `TypeError: Expected no body with GET or HEAD` |
+| A header cannot be built | the `TypeError` of `Headers`, or `Expected a [name, value] header pair` |
+| The constructor or the request cannot use `timeout` | `TypeError: Expected a timeout in milliseconds, an integer from 1 to 2147483647, or false` |
+| The request's `signal` aborted, before or during the request | its `reason`, as it is |
+| No response arrived: `fetchImpl` rejected or threw | `NetworkError` |
+| The timeout passed before the request settled | `TimeoutError` |
+| `throwOnError`, and a status in 400–599 | `HttpResponseError` |
 
-The first six are the caller's errors: no request goes out, and the client does not log them. They are native `TypeError`s. The messages the client writes hold no part of the URL, but nothing redacts the others. The error of `new URL()` can hold the string it could not parse (a `baseUrl`, or a request's URL), credentials and query string included: on Node, in its own field `input`. An invalid header value appears in the message of `Headers`. A caller that logs them logs those too.
+The first six are the caller's errors: no request goes out. They are native `TypeError`s. The messages the client writes hold no part of the URL, but nothing redacts the others. The error of `new URL()` can hold the string it could not parse (a `baseUrl`, or a request's URL), credentials and query string included: on Node, in its own field `input`. An invalid header value appears in the message of `Headers`. A caller that logs them logs those too.
 
 The three classes extend `BaseError` of `@enardo/errors`; none extends another.
 
@@ -164,7 +163,7 @@ try {
 
 **What the errors keep out of the logs:**
 
-- `details.url` is the request's URL without credentials, query string or fragment: only its origin and path. The message uses the same URL.
+- `details.url` is the request's URL without credentials, query string or fragment: only its origin and path. The message uses the same URL. The path is kept as it is: keep secrets out of paths (a token in `/reset/<token>`), or they reach any log of the error.
 - `headers` and `body` are not enumerable, so `toJSON()`, and any serializer that enumerates own keys, leaves them out.
 - The `cause` of a `NetworkError` has no message, stack or other field of the rejection. Those can hold URLs and raw response bytes. On Node:
   - a URL with credentials: `fetch` rejects it with a message that contains it. The client rejects such a URL before the call, so only a `fetchImpl` that builds its own URL gets that message;
@@ -175,22 +174,6 @@ try {
   The error does not keep the original rejection, so no serializer reaches it, not even through an error of yours that wraps the `NetworkError`.
 
 Like every `BaseError`, `toJSON()` is for logs: never send it in an HTTP response.
-
-## Logs
-
-Pass a `logger` to get one log per request, once it is built: the caller's errors of [Errors](#errors) are not logged, a signal already aborted is. With a `child` method, the client calls it once, with the context `"HttpClient"`.
-
-| Outcome | Level | Message | Metadata |
-| --- | --- | --- | --- |
-| a response, returned | `debug` | `HTTP response received.` | `{ method, url, status }` |
-| an `HttpResponseError` | `warn` | `HTTP response with an error status.` | `{ method, url, status, error }` |
-| a `NetworkError` | `warn` | `HTTP request got no response.` | `{ method, url, error }` |
-| a `TimeoutError` | `warn` | `HTTP request timed out.` | `{ method, url, timeout, error }` |
-| the request's `signal` aborted | `debug` | `HTTP request aborted.` | `{ method, url }` |
-
-The reason of an abort is not logged: it is the caller's value, and it can hold anything. `url` has no credentials, query string or fragment. Its path is logged: keep secrets out of paths (a token in `/reset/<token>`), or they reach the logs.
-
-The levels leave the judgement to the caller, which knows whether a failure was expected: a 404 it handles, a request it retries.
 
 ## `fetchImpl`
 

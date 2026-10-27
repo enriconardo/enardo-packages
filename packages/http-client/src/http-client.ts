@@ -4,22 +4,13 @@ import type {
   FetchInit,
   HttpBody,
   HttpClientOptions,
-  HttpMethod,
   QueryValue,
   RequestOptions,
 } from "./http-client.types";
 import { HttpResponseError, NetworkError, TimeoutError } from "./errors";
 import { Deadline, toTimeout } from "./deadline";
 import type { EarlyEnd } from "./deadline";
-import {
-  hasCredentials,
-  isStreamBody,
-  redactUrl,
-  toBasePrefix,
-  toHeaders,
-} from "./utils";
-import type { Logger } from "./logger";
-import { createNoopLogger, withLoggerContext } from "./logger";
+import { hasCredentials, isStreamBody, toBasePrefix, toHeaders } from "./utils";
 
 const DEFAULT_TIMEOUT = 30_000;
 
@@ -27,15 +18,13 @@ const DEFAULT_TIMEOUT = 30_000;
  * HTTP client over the Fetch API, for browsers and Node alike.
  *
  * A response is returned whatever its status, unless the request sets
- * `throwOnError`. Each request logs once, by outcome. The errors of a
- * request are on {@link HttpClient.request}.
+ * `throwOnError`. The errors of a request are on {@link HttpClient.request}.
  */
 export class HttpClient {
   // The origin and the path of baseUrl, with one trailing "/" dropped: a
   // copy, so a URL the caller changes later changes nothing.
   private readonly basePrefix: string | undefined;
   private fetchImpl: FetchImpl;
-  private readonly logger: Logger;
   private readonly timeout: number | false;
 
   /**
@@ -51,12 +40,6 @@ export class HttpClient {
         ? DEFAULT_TIMEOUT
         : toTimeout(options.timeout);
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch;
-
-    // No baseUrl in the context: every log carries the request's URL.
-    this.logger = withLoggerContext(
-      options.logger ?? createNoopLogger(),
-      "HttpClient",
-    );
 
     if (!this.fetchImpl) {
       throw new Error(
@@ -111,7 +94,7 @@ export class HttpClient {
    *   whatever its status unless `throwOnError` is set.
    * @throws {TypeError} When the URL, the headers or the timeout cannot be
    *   used, the URL has credentials, or a `GET` or `HEAD` request has a body:
-   *   no request is made, and nothing is logged.
+   *   no request is made.
    * @throws {NetworkError} When no response arrives: the fetch implementation
    *   rejected, and the `cause` is its rejection, reduced to names and codes.
    * @throws {HttpResponseError} With `throwOnError`, when the status is in
@@ -162,16 +145,10 @@ export class HttpClient {
       throw new TypeError("Expected no body with GET or HEAD");
     }
 
-    const loggedUrl = redactUrl(url);
-
     // After the caller's errors, which come first. fetch would send nothing
     // either; a fetchImpl that ignores the signal would.
     if (signal?.aborted) {
-      throw this.endedEarly(
-        { by: "signal", reason: signal.reason },
-        method,
-        loggedUrl,
-      );
+      throw this.endedEarly({ by: "signal", reason: signal.reason });
     }
 
     const deadline = new Deadline(
@@ -191,17 +168,11 @@ export class HttpClient {
       );
 
       if (sent.status === "ended") {
-        throw this.endedEarly(sent.end, method, loggedUrl);
+        throw this.endedEarly(sent.end);
       }
 
       if (sent.status === "rejected") {
-        const error = new NetworkError(method, url, { cause: sent.reason });
-        this.logger.warn("HTTP request got no response.", {
-          method,
-          url: loggedUrl,
-          error,
-        });
-        throw error;
+        throw new NetworkError(method, url, { cause: sent.reason });
       }
 
       const res = sent.value;
@@ -211,28 +182,15 @@ export class HttpClient {
         // cancels it.
         const read = await deadline.race(() => readBody(res, deadline.signal));
         if (read.status === "ended") {
-          throw this.endedEarly(read.end, method, loggedUrl);
+          throw this.endedEarly(read.end);
         }
 
-        const error = new HttpResponseError(method, url, {
+        throw new HttpResponseError(method, url, {
           status: res.status,
           headers: res.headers,
           body: read.status === "fulfilled" ? read.value : undefined,
         });
-        this.logger.warn("HTTP response with an error status.", {
-          method,
-          url: loggedUrl,
-          status: res.status,
-          error,
-        });
-        throw error;
       }
-
-      this.logger.debug("HTTP response received.", {
-        method,
-        url: loggedUrl,
-        status: res.status,
-      });
 
       // As fetch gave it: wrapping it would lose its `url`, `redirected` and
       // `type`.
@@ -245,23 +203,11 @@ export class HttpClient {
   }
 
   /**
-   * Logs a request that the timeout or the caller's signal ended, and gives
-   * what it rejects with. The reason is the caller's: handed back as it is,
-   * never read and never logged.
+   * What a request that the timeout or the caller's signal ended rejects with.
+   * The reason is the caller's: handed back as it is, never read.
    */
-  private endedEarly(end: EarlyEnd, method: HttpMethod, url: string): unknown {
-    if (end.by === "timeout") {
-      this.logger.warn("HTTP request timed out.", {
-        method,
-        url,
-        timeout: end.error.details.timeout,
-        error: end.error,
-      });
-      return end.error;
-    }
-
-    this.logger.debug("HTTP request aborted.", { method, url });
-    return end.reason;
+  private endedEarly(end: EarlyEnd): unknown {
+    return end.by === "timeout" ? end.error : end.reason;
   }
 
   /**

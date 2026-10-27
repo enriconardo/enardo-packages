@@ -5,11 +5,6 @@ import type {
   QuerySuccessPayload,
 } from "./query-response";
 import { isBaseErrorLike } from "@enardo/errors";
-import { createNoopLogger, type Logger, withLoggerContext } from "./logger";
-
-export interface QueryHandlerOptions {
-  logger?: Logger;
-}
 
 type QueryPayload<TResponse extends QueryResponse<unknown, string>> =
   QuerySuccessPayload<TResponse>;
@@ -17,45 +12,20 @@ type QueryPayload<TResponse extends QueryResponse<unknown, string>> =
 export abstract class QueryHandler<
   TQuery extends Query,
   TResult extends QueryResponse<unknown, string>,
-  TOptions extends QueryHandlerOptions = QueryHandlerOptions,
 > {
-  protected readonly logger: Logger;
-  protected readonly options: TOptions;
-
-  constructor(options: TOptions) {
-    this.options = options;
-    this.logger = withLoggerContext(
-      options.logger ?? createNoopLogger(),
-      this.constructor.name || "QueryHandler",
-    );
-  }
-
   /**
    * Resolves to the payload, or to a failure when `handle()` throws an error
    * with a code in `expectedCodes`. Rejects with every other error.
    */
   async execute(query: TQuery): Promise<TResult> {
-    const queryName = query.constructor.name || "UnknownQuery";
-
-    this.logger.debug("Executing query.", {
-      query: queryName,
-    });
-
     try {
       const result = await this.handle(query);
-      this.logger.debug("Query executed successfully.", {
-        query: queryName,
-      });
       return this.successResponse(result);
     } catch (error) {
       const code = this.expectedCode(error);
       if (code === undefined) {
         throw error;
       }
-      this.logger.debug("Query failed with an expected code.", {
-        query: queryName,
-        error: code,
-      });
       return this.failureResponse(code);
     }
   }

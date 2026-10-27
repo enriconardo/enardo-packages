@@ -10,13 +10,7 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **What a package logs.** A decision for every package, with an ADR.
-  - Four packages take an optional `Logger`, a no-op by default: `@enardo/cqrs`, `@enardo/database-mongo`, `@enardo/email-nodemailer`, `@enardo/http-client`. (`cqrs` logs at `debug` only since `fix/cqrs/expected-failures-as-values`: it rethrows what it does not expect.) The mechanism matches common practice (Fastify, AWS SDK v3's `logger`, KafkaJS's `logCreator`, Prisma's `log`), as do the local structural copies of `Logger`. What they log, and at what level, has no rule.
-  - Each of the other three logs a failure that it also throws or returns: `database-mongo` at `error` (`mongo.database.ts:82`), `email-nodemailer` and `http-client` at `warn`. The caller gets the error and logs it again; the package decides a level it cannot know. `email-nodemailer` also logs at `info` the success the caller awaits (`nodemailer-email-sender.ts:136`).
-  - The common rule for a library: log only what the caller cannot see (a retry, a fallback, a reconnection, a timeout before giving up, an error swallowed in a background task or a cleanup), at `debug` or `warn`; never both log and throw an error ("log or throw"), and leave `error` to the app. Fewer log points are also fewer places for personal data or secrets to leak.
-  - Alternatives to weigh for observability: hooks the app subscribes to (`onRetry`, `onResponse`), which run in browsers too; Node's `diagnostics_channel`, which undici uses and OpenTelemetry reads, Node only; a decorator or middleware around a component, such as `cqrs`' handlers, so that logging is the app's choice, not a base class's.
-  - Each package's log points are then judged against the rule, in its own branch.
-  - From the architectural review of `@enardo/cqrs` (2026-10-23), and the discussion that followed it.
+- **What `database-mongo` logs.** Its log points judged against ADR 0014 (a package logs only what its caller cannot see, at `debug` or `warn`). The `error` of a failed `connect()` (`mongo.database.ts:82`), which it rethrows; the `debug` flag, which duplicates the logger's level; the drop of an index, a change the caller does not see, which the rule allows it to log. From the spec of `feature/repo/what-a-package-logs` (2026-10-26).
 
 ## To evaluate
 

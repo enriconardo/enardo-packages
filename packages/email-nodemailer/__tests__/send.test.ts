@@ -303,9 +303,55 @@ describe("send", () => {
     );
   });
 
-  // The cases of feature/email/send-errors: the contract's errors, which
-  // name the refused recipients by index and say whether a retry may
-  // succeed, and a cause that keeps nodemailer's identifiers only.
+  describe("40: reading the rejection", () => {
+    it("40: rejects an Error whose code getter throws as EmailSendFailedError", async () => {
+      const rejection = withThrowingGetter(
+        Object.assign(new Error("relay down"), {
+          command: "RCPT TO",
+          responseCode: 550,
+        }),
+        "code",
+      );
+      const sender = new NodemailerEmailSender({
+        transport: rejectingWith(await startServer(), rejection),
+      });
+
+      const error = await unprintedRejectionOf(
+        sender.send(MESSAGE),
+        EmailSendFailedError,
+      );
+
+      expect(error.details).toStrictEqual({ retryable: false });
+      expect(error.cause).toStrictEqual({
+        command: "RCPT TO",
+        responseCode: 550,
+      });
+    });
+
+    it.each([
+      ["a string", "relay down"],
+      [
+        "fields of other types",
+        { code: 5, command: ["RCPT TO"], responseCode: "550" },
+      ],
+    ])(
+      "40: rejects %s as EmailSendFailedError without a cause",
+      async (_label, rejection) => {
+        const sender = new NodemailerEmailSender({
+          transport: rejectingWith(await startServer(), rejection),
+        });
+
+        const error = await rejectionOf(
+          sender.send(MESSAGE),
+          EmailSendFailedError,
+        );
+
+        expect(error.details).toStrictEqual({ retryable: false });
+        expect(error.cause).toBeUndefined();
+        expect(error.toJSON()).not.toHaveProperty("cause");
+      },
+    );
+  });
 
   it("57: names a refused and a deferred recipient by index, in order, once the message was sent to the other", async () => {
     const server = await startServer();
@@ -330,6 +376,10 @@ describe("send", () => {
     });
     expect(server.messages).toHaveLength(1);
   });
+
+  // The cases of feature/email/send-errors: the contract's errors, which
+  // name the refused recipients by index and say whether a retry may
+  // succeed, and a cause that keeps nodemailer's identifiers only.
 
   // nodemailer's own responseCode is the deferred recipient's 450: a
   // retryable read from it would give true to both.

@@ -32,16 +32,12 @@ import {
   createReadableStream,
   createErroringStream,
   createAsyncChunks,
-  createMockLogger,
-  logCallsOf,
   reasonOf,
   rejectionOf,
   thrownBy,
   hrefSentTo,
   compileOnly,
   MARKED_PATH,
-  timedOutLog,
-  ABORTED_LOG,
   createPendingFetch,
   createEndlessStream,
   createAnswerWithReader,
@@ -543,10 +539,9 @@ describe("HttpClient", () => {
   // The URL, the headers and the init are built before the call: what they
   // throw comes out as it is, and no request goes out.
   describe("request() building the request", () => {
-    it("should reject a malformed header pair with a TypeError, with no call and no log", async () => {
+    it("should reject a malformed header pair with a TypeError, with no call", async () => {
       const fetchImpl = createMockFetch(200);
-      const logger = createMockLogger();
-      const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+      const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
 
       // The types reject it: only a cast or a JavaScript caller can pass it.
       const headers = [["x-only-name"]] as unknown as RequestOptions["headers"];
@@ -558,7 +553,6 @@ describe("HttpClient", () => {
       expect(error).not.toBeInstanceOf(NetworkError);
       expect(error.message).toBe("Expected a [name, value] header pair");
       expect(fetchImpl).not.toHaveBeenCalled();
-      expect(logCallsOf(logger)).toEqual([]);
     });
 
     describe("a URL with credentials", () => {
@@ -615,14 +609,12 @@ describe("HttpClient", () => {
       const NO_BODY_MESSAGE = "Expected no body with GET or HEAD";
 
       it.each<HttpMethod>(["GET", "HEAD"])(
-        "should reject %s with a body with a TypeError, with no call and no log",
+        "should reject %s with a body with a TypeError, with no call",
         async (method) => {
           const fetchImpl = createMockFetch(200);
-          const logger = createMockLogger();
           const client = new HttpClient({
             baseUrl: BASE_URL,
             fetchImpl,
-            logger,
           });
 
           const error = await rejectionOf(
@@ -633,7 +625,6 @@ describe("HttpClient", () => {
           expect(error).not.toBeInstanceOf(NetworkError);
           expect(error.message).toBe(NO_BODY_MESSAGE);
           expect(fetchImpl).not.toHaveBeenCalled();
-          expect(logCallsOf(logger)).toEqual([]);
         },
       );
 
@@ -664,14 +655,12 @@ describe("HttpClient", () => {
       // Omit<RequestOptions, "method" | "body"> rejects a body only in an
       // object literal: options held in a RequestOptions variable carry it.
       it.each(["get", "head"] as const)(
-        "should reject %s() with options of type RequestOptions holding a body with the same TypeError, with no call and no log",
+        "should reject %s() with options of type RequestOptions holding a body with the same TypeError, with no call",
         async (name) => {
           const fetchImpl = createMockFetch(200);
-          const logger = createMockLogger();
           const client = new HttpClient({
             baseUrl: BASE_URL,
             fetchImpl,
-            logger,
           });
           const opts: RequestOptions = { body: "x" };
 
@@ -682,7 +671,6 @@ describe("HttpClient", () => {
 
           expect(error.message).toBe(NO_BODY_MESSAGE);
           expect(fetchImpl).not.toHaveBeenCalled();
-          expect(logCallsOf(logger)).toEqual([]);
         },
       );
 
@@ -725,11 +713,10 @@ describe("HttpClient", () => {
 
       // The caller's errors come first: a signal checked before them would
       // reject with its reason.
-      it("should reject GET with a body and a signal already aborted with the TypeError, not the signal's reason, with no log", async () => {
+      it("should reject GET with a body and a signal already aborted with the TypeError, not the signal's reason", async () => {
         const reason = new Error("stop");
         const fetchImpl = createMockFetch(200);
-        const logger = createMockLogger();
-        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
 
         const rejection = await reasonOf(
           client.request("/users", {
@@ -743,7 +730,6 @@ describe("HttpClient", () => {
         expect(rejection).toBeInstanceOf(TypeError);
         expect(rejection).toHaveProperty("message", NO_BODY_MESSAGE);
         expect(fetchImpl).not.toHaveBeenCalled();
-        expect(logCallsOf(logger)).toEqual([]);
       });
 
       it("should reject GET with a body with a message holding no part of the URL", async () => {
@@ -794,7 +780,7 @@ describe("HttpClient", () => {
       });
     });
 
-    it("should reject with a NetworkError whose cause leaves out a code whose getter throws, and log once, at warn", async () => {
+    it("should reject with a NetworkError whose cause leaves out a code whose getter throws", async () => {
       const rejection = new TypeError("fetch failed");
       Object.defineProperty(rejection, "code", {
         get(): never {
@@ -802,17 +788,14 @@ describe("HttpClient", () => {
         },
         configurable: true,
       });
-      const logger = createMockLogger();
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl: createRejectingFetch(rejection),
-        logger,
       });
 
       const error = await rejectionOf(client.get("/users"), NetworkError);
 
       expect(error.cause).toStrictEqual({ name: "TypeError" });
-      expect(logCallsOf(logger).map(([level]) => level)).toEqual(["warn"]);
     });
   });
 
@@ -999,7 +982,6 @@ describe("HttpClient", () => {
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl: createResponseFetch(new Response(body, { status: 500 })),
-        logger: createMockLogger(),
       });
 
       const error = await rejectionOf(
@@ -1026,7 +1008,6 @@ describe("HttpClient", () => {
         fetchImpl: vi
           .fn<FetchImpl>()
           .mockResolvedValue(answer as unknown as Response),
-        logger: createMockLogger(),
       });
 
       const error = await rejectionOf(
@@ -1123,11 +1104,10 @@ describe("HttpClient", () => {
     );
 
     it.each(INVALID_TIMEOUTS)(
-      "request() should reject a timeout of $label with the same TypeError, with no call and no log",
+      "request() should reject a timeout of $label with the same TypeError, with no call",
       async ({ timeout }) => {
         const fetchImpl = createMockFetch(200);
-        const logger = createMockLogger();
-        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
 
         const error = await rejectionOf(
           client.request("/users", { timeout }),
@@ -1136,7 +1116,6 @@ describe("HttpClient", () => {
 
         expect(error.message).toBe(TIMEOUT_MESSAGE);
         expect(fetchImpl).not.toHaveBeenCalled();
-        expect(logCallsOf(logger)).toEqual([]);
       },
     );
 
@@ -1232,7 +1211,6 @@ describe("HttpClient", () => {
         const client = new HttpClient({
           baseUrl: BASE_URL,
           fetchImpl: createPendingFetch(),
-          logger: createMockLogger(),
         });
 
         const call = track(
@@ -1296,7 +1274,6 @@ describe("HttpClient", () => {
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl,
-        logger: createMockLogger(),
       });
 
       const call = track(client.get(MARKED_PATH, { timeout: 100 }));
@@ -1318,7 +1295,6 @@ describe("HttpClient", () => {
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl,
-        logger: createMockLogger(),
       });
 
       const call = track(client.get(MARKED_PATH, { timeout: 100 }));
@@ -1333,24 +1309,7 @@ describe("HttpClient", () => {
       expect(signal?.reason).toBe(error);
     });
 
-    it("should log a timeout once, at warn, with the method, the reduced URL, the timeout and the rejected error", async () => {
-      const logger = createMockLogger();
-      const client = new HttpClient({
-        baseUrl: BASE_URL,
-        fetchImpl: createPendingFetch(),
-        logger,
-      });
-
-      const call = track(client.get(MARKED_PATH, { timeout: 100 }));
-      await advanceTo(100);
-
-      const error = reasonNow(call);
-      expect(logCallsOf(logger)).toStrictEqual([timedOutLog(error)]);
-      expect(logger.warn.mock.calls[0]?.[1]?.error).toBe(error);
-    });
-
-    it("should reject with a TimeoutError, not an HttpResponseError, when the timeout passes during the read of an error body, and log once, at warn", async () => {
-      const logger = createMockLogger();
+    it("should reject with a TimeoutError, not an HttpResponseError, when the timeout passes during the read of an error body", async () => {
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl: vi
@@ -1358,7 +1317,6 @@ describe("HttpClient", () => {
           .mockResolvedValue(
             new Response(createEndlessStream(), { status: 500 }),
           ),
-        logger,
       });
 
       const call = track(
@@ -1368,7 +1326,6 @@ describe("HttpClient", () => {
 
       const error = rejectionNow(call, TimeoutError);
       expect(error).not.toBeInstanceOf(HttpResponseError);
-      expect(logCallsOf(logger)).toStrictEqual([timedOutLog(error)]);
     });
 
     // One timeout for both phases: the read of the error body gets what the
@@ -1386,7 +1343,6 @@ describe("HttpClient", () => {
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl,
-        logger: createMockLogger(),
       });
 
       const call = track(
@@ -1409,7 +1365,6 @@ describe("HttpClient", () => {
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl: vi.fn<FetchImpl>().mockResolvedValue(answer),
-        logger: createMockLogger(),
       });
 
       const call = track(
@@ -1439,18 +1394,16 @@ describe("HttpClient", () => {
       },
       { misbehaves: "returns undefined", cancel: () => undefined },
     ])(
-      "should reject with a TimeoutError at 100 ms, let nothing reach process, and log once, at warn, when the cancel of the reader of an error body $misbehaves",
+      "should reject with a TimeoutError at 100 ms, let nothing reach process when the cancel of the reader of an error body $misbehaves",
       async ({ cancel: misbehave }) => {
         const cancel = vi.fn(misbehave);
         const { answer, read } = createAnswerWithReader(cancel);
         expect(answer).not.toBeInstanceOf(Response);
-        const logger = createMockLogger();
         const client = new HttpClient({
           baseUrl: BASE_URL,
           fetchImpl: vi
             .fn<FetchImpl>()
             .mockResolvedValue(answer as unknown as Response),
-          logger,
         });
 
         const call = track(
@@ -1463,87 +1416,61 @@ describe("HttpClient", () => {
           await advanceTo(100);
         });
 
-        const error = rejectionNow(call, TimeoutError);
+        rejectionNow(call, TimeoutError);
         expect(cancel, "the cancel of the reader").toHaveBeenCalled();
         expect(reached).toEqual([]);
-        expect(logCallsOf(logger)).toStrictEqual([timedOutLog(error)]);
       },
     );
 
-    // A timer left armed after request() settled would abort init.signal,
-    // and could log a timeout on top of the outcome. A request with no
-    // init.signal at all has nothing to abort: the cases above check that a
-    // timeout gives it one.
+    // A timer left armed after request() settled would abort init.signal. A
+    // request with no init.signal at all has nothing to abort: the cases
+    // above check that a timeout gives it one.
     describe("once request() has settled", () => {
-      it("should leave init.signal alone, and log nothing more, after returning a 200", async () => {
-        const logger = createMockLogger();
+      it("should leave init.signal alone after returning a 200", async () => {
         const answer = new Response(null, { status: 200 });
         const fetchImpl = vi.fn<FetchImpl>().mockResolvedValue(answer);
-        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
 
         const response = await client.get(MARKED_PATH, { timeout: 100 });
         await advanceTo(10_100);
 
         expect(response).toBe(answer);
         expect(initSentTo(fetchImpl).signal?.aborted ?? false).toBe(false);
-        expect(logCallsOf(logger)).toStrictEqual([
-          [
-            "debug",
-            "HTTP response received.",
-            { method: "GET", url: REDUCED_URL, status: 200 },
-          ],
-        ]);
       });
 
-      it("should leave init.signal alone, and log nothing more, after rejecting with an HttpResponseError", async () => {
-        const logger = createMockLogger();
+      it("should leave init.signal alone after rejecting with an HttpResponseError", async () => {
         const fetchImpl = vi
           .fn<FetchImpl>()
           .mockResolvedValue(new Response("body", { status: 500 }));
-        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
 
-        const error = await rejectionOf(
+        await rejectionOf(
           client.get(MARKED_PATH, { timeout: 100, throwOnError: true }),
           HttpResponseError,
         );
         await advanceTo(10_100);
 
         expect(initSentTo(fetchImpl).signal?.aborted ?? false).toBe(false);
-        expect(logCallsOf(logger)).toStrictEqual([
-          [
-            "warn",
-            "HTTP response with an error status.",
-            { method: "GET", url: REDUCED_URL, status: 500, error },
-          ],
-        ]);
       });
 
-      it("should leave init.signal alone, and log nothing more, after rejecting with a NetworkError", async () => {
-        const logger = createMockLogger();
+      it("should leave init.signal alone after rejecting with a NetworkError", async () => {
         const fetchImpl = vi
           .fn<FetchImpl>()
           .mockRejectedValue(new TypeError("fetch failed"));
-        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
 
-        const error = await rejectionOf(
+        await rejectionOf(
           client.get(MARKED_PATH, { timeout: 100 }),
           NetworkError,
         );
         await advanceTo(10_100);
 
         expect(initSentTo(fetchImpl).signal?.aborted ?? false).toBe(false);
-        expect(logCallsOf(logger)).toStrictEqual([
-          [
-            "warn",
-            "HTTP request got no response.",
-            { method: "GET", url: REDUCED_URL, error },
-          ],
-        ]);
       });
     });
 
     // request() does not wait for fetchImpl past the timeout: what fetchImpl
-    // does at 200 ms is dropped, and logged by nobody.
+    // does at 200 ms is dropped.
     describe("a fetchImpl that settles after the timeout", () => {
       /** Ignores init.signal, and settles at 200 ms as `settle` says. */
       function createLateFetch(
@@ -1562,27 +1489,24 @@ describe("HttpClient", () => {
         );
       }
 
-      it("should get the TimeoutError at 100 ms, then cancel the body of the Response it resolves with at 200 ms, and log nothing more", async () => {
+      it("should get the TimeoutError at 100 ms, then cancel the body of the Response it resolves with at 200 ms", async () => {
         const cancel = vi.fn();
-        const logger = createMockLogger();
         const client = new HttpClient({
           baseUrl: BASE_URL,
           fetchImpl: createLateFetch((resolve) => {
             resolve(new Response(new ReadableStream({ cancel })));
           }),
-          logger,
         });
 
         const call = track(client.get(MARKED_PATH, { timeout: 100 }));
         await advanceTo(100);
-        const error = rejectionNow(call, TimeoutError);
+        rejectionNow(call, TimeoutError);
         const reached = await errorsReachingProcess(async () => {
           await advanceTo(200);
         });
 
         expect(cancel).toHaveBeenCalled();
         expect(reached).toEqual([]);
-        expect(logCallsOf(logger)).toStrictEqual([timedOutLog(error)]);
       });
 
       it.each<{
@@ -1614,44 +1538,39 @@ describe("HttpClient", () => {
           },
         },
       ])(
-        "should get the TimeoutError at 100 ms, then let nothing reach process, and log nothing more, when it $late at 200 ms",
+        "should get the TimeoutError at 100 ms, then let nothing reach process when it $late at 200 ms",
         async ({ settle }) => {
-          const logger = createMockLogger();
           const client = new HttpClient({
             baseUrl: BASE_URL,
             fetchImpl: createLateFetch(settle),
-            logger,
           });
 
           const call = track(client.get(MARKED_PATH, { timeout: 100 }));
           await advanceTo(100);
-          const error = rejectionNow(call, TimeoutError);
+          rejectionNow(call, TimeoutError);
           const reached = await errorsReachingProcess(async () => {
             await advanceTo(200);
           });
 
           expect(reached).toEqual([]);
-          expect(logCallsOf(logger)).toStrictEqual([timedOutLog(error)]);
         },
       );
 
       // The body is cancelled by its shape, not by the class of the value:
       // the Response of npm undici is another class than the global one.
-      it("should cancel the body of a plain object it resolves with at 200 ms, not a Response, whose body has a cancel callback, and log nothing more", async () => {
+      it("should cancel the body of a plain object it resolves with at 200 ms, not a Response, whose body has a cancel callback", async () => {
         const cancel = vi.fn();
         const late = { body: new ReadableStream({ cancel }) };
-        const logger = createMockLogger();
         const client = new HttpClient({
           baseUrl: BASE_URL,
           fetchImpl: createLateFetch((resolve) => {
             resolve(late as unknown as Response);
           }),
-          logger,
         });
 
         const call = track(client.get(MARKED_PATH, { timeout: 100 }));
         await advanceTo(100);
-        const error = rejectionNow(call, TimeoutError);
+        rejectionNow(call, TimeoutError);
         const reached = await errorsReachingProcess(async () => {
           await advanceTo(200);
         });
@@ -1659,7 +1578,6 @@ describe("HttpClient", () => {
         expect(late).not.toBeInstanceOf(Response);
         expect(cancel).toHaveBeenCalled();
         expect(reached).toEqual([]);
-        expect(logCallsOf(logger)).toStrictEqual([timedOutLog(error)]);
       });
 
       it.each<{ late: string; value: unknown }>([
@@ -1676,26 +1594,23 @@ describe("HttpClient", () => {
           value: { body: { cancel: "not a function" } },
         },
       ])(
-        "should get the TimeoutError at 100 ms, then let nothing reach process, and log nothing more, when it resolves with $late at 200 ms",
+        "should get the TimeoutError at 100 ms, then let nothing reach process when it resolves with $late at 200 ms",
         async ({ value }) => {
-          const logger = createMockLogger();
           const client = new HttpClient({
             baseUrl: BASE_URL,
             fetchImpl: createLateFetch((resolve) => {
               resolve(value as Response);
             }),
-            logger,
           });
 
           const call = track(client.get(MARKED_PATH, { timeout: 100 }));
           await advanceTo(100);
-          const error = rejectionNow(call, TimeoutError);
+          rejectionNow(call, TimeoutError);
           const reached = await errorsReachingProcess(async () => {
             await advanceTo(200);
           });
 
           expect(reached).toEqual([]);
-          expect(logCallsOf(logger)).toStrictEqual([timedOutLog(error)]);
         },
       );
     });
@@ -1704,15 +1619,13 @@ describe("HttpClient", () => {
     // never from the name of what fetchImpl rejected with: a fetchImpl with
     // a signal of its own rejects with these.
     it.each(["TimeoutError", "AbortError"])(
-      "should reject a DOMException named %s with a NetworkError, and log once, at warn, while neither the timeout passed nor the signal aborted",
+      "should reject a DOMException named %s with a NetworkError while neither the timeout passed nor the signal aborted",
       async (name) => {
-        const logger = createMockLogger();
         const client = new HttpClient({
           baseUrl: BASE_URL,
           fetchImpl: vi
             .fn<FetchImpl>()
             .mockRejectedValue(new DOMException("The operation failed.", name)),
-          logger,
         });
 
         const error = await rejectionOf(
@@ -1724,19 +1637,12 @@ describe("HttpClient", () => {
         );
 
         expect(error.cause).toStrictEqual({ name });
-        expect(logCallsOf(logger)).toStrictEqual([
-          [
-            "warn",
-            "HTTP request got no response.",
-            { method: "GET", url: REDUCED_URL, error },
-          ],
-        ]);
       },
     );
   });
 
   // The client reads the signal's `aborted` and `reason`, listens to its
-  // abort event, and passes the reason on as it is, unlogged.
+  // abort event, and passes the reason on as it is.
   describe("the caller's signal", () => {
     beforeEach(() => {
       vi.useFakeTimers({ now: 0 });
@@ -1779,7 +1685,6 @@ describe("HttpClient", () => {
         const client = new HttpClient({
           baseUrl: BASE_URL,
           fetchImpl,
-          logger: createMockLogger(),
         });
 
         const call = track(
@@ -1797,39 +1702,16 @@ describe("HttpClient", () => {
       },
     );
 
-    it("should log an abort once, at debug, with the method and the reduced URL, and no reason", async () => {
-      const reason = new Error("stop");
-      const controller = new AbortController();
-      const logger = createMockLogger();
-      const client = new HttpClient({
-        baseUrl: BASE_URL,
-        fetchImpl: createPendingFetch(),
-        logger,
-      });
-
-      const call = track(
-        client.get(MARKED_PATH, { signal: controller.signal }),
-      );
-      await flush();
-      controller.abort(reason);
-      await flush();
-
-      expect(reasonNow(call)).toBe(reason);
-      expect(logCallsOf(logger)).toStrictEqual([ABORTED_LOG]);
-    });
-
     // With no timer to race fetchImpl against, the client still races it
     // against the signal: left to a fetchImpl that ignores it, the call would
     // stay pending.
-    it("should reject with the very reason, and log once, at debug, with timeout: false on the client and a fetchImpl that ignores the signal", async () => {
+    it("should reject with the very reason with timeout: false on the client and a fetchImpl that ignores the signal", async () => {
       const reason = new Error("stop");
       const controller = new AbortController();
       const fetchImpl = createPendingFetch();
-      const logger = createMockLogger();
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl,
-        logger,
         timeout: false,
       });
 
@@ -1842,10 +1724,9 @@ describe("HttpClient", () => {
       await flush();
 
       expect(reasonNow(call)).toBe(reason);
-      expect(logCallsOf(logger)).toStrictEqual([ABORTED_LOG]);
     });
 
-    it("should reject with the very reason when every trap of it throws, and log once, at debug", async () => {
+    it("should reject with the very reason when every trap of it throws", async () => {
       const reason = createTrapThrowingProxy();
       // The premise: resolving a promise with it reads its `then`, and
       // throws.
@@ -1853,11 +1734,9 @@ describe("HttpClient", () => {
         Reflect.get(reason, "then");
       }).toThrow("The get trap threw");
       const controller = new AbortController();
-      const logger = createMockLogger();
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl: createPendingFetch(),
-        logger,
       });
 
       const sent = client.get(MARKED_PATH, { signal: controller.signal });
@@ -1877,14 +1756,12 @@ describe("HttpClient", () => {
         rejection = error;
       }
       expect(rejection).toBe(reason);
-      expect(logCallsOf(logger)).toStrictEqual([ABORTED_LOG]);
     });
 
-    it("should reject with the reason of a signal already aborted, with no call, and log once, at debug", async () => {
+    it("should reject with the reason of a signal already aborted, with no call", async () => {
       const reason = new Error("stop");
       const fetchImpl = createMockFetch(200);
-      const logger = createMockLogger();
-      const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+      const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
 
       const rejection = await reasonOf(
         client.get(MARKED_PATH, { signal: AbortSignal.abort(reason) }),
@@ -1892,14 +1769,12 @@ describe("HttpClient", () => {
 
       expect(rejection).toBe(reason);
       expect(fetchImpl).not.toHaveBeenCalled();
-      expect(logCallsOf(logger)).toStrictEqual([ABORTED_LOG]);
     });
 
-    it("should reject with the very reason of a signal already aborted when every trap of it throws, with no call, and log once, at debug", async () => {
+    it("should reject with the very reason of a signal already aborted when every trap of it throws, with no call", async () => {
       const reason = createTrapThrowingProxy();
       const fetchImpl = createMockFetch(200);
-      const logger = createMockLogger();
-      const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+      const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
 
       const sent = client.get(MARKED_PATH, {
         signal: AbortSignal.abort(reason),
@@ -1924,7 +1799,6 @@ describe("HttpClient", () => {
         "the very proxy",
       );
       expect(fetchImpl).not.toHaveBeenCalled();
-      expect(logCallsOf(logger)).toStrictEqual([ABORTED_LOG]);
     });
 
     // The caller's errors come first: a signal checked before them would
@@ -1932,10 +1806,9 @@ describe("HttpClient", () => {
     describe("already aborted, behind a caller's error", () => {
       const ABORTED = AbortSignal.abort(new Error("stop"));
 
-      it("should reject a timeout of 0 with the TypeError of the timeout, with no call and no log", async () => {
+      it("should reject a timeout of 0 with the TypeError of the timeout, with no call", async () => {
         const fetchImpl = createMockFetch(200);
-        const logger = createMockLogger();
-        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+        const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
 
         const error = await rejectionOf(
           client.get(MARKED_PATH, { timeout: 0, signal: ABORTED }),
@@ -1946,17 +1819,15 @@ describe("HttpClient", () => {
           "Expected a timeout in milliseconds, an integer from 1 to 2147483647, or false",
         );
         expect(fetchImpl).not.toHaveBeenCalled();
-        expect(logCallsOf(logger)).toEqual([]);
       });
     });
 
     // The types require an AbortSignal, and the client does not check it:
     // AbortSignal.any() throws on anything else. No timer may outlive that
     // throw: one left running for the whole timeout keeps the process alive.
-    it("should reject a signal that is not an AbortSignal with a TypeError, with no call, no log and no timer left, with timeout: 100", async () => {
+    it("should reject a signal that is not an AbortSignal with a TypeError, with no call and no timer left, with timeout: 100", async () => {
       const fetchImpl = createMockFetch(200);
-      const logger = createMockLogger();
-      const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+      const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
       expect(vi.getTimerCount(), "the timers before the call").toBe(0);
 
       await rejectionOf(
@@ -1968,7 +1839,6 @@ describe("HttpClient", () => {
       );
 
       expect(fetchImpl).not.toHaveBeenCalled();
-      expect(logCallsOf(logger)).toEqual([]);
       expect(vi.getTimerCount(), "the timers left").toBe(0);
     });
 
@@ -1976,7 +1846,7 @@ describe("HttpClient", () => {
     // before fetchImpl is called. A fetchImpl called with it would reject,
     // and nothing would handle that rejection: it would reach process, which
     // ends a Node process by default.
-    it("should reject a signal that is not an AbortSignal with a TypeError, with no call, no log and nothing reaching process, with timeout: false", async () => {
+    it("should reject a signal that is not an AbortSignal with a TypeError, with no call and nothing reaching process, with timeout: false", async () => {
       // A plain function that records its calls, not a vi.fn: a vi.fn
       // handles the rejection of a promise it returns, to record how it
       // settled, so that rejection could never reach process.
@@ -1985,8 +1855,7 @@ describe("HttpClient", () => {
         called(url, init);
         return Promise.reject(new TypeError("fetch failed"));
       };
-      const logger = createMockLogger();
-      const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl, logger });
+      const client = new HttpClient({ baseUrl: BASE_URL, fetchImpl });
 
       const reached = await errorsReachingProcess(async () => {
         await rejectionOf(
@@ -1999,19 +1868,16 @@ describe("HttpClient", () => {
       });
 
       expect(called, "the calls to fetchImpl").not.toHaveBeenCalled();
-      expect(logCallsOf(logger)).toEqual([]);
       expect(reached).toEqual([]);
     });
 
-    it("should reject with the very reason when the caller aborts during the read of an error body, and log once, at debug", async () => {
+    it("should reject with the very reason when the caller aborts during the read of an error body", async () => {
       const reason = new Error("stop");
       const controller = new AbortController();
-      const logger = createMockLogger();
       const answer = new Response(createEndlessStream(), { status: 500 });
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl: vi.fn<FetchImpl>().mockResolvedValue(answer),
-        logger,
       });
 
       const call = track(
@@ -2027,7 +1893,6 @@ describe("HttpClient", () => {
       await flush();
 
       expect(reasonNow(call)).toBe(reason);
-      expect(logCallsOf(logger)).toStrictEqual([ABORTED_LOG]);
     });
 
     // The read that the abort ended is cancelled, as at the timeout. The
@@ -2040,7 +1905,6 @@ describe("HttpClient", () => {
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl: vi.fn<FetchImpl>().mockResolvedValue(answer),
-        logger: createMockLogger(),
         timeout: false,
       });
 
@@ -2065,7 +1929,7 @@ describe("HttpClient", () => {
 
     // The cancel runs in a listener of the abort, as at the timeout: a cancel
     // that throws there is dropped, not rethrown as an uncaughtException.
-    it("should reject with the very reason, let nothing reach process, and log once, at debug, when the caller aborts and the cancel of the reader of an error body throws, with timeout: false on the client", async () => {
+    it("should reject with the very reason, and let nothing reach process, when the caller aborts and the cancel of the reader of an error body throws, with timeout: false on the client", async () => {
       const reason = new Error("stop");
       const controller = new AbortController();
       const cancel = vi.fn(() => {
@@ -2073,13 +1937,11 @@ describe("HttpClient", () => {
       });
       const { answer, read } = createAnswerWithReader(cancel);
       expect(answer).not.toBeInstanceOf(Response);
-      const logger = createMockLogger();
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl: vi
           .fn<FetchImpl>()
           .mockResolvedValue(answer as unknown as Response),
-        logger,
         timeout: false,
       });
 
@@ -2100,14 +1962,13 @@ describe("HttpClient", () => {
       expect(reasonNow(call)).toBe(reason);
       expect(cancel, "the cancel of the reader").toHaveBeenCalled();
       expect(reached).toEqual([]);
-      expect(logCallsOf(logger)).toStrictEqual([ABORTED_LOG]);
     });
 
     // An abort that came before the read of the error body fires no event
     // during it: the read checks the signal when it starts. The status getter
     // aborts once fetchImpl has resolved, before the client reads the body;
     // a read that only listened would wait for the endless body.
-    it("should reject with the very reason, cancel the read with no reason, and log once, at debug, when the caller aborts between the response and the read of its error body", async () => {
+    it("should reject with the very reason, and cancel the read with no reason, when the caller aborts between the response and the read of its error body", async () => {
       const reason = new Error("stop");
       const controller = new AbortController();
       const cancel = vi.fn<(reason: unknown) => void>();
@@ -2120,13 +1981,11 @@ describe("HttpClient", () => {
         body: createEndlessStream(cancel),
       };
       expect(answer).not.toBeInstanceOf(Response);
-      const logger = createMockLogger();
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl: vi
           .fn<FetchImpl>()
           .mockResolvedValue(answer as unknown as Response),
-        logger,
         timeout: false,
       });
 
@@ -2147,18 +2006,15 @@ describe("HttpClient", () => {
       expect(cancel.mock.calls[0]?.[0], "the reason of the cancel").toBe(
         undefined,
       );
-      expect(logCallsOf(logger)).toStrictEqual([ABORTED_LOG]);
     });
 
-    it("should reject with the very reason when every trap of it throws, when the caller aborts during the read of an error body, and log once, at debug", async () => {
+    it("should reject with the very reason when every trap of it throws, when the caller aborts during the read of an error body", async () => {
       const reason = createTrapThrowingProxy();
       const controller = new AbortController();
-      const logger = createMockLogger();
       const answer = new Response(createEndlessStream(), { status: 500 });
       const client = new HttpClient({
         baseUrl: BASE_URL,
         fetchImpl: vi.fn<FetchImpl>().mockResolvedValue(answer),
-        logger,
       });
 
       const sent = client.get(MARKED_PATH, {
@@ -2184,7 +2040,6 @@ describe("HttpClient", () => {
         (value) => value === reason,
         "the very proxy",
       );
-      expect(logCallsOf(logger)).toStrictEqual([ABORTED_LOG]);
     });
 
     // init.signal keeps following the caller's signal, so that it covers the
@@ -2269,14 +2124,12 @@ describe("HttpClient", () => {
     // The first of the abort and the timeout decides: once request() has
     // settled, the other changes nothing.
     describe("with a signal and a timeout", () => {
-      it("should reject with the reason when the caller aborts at 50 ms, and log only the abort, still at 10 s", async () => {
+      it("should reject with the reason when the caller aborts at 50 ms", async () => {
         const reason = new Error("stop");
         const controller = new AbortController();
-        const logger = createMockLogger();
         const client = new HttpClient({
           baseUrl: BASE_URL,
           fetchImpl: createPendingFetch(),
-          logger,
         });
 
         const call = track(
@@ -2288,16 +2141,15 @@ describe("HttpClient", () => {
 
         expect(reasonNow(call)).toBe(reason);
         await advanceTo(10_000);
-        expect(logCallsOf(logger)).toStrictEqual([ABORTED_LOG]);
+
+        expect(reasonNow(call)).toBe(reason);
       });
 
-      it("should reject with a TimeoutError at 100 ms, and log only the timeout, after the caller aborts", async () => {
+      it("should reject with a TimeoutError at 100 ms, before the caller aborts", async () => {
         const controller = new AbortController();
-        const logger = createMockLogger();
         const client = new HttpClient({
           baseUrl: BASE_URL,
           fetchImpl: createPendingFetch(),
-          logger,
         });
 
         const call = track(
@@ -2308,246 +2160,110 @@ describe("HttpClient", () => {
         controller.abort(new Error("stop"));
         await flush();
 
-        expect(logCallsOf(logger)).toStrictEqual([timedOutLog(error)]);
+        expect(reasonNow(call)).toBe(error);
       });
     });
   });
 
-  // One log per outcome: a test counts the calls on the four log methods
-  // together.
-  describe("logs", () => {
-    it("should log a returned 200 once, at debug", async () => {
-      const logger = createMockLogger();
-      const client = new HttpClient({
-        baseUrl: BASE_URL,
-        fetchImpl: createResponseFetch(new Response(null, { status: 200 })),
-        logger,
-      });
+  describe("no marker reaches the rejection's JSON", () => {
+    const MARKERS = [
+      "alice",
+      "hunter2",
+      "q-secret",
+      "frag-secret",
+      "query-secret",
+      "body-secret",
+      "header-secret",
+    ];
 
-      await client.get("/users");
-
-      expect(logCallsOf(logger)).toEqual([
-        [
-          "debug",
-          "HTTP response received.",
-          { method: "GET", url: "https://api.example.com/users", status: 200 },
-        ],
-      ]);
+    // A request with a timeout times out at 100 ms; the others settle at
+    // once.
+    beforeEach(() => {
+      vi.useFakeTimers({ now: 0 });
     });
 
-    it("should log a returned 500 without throwOnError once, at debug", async () => {
-      const logger = createMockLogger();
-      const client = new HttpClient({
-        baseUrl: BASE_URL,
-        fetchImpl: createResponseFetch(new Response(null, { status: 500 })),
-        logger,
-      });
-
-      await client.get("/users");
-
-      expect(logCallsOf(logger)).toEqual([
-        [
-          "debug",
-          "HTTP response received.",
-          { method: "GET", url: "https://api.example.com/users", status: 500 },
-        ],
-      ]);
+    afterEach(() => {
+      vi.useRealTimers();
     });
 
-    it("should log a 404 with throwOnError once, at warn, with the rejected error", async () => {
-      const logger = createMockLogger();
-      const client = new HttpClient({
-        baseUrl: BASE_URL,
-        fetchImpl: createResponseFetch(new Response(null, { status: 404 })),
-        logger,
-      });
-
-      const error = await reasonOf(
-        client.get("/users", { throwOnError: true }),
-      );
-
-      expect(logCallsOf(logger)).toEqual([
-        [
-          "warn",
-          "HTTP response with an error status.",
-          {
-            method: "GET",
-            url: "https://api.example.com/users",
-            status: 404,
-            error: expect.any(HttpResponseError),
-          },
-        ],
-      ]);
-      expect(logger.warn.mock.calls[0]?.[1]?.error).toBe(error);
-    });
-
-    it("should log a rejection of fetchImpl once, at warn, with the rejected error", async () => {
-      const logger = createMockLogger();
-      const client = new HttpClient({
-        baseUrl: BASE_URL,
-        fetchImpl: createRejectingFetch(new TypeError("Failed to fetch")),
-        logger,
-      });
-
-      const error = await reasonOf(client.get("/users"));
-
-      expect(logCallsOf(logger)).toEqual([
-        [
-          "warn",
-          "HTTP request got no response.",
-          {
-            method: "GET",
-            url: "https://api.example.com/users",
-            error: expect.any(NetworkError),
-          },
-        ],
-      ]);
-      expect(logger.warn.mock.calls[0]?.[1]?.error).toBe(error);
-    });
-
-    describe("no marker reaches the logs", () => {
-      const MARKERS = [
-        "alice",
-        "hunter2",
-        "q-secret",
-        "frag-secret",
-        "query-secret",
-        "body-secret",
-        "header-secret",
-      ];
-
-      // A request with a timeout times out at 100 ms; the others settle at
-      // once.
-      beforeEach(() => {
-        vi.useFakeTimers({ now: 0 });
-      });
-
-      afterEach(() => {
-        vi.useRealTimers();
-      });
-
-      it.each<{
-        outcome: string;
-        createFetch: () => FetchImpl;
-        throwOnError: boolean;
-        options?: Pick<RequestOptions, "timeout" | "signal">;
-      }>([
-        {
-          outcome: "answered 200",
-          createFetch: () =>
-            createResponseFetch(new Response(null, { status: 200 })),
-          throwOnError: false,
-        },
-        {
-          outcome: "answered 404 with throwOnError",
-          createFetch: () =>
-            createResponseFetch(
-              new Response("body-secret", {
-                status: 404,
-                headers: { "x-header": "header-secret" },
-              }),
+    it.each<{
+      outcome: string;
+      createFetch: () => FetchImpl;
+      throwOnError: boolean;
+      errorClass: abstract new (
+        ...args: never[]
+      ) => HttpResponseError | NetworkError | TimeoutError;
+      options?: Pick<RequestOptions, "timeout">;
+    }>([
+      {
+        outcome: "answered 404 with throwOnError",
+        createFetch: () =>
+          createResponseFetch(
+            new Response("body-secret", {
+              status: 404,
+              headers: { "x-header": "header-secret" },
+            }),
+          ),
+        throwOnError: true,
+        errorClass: HttpResponseError,
+      },
+      {
+        // The markers are in a message, in own fields, and so in the
+        // stacks, which start with the message.
+        outcome: "rejected",
+        createFetch: () =>
+          createRejectingFetch(
+            new TypeError(
+              "Request cannot be constructed from a URL that includes credentials: https://alice:hunter2@api.example.com/v1/users?token=q-secret&q=query-secret#frag-secret",
+              {
+                cause: Object.assign(new Error("Response Error"), {
+                  name: "ResponseError",
+                  code: "UND_ERR_RESPONSE",
+                  headers: { "set-cookie": "sid=header-secret" },
+                  body: { token: "body-secret" },
+                }),
+              },
             ),
-          throwOnError: true,
-        },
-        {
-          // The markers are in a message, in own fields, and so in the
-          // stacks, which start with the message.
-          outcome: "rejected",
-          createFetch: () =>
-            createRejectingFetch(
-              new TypeError(
-                "Request cannot be constructed from a URL that includes credentials: https://alice:hunter2@api.example.com/v1/users?token=q-secret&q=query-secret#frag-secret",
-                {
-                  cause: Object.assign(new Error("Response Error"), {
-                    name: "ResponseError",
-                    code: "UND_ERR_RESPONSE",
-                    headers: { "set-cookie": "sid=header-secret" },
-                    body: { token: "body-secret" },
-                  }),
-                },
-              ),
-            ),
-          throwOnError: false,
-        },
-        {
-          outcome: "timed out",
-          createFetch: createPendingFetch,
-          throwOnError: false,
-          options: { timeout: 100 },
-        },
-        {
-          // An Error's message is not in its JSON, so the marker is also in
-          // an own enumerable field: a logged reason would show it. The one
-          // in the message shows a logged message or string of the reason.
-          outcome: "aborted",
-          createFetch: createPendingFetch,
-          throwOnError: false,
-          options: {
-            signal: AbortSignal.abort(
-              Object.assign(new Error("body-secret"), { token: "body-secret" }),
-            ),
-          },
-        },
-      ])(
-        "should log the reduced URL and no marker of a request $outcome",
-        async ({ createFetch, throwOnError, options }) => {
-          const logger = createMockLogger();
-          const client = new HttpClient({
-            baseUrl: BASE_URL,
-            fetchImpl: createFetch(),
-            logger,
-          });
+          ),
+        throwOnError: false,
+        errorClass: NetworkError,
+      },
+      {
+        outcome: "timed out",
+        createFetch: createPendingFetch,
+        throwOnError: false,
+        errorClass: TimeoutError,
+        options: { timeout: 100 },
+      },
+    ])(
+      "should reject a request $outcome with an error holding the reduced URL in details and no marker in its JSON",
+      async ({ createFetch, throwOnError, errorClass, options }) => {
+        const client = new HttpClient({
+          baseUrl: BASE_URL,
+          fetchImpl: createFetch(),
+        });
 
-          // Whether it resolves or rejects is for the cases above: this one
-          // reads the logs, once the request has settled. Firefox reads a
-          // body later than the other runtimes, after the clock has reached
-          // 100 ms.
-          const settled = client
-            .get("/v1/users?token=q-secret#frag-secret", {
-              query: { q: "query-secret" },
-              throwOnError,
-              ...options,
-            })
-            .catch(() => undefined);
-          await advanceTo(100);
-          await settled;
+        // Firefox reads a body later than the other runtimes, after the
+        // clock has reached 100 ms: the rejection is awaited once the
+        // clock is there.
+        const rejected = rejectionOf(
+          client.get("/v1/users?token=q-secret#frag-secret", {
+            query: { q: "query-secret" },
+            throwOnError,
+            ...options,
+          }),
+          errorClass,
+        );
+        await advanceTo(100);
+        const error = await rejected;
 
-          const calls = logCallsOf(logger);
-          expect(calls).not.toEqual([]);
-          for (const [, , metadata] of calls) {
-            expect(metadata).toHaveProperty("url", REDUCED_URL);
-          }
-
-          // The logger's context goes into every log too.
-          const loggedArguments = [
-            ...calls.flatMap(([, ...args]) => args),
-            ...logger.child.mock.calls.flat(),
-          ];
-          for (const argument of loggedArguments) {
-            const json = JSON.stringify(argument);
-            for (const marker of MARKERS) {
-              expect(json, marker).not.toContain(marker);
-            }
-          }
-        },
-      );
-    });
-
-    it("should call the logger's child once, with the HttpClient context and no baseUrl", async () => {
-      const logger = createMockLogger();
-      const client = new HttpClient({
-        baseUrl: BASE_URL,
-        fetchImpl: createMockFetch(200),
-        logger,
-      });
-
-      await client.get("/users");
-
-      expect(logger.child).toHaveBeenCalledTimes(1);
-      const options = logger.child.mock.calls[0]?.[0];
-      expect(options).toHaveProperty("context", "HttpClient");
-      expect(options?.metadata ?? {}).not.toHaveProperty("baseUrl");
-    });
+        expect(error.details.url).toBe(REDUCED_URL);
+        const json = JSON.stringify(error);
+        for (const marker of MARKERS) {
+          expect(json, marker).not.toContain(marker);
+        }
+      },
+    );
   });
 
   describe("convenience methods", () => {

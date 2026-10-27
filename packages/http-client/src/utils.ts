@@ -4,7 +4,7 @@ import type { HttpBody } from "./http-client.types";
 type HeaderEntry = [name: string, value: HeadersInputRecord[string]];
 
 // Credentials, the query string and the fragment can carry secrets: errors
-// and logs show the origin and the path only.
+// show the origin and the path only.
 export function redactUrl(url: URL): string {
   return `${url.origin}${url.pathname}`;
 }

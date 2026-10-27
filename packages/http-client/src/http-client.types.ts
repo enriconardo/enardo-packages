@@ -1,5 +1,4 @@
 import type { HeadersInput } from "./header";
-import type { Logger } from "./logger";
 
 /** The methods `HttpClient` sends. */
 export type HttpMethod =
@@ -23,11 +22,6 @@ export interface HttpClientOptions {
    * undici `dispatcher`.
    */
   fetchImpl?: FetchImpl;
-  /**
-   * Receives one log per request, once it is built: a caller's error is not
-   * logged. Nothing is logged without it.
-   */
-  logger?: Logger;
   /**
    * The timeout of every request, in milliseconds: an integer from 1 to
    * 2147483647, or `false` for none; otherwise the constructor throws a

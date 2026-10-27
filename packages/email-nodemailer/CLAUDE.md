@@ -8,8 +8,7 @@ The nodemailer implementation of `@enardo/email`'s `EmailSender`. The public con
 src/nodemailer-email-sender.ts   NodemailerEmailSender, its options, the mailboxes, the reads of nodemailer's results and rejections
 src/address.ts                   the grammar of the addresses the sender accepts, and their envelope form
 src/errors/                      the constructor's error; send rejects with @enardo/email's
-src/logger.ts                    the Logger interface (a local copy) and the noop logger
-__tests__/support/               the SMTP server (and its idle servers), header parsing and the decoder of encoded words, the recording logger, the seeded address generators, the assertions
+__tests__/support/               the SMTP server (and its idle servers), header parsing and the decoder of encoded words, the seeded address generators, the assertions
 ```
 
 ## Recipients
@@ -31,12 +30,12 @@ __tests__/support/               the SMTP server (and its idle servers), header 
 
 ## Sending
 
-- **What the contract rejects, the sender rejects before calling nodemailer**: an empty `to`, a refused address, a missing sender, a `subject`, `text` or `html` that is not a string (`typeof`, not a list of shapes: nodemailer reads an object body as a file or a URL, and an object subject with `prepared` as raw headers). Nothing is sent, and nothing is logged.
+- **What the contract rejects, the sender rejects before calling nodemailer**: an empty `to`, a refused address, a missing sender, a `subject`, `text` or `html` that is not a string (`typeof`, not a list of shapes: nodemailer reads an object body as a file or a URL, and an object subject with `prepared` as raw headers). Nothing is sent.
 - **Every failure becomes an error of `@enardo/email`.** No error of nodemailer's passes through: its fields echo the addresses the server sent back.
 - **A refusal is read from `rejected`**: the result's, which `SMTPTransport` always sets, or the rejection's, when nodemailer rejects with `EENVELOPE` and `RCPT TO` because every recipient was refused. `rejected` decides who was refused: LMTP would put a refusal after the data there alone. Each address of it is matched to every index of `to` with its envelope form (`envelopeFormOf`), which holds only because the grammar of `address.ts` leaves nodemailer nothing to change but the case of the domain: a change to the grammar checks the match again (cases 60 and 67).
 - **Its `retryable` comes from `rejectedErrors`**, matched by `recipient`, never by position: a `4xx` reply. A recipient without a readable entry is not retryable.
 - **A refusal that cannot be read is a failure like any other**: a `rejected` that is not a list of strings, or holds an address that matches no recipient. Reporting it as a refusal would say wrongly who got the message.
-- **Every other rejection is `EmailSendFailedError`**, with nodemailer's identifiers as `cause`, read as the logs read them (*Logs*), and `retryable` from the reply code, else from the connection codes (`isRetryable`), on `code` or `originalCode`. Those codes cover every connection nodemailer opens, not only the one to the relay: an HTTP proxy's socket rejects with the system's code as it is, and the OAuth2 token request with `EFETCH` under `EAUTH`. A code that mixes misconfigurations with outages (`EPROXY`, `ETLS`) stays out.
+- **Every other rejection is `EmailSendFailedError`**, with nodemailer's identifiers as `cause`, read as the errors section below reads them, and `retryable` from the reply code, else from the connection codes (`isRetryable`), on `code` or `originalCode`. Those codes cover every connection nodemailer opens, not only the one to the relay: an HTTP proxy's socket rejects with the system's code as it is, and the OAuth2 token request with `EFETCH` under `EAUTH`. A code that mixes misconfigurations with outages (`EPROXY`, `ETLS`) stays out.
 
 ## Transporters
 
@@ -50,9 +49,9 @@ __tests__/support/               the SMTP server (and its idle servers), header 
 - **Nothing `createTransport` throws passes through.** The constructor throws `InvalidEmailSenderOptionsError` (`transport-options`) with the thrown value's `name` and `code`, each when a string, read with `readField`. Never its `message`, `input` or `stack`: its errors hold the URL, password included.
 - **`transport` reaches `createTransport` as it is, never as a copy.** `createTransport` reads `url`, `pool` and the transport flags through the prototype chain, and a spread lost them: a class instance with a `url` getter went to `localhost:587`, in the second review.
 
-## Logs
+## Errors
 
-- **The logs and the errors carry counts, flags, and nodemailer's identifiers**: `code`, `command`, `responseCode`, `originalCode`. They never carry an address, a name, a subject, a body, or an error object. nodemailer's errors echo addresses in `message`, `response`, `stack`, `rejected` and `rejectedErrors`.
+- **The errors carry indexes, flags, and nodemailer's identifiers**: `code`, `command`, `responseCode`, `originalCode`. They never carry an address, a name, a subject, a body, or nodemailer's error. nodemailer's errors echo addresses in `message`, `response`, `stack`, `rejected` and `rejectedErrors`.
 - **The rejection is a value the sender does not control**: `transport.getSocket`, a callback of the caller's, makes nodemailer reject with whatever it calls back with. Each identifier is read on its own, in a `try`, and only at the top level; so are `rejected` and each entry of `rejectedErrors`, and a list that throws while copied counts as unreadable. A read that throws, or a value of another type, counts as missing. A throw there would replace the error being reported.
 
 ## Tests

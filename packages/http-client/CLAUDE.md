@@ -2,7 +2,7 @@
 
 HTTP client over the Fetch API: it makes requests, in browsers and on Node alike. A web app, in a repo of its own, is its only consumer today; a Node consumer would be a server calling upstream services. The public contract is in [README.md](./README.md); this file holds the rules for changing the package.
 
-Server needs are requirements, not extras: timeouts, a `baseUrl` with a path, logs without response bodies or query strings. The logs, the `baseUrl` and the timeouts meet them (below).
+Server needs are requirements, not extras: timeouts, a `baseUrl` with a path, errors whose `toJSON()` holds no response body or query string. The errors, the `baseUrl` and the timeouts meet them (below).
 
 ## Layout
 
@@ -12,7 +12,6 @@ src/http-client.types.ts    HttpClientOptions, RequestOptions, HttpMethod, Query
 src/errors/                 HttpResponseError, NetworkError and the reduction of its cause, TimeoutError
 src/deadline.ts             Deadline (the timeout and the caller's signal, raced against fetchImpl), toTimeout
 src/header.ts               HeadersInput and its record and iterable shapes
-src/logger.ts               the Logger interface (a local copy) and the noop logger
 src/utils.ts                toBasePrefix, hasCredentials, toHeaders, redactUrl, isStreamBody
 tsconfig.json               editor, build and __tests__: the DOM libs and the Node types together
 tsconfig.browser.json       src/ alone, as a browser sees it: DOM libs, no Node types (runtime-browser.json)
@@ -27,21 +26,20 @@ __tests__/support/          the helpers both kinds of test file share, beyond a 
 - **A string resource is joined after the origin and the path of `baseUrl` and a `/`**, one trailing `/` of that path and one leading `/` of the resource dropped first. It is never resolved as a relative reference (`new URL(resource, baseUrl)`): after the origin and a `/`, the parser reads a path, so nothing in the resource can change the origin. Dot segments can still climb above the base's path; whether to check them is in the backlog, to evaluate.
 - **The base keeps its origin and its path, and nothing else.** What the join would lose (credentials, a query string, a fragment) is refused by the constructor, and so is any scheme but `http` and `https`.
 
-## Errors and logs
+## Errors
 
 - **The client throws three errors of its own**, siblings over `BaseError`: `HttpResponseError`, `NetworkError` and `TimeoutError`. The caller's errors stay native `TypeError`s: a `baseUrl` or a `timeout` the constructor cannot use, and, thrown before `fetchImpl` is called, a timeout, a URL or a header that cannot be used, a URL with credentials, or a body with `GET` or `HEAD`. Only `Deadline.race` wraps the call to `fetchImpl`, so nothing else becomes a `NetworkError`. The messages the client writes for them hold no part of the URL.
-- **What the client itself puts in a log or an error's `toJSON()` carries no credentials, query string, response headers or body.** A URL goes through `redactUrl` (origin and path). Response headers and bodies are non-enumerable fields, so they stay out of `toJSON()` and of serializers that enumerate own keys. One known leak remains, in the README: the path of the URL is logged as it is.
+- **An error's `toJSON()` carries no credentials, query string, response headers or body.** A URL goes through `redactUrl` (origin and path). Response headers and bodies are non-enumerable fields, so they stay out of `toJSON()` and of serializers that enumerate own keys. One known leak remains, in the README: `details.url` and the message keep the path as it is.
 - **The `NetworkError` constructor reduces its `cause` to the `name` and string `code` of each error of the chain, and keeps nothing of the original.**
   - Only identifiers: a message, a stack or an own field of a fetch implementation's error can hold anything. On Node they hold URLs (in a message, or in `base`) and raw response bytes (`HTTPParserError.data`). Redacting URLs would not be enough.
-  - It never throws: it reads a value the client does not control, so a read that throws (a getter, a Proxy trap) counts as missing, and the chain stops at 10 links. A throw there would replace the `NetworkError` and its log.
+  - It never throws: it reads a value the client does not control, so a read that throws (a getter, a Proxy trap) counts as missing, and the chain stops at 10 links. A throw there would replace the `NetworkError`.
   - In the constructor, never in a `toJSON()` override: `serializeError` of `@enardo/errors` walks a nested cause without calling its `toJSON()`, so an error that wraps a `NetworkError` would log the original. `util.inspect` prints it too.
   - The tests reproduce the four triggers the README lists: three against Node's real `fetch`, npm `undici`'s as a stub. The client rejects a URL with credentials itself, so that trigger reaches Node's `fetch` through a `fetchImpl` that adds them. A new trigger gets a test of its own.
-- **One log per outcome**, with the levels and messages of the README. A request that is never built logs nothing; one whose signal is already aborted logs its abort.
 - **`fetchImpl` is called with `(url, init)`**, never with a `Request`: npm `undici` and `node-fetch` reject a global `Request`. `FetchInit` lists only what the client passes, so that other implementations fit `FetchImpl`.
 
 ## Timeouts and the caller's signal
 
-- **An abort rejects with the caller's reason, as it is.** The client never reads into it: no field, no `instanceof`, no promise resolved with it, since resolution reads its `then`. That is why `Deadline.race` resolves with a wrapper (`Raced`), never with a value. The reason is not logged either: it is a value the client does not control.
+- **An abort rejects with the caller's reason, as it is.** The client never reads into it: no field, no `instanceof`, no promise resolved with it, since resolution reads its `then`. That is why `Deadline.race` resolves with a wrapper (`Raced`), never with a value.
 - **The outcome comes from the client's own state**: its timer first, then the caller's signal. Never from what `fetchImpl` rejected with: a rejection named `TimeoutError` or `AbortError` while neither fired is a `NetworkError`. Never from the reason of the combined signal either: with nothing listening to it, Node sets that reason lazily, to the first aborted source in array order (probed in the spec of `feature/http-client/timeouts-and-abort`).
 - **`request()` never waits for `fetchImpl` to honor the signal.** `Deadline.race` settles at the abort. A response that arrives later has its body cancelled, recognized by its shape (a `body` with a `cancel` method), never by `instanceof Response`: npm `undici`'s `Response` is another class. A later rejection, or a failure there, is dropped.
 - **The timeout ends when `request()` settles**, in a `finally`. The caller's signal keeps reaching the body of a returned response through `init.signal`.
@@ -95,7 +93,7 @@ This package is the example of the opt-in. Another package whose `src/` runs in 
 
 **Timers:**
 - The timeout cases with a stub run under fake timers; those with Node's `fetch`, under real ones.
-- A check that needs a real body to have been read, such as the log of an `HttpResponseError` with its body, waits for the request to settle: Firefox reads a body later than the other runtimes, after more than one real macrotask. A check of what has settled at an instant of the fake clock (`track`, `advanceTo`, `rejectionNow`) stays valid when nothing it checks waits on such a read.
+- A check that needs a real body to have been read, such as the rejection of an `HttpResponseError` with its body, waits for the request to settle: Firefox reads a body later than the other runtimes, after more than one real macrotask. A check of what has settled at an instant of the fake clock (`track`, `advanceTo`, `rejectionNow`) stays valid when nothing it checks waits on such a read.
 - `errorsReachingProcess` listens on `process` on Node, and on the page in a browser. It waits with timers captured before any test fakes them.
 
 Tests import from the entry point only (`~/index`), so the files of `src/` can move without touching them: internal helpers are tested through the public API, as `toHeaders` is through the `Headers` that `HttpClient` hands to `fetchImpl` (`header.test.ts`). `index.test.ts` lists the public surface, so a change to it changes that list too.

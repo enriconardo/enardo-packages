@@ -7,8 +7,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NodemailerEmailSender } from "~/index";
 import { ADDRESS_MARKERS, rejectionOf } from "./support/assertions";
 import { headerValues } from "./support/headers";
-import { createRecordingLogger } from "./support/logger";
-import type { RecordingLogger } from "./support/logger";
 import {
   onlyReceived,
   useIdleSmtpServers,
@@ -32,14 +30,8 @@ function messageWith(fields: Record<string, unknown>): EmailMessage {
   return { ...MESSAGE, ...fields };
 }
 
-function senderOn(
-  server: LocalSmtpServer,
-  logger: RecordingLogger = createRecordingLogger(),
-): NodemailerEmailSender {
-  return new NodemailerEmailSender({
-    transport: server.transportOptions,
-    logger,
-  });
+function senderOn(server: LocalSmtpServer): NodemailerEmailSender {
+  return new NodemailerEmailSender({ transport: server.transportOptions });
 }
 
 type ContentField = "subject" | "text" | "html";
@@ -50,24 +42,21 @@ describe("content", () => {
   const idleServer = useIdleSmtpServers();
 
   /**
-   * Sends `message` to an idle server with a recording logger, and checks
-   * that it rejects with `InvalidEmailMessageError` and `details`, and logs
-   * nothing. The idle server checks that nothing was sent.
+   * Sends `message` to an idle server, and checks that it rejects with
+   * `InvalidEmailMessageError` and `details`. The idle server checks that
+   * nothing was sent.
    */
   async function expectRefused(
     message: EmailMessage,
     details: object,
   ): Promise<InvalidEmailMessageError> {
-    const logger = createRecordingLogger();
-
     const error = await rejectionOf(
-      senderOn(await idleServer(), logger).send(message),
+      senderOn(await idleServer()).send(message),
       InvalidEmailMessageError,
     );
 
     expect(error.code).toBe("INVALID_EMAIL_MESSAGE");
     expect(error.details).toStrictEqual(details);
-    expect(logger.calls).toEqual([]);
     return error;
   }
 
