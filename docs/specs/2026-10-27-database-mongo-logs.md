@@ -31,6 +31,7 @@ Of the events the caller cannot see (a collection created, a validator applied, 
 - **Only "collection created" stays**, at `debug`, unconditionally: the logger's level filters it. Not kept: the validator updated and the indexes ensured, which run on every `connect()` and do not say whether anything changed (whether they can tell is not probed, and is left to the branch that brings them back); the index dropped, at `debug` or `warn`, set aside by the user for now.
 - **`debug` and `debugNamespace` are removed.** The context is fixed, `"MongoDatabase"`, with `{ dbName }` as metadata: two instances are told apart by `dbName`.
 - **No log of a failed `connect()`**: the caller gets the rejection (ADR 0014 point 2).
+- **The kept log follows the logger's level**: with the flag gone, an app whose logger is at `debug` gets "collection created" where it got nothing by default before.
 - **The local `Logger` keeps `debug` and the optional `child`**; `error` goes. A logger that still has `error` stays assignable.
 - **The README** is left to the architectural review of the package (*To evaluate* in the backlog), which has not run.
 - **The version stays 2.0.0**: unpublished, it takes the change as it is.
@@ -44,7 +45,7 @@ None.
 - `src/mongo.database.ts`: no `debug` field; the child logger's context fixed to `"MongoDatabase"`; one `debug` call, `Collection '<name>' created.`, after `createCollection`; every other log call removed, the `catch` of `connect()` included (cleanup and rethrow stay). The class JSDoc example loses `debug` and `debugNamespace`.
 - `src/mongo.database.types.ts`: `debug` and `debugNamespace` removed, with their `@property` lines.
 - `src/logger.ts`: `error` removed from `Logger` and from the no-op logger.
-- `docs/backlog.md`: the item removed.
+- `docs/backlog.md`: the item removed; the `@throws` gap added to the item of the architectural review of `@enardo/database` and `@enardo/database-mongo`.
 
 ## Test cases
 
@@ -59,9 +60,14 @@ In `__tests__/mongo.database.test.ts`; the mock logger keeps spies for `debug`, 
 
 The four tests listed under *Probes* go: 1 and 4 replace two of them, the two others pin the flag.
 
+## Risks
+
+- **An app silently loses logs.** Options built in a variable with `debug` or `debugNamespace` still compile (excess properties are checked on object literals only), and log only "collection created". An app that relied on the `error` of a failed `connect()` logs the rejection it gets (ADR 0014, *Consequences*). Apps live in other repos: whether any sets `debug: true` is not probed. The package has no README to carry a notice; the version, 1.0.0 to 2.0.0, is the signal.
+
 ## Out of scope
 
 - The README, and the rest of the package's design: its architectural review.
+- `connect()`'s JSDoc says `@throws {DatabaseError}` (`mongo.database.ts:65`), and the `catch` rethrows the driver's error as it is: a gap of the error contract, added to the backlog's item for the architectural review of `@enardo/database` and `@enardo/database-mongo`. Case 4 pins today's rethrow.
 - Logging the validator, the indexes and an index dropped.
 
 ## Plan
