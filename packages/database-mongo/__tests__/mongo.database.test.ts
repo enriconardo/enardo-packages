@@ -369,6 +369,20 @@ describe("MongoDatabase", () => {
       expectNoLogsBut("warn");
     });
 
+    it("should not log a drop that failed", async () => {
+      const error = new Error("drop failed");
+      mockListCollectionsToArray.mockResolvedValueOnce([{ name: "users" }]);
+      mockListIndexesToArray.mockResolvedValueOnce([
+        { name: "old_idx", key: { legacy: 1 }, unique: true },
+      ]);
+      mockDropIndex.mockRejectedValueOnce(error);
+      const db = createDatabase({ schemas: [testSchema] });
+
+      await expect(db.connect()).rejects.toBe(error);
+
+      expectNoLogsBut();
+    });
+
     it("should log nothing on connect without schemas and disconnect", async () => {
       const db = createDatabase();
       await db.connect();
