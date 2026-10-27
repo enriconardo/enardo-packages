@@ -62,7 +62,7 @@ The four tests listed under *Probes* go: 1 and 4 replace two of them, the two ot
 
 ## Risks
 
-- **An app silently loses logs.** Options built in a variable with `debug` or `debugNamespace` still compile (excess properties are checked on object literals only), and lose every log but the two kept. Accepted: the package has no real consumer yet (the user, 2026-10-27); the version, 1.0.0 to 2.0.0, is the signal.
+- **An app silently loses logs.** Options built in a variable with `debug` or `debugNamespace` still compile (excess properties are checked on object literals only), and lose every log but the two kept. Accepted: the package has no consumer in production yet (the user, 2026-10-27). The one app known to build a `MongoDatabase`, in another repo, passes an object literal without either option, and logs a failed `connect()` in its own bootstrap (read on 2026-10-27). The version, 1.0.0 to 2.0.0, is the signal.
 
 ## Out of scope
 
@@ -73,4 +73,4 @@ The four tests listed under *Probes* go: 1 and 4 replace two of them, the two ot
 ## Plan
 
 1. **Tests first** (cases 1–6): 1, 2 and 4 fail on `main` (1 and 2: no log without the flag; 4: the `error` call); 3, 5 and 6 pass on `main` and guard what stays. Then the changes of `src/`; `pnpm verify` green; one commit.
-2. **Backlog**: the item removed, in a commit of its own.
+2. **Backlog**: the item removed and the `@throws` gap added to the item of the architectural review, in a commit of its own.
