@@ -31,31 +31,39 @@ const mockDb = vi.fn().mockReturnValue({
 });
 
 const mockConnect = vi.fn().mockResolvedValue(undefined);
-const { mockLogger, mockLoggerDebug, mockLoggerError, mockLoggerChild } =
-  vi.hoisted(() => {
-    const loggerDebug = vi.fn();
-    const loggerInfo = vi.fn();
-    const loggerWarn = vi.fn();
-    const loggerError = vi.fn();
-    const loggerChild = vi.fn();
+const {
+  mockLogger,
+  mockLoggerDebug,
+  mockLoggerInfo,
+  mockLoggerWarn,
+  mockLoggerError,
+  mockLoggerChild,
+} = vi.hoisted(() => {
+  const loggerDebug = vi.fn();
+  const loggerInfo = vi.fn();
+  const loggerWarn = vi.fn();
+  const loggerError = vi.fn();
+  const loggerChild = vi.fn();
 
-    const logger = {
-      debug: loggerDebug,
-      info: loggerInfo,
-      warn: loggerWarn,
-      error: loggerError,
-      child: loggerChild,
-    } as unknown as Logger;
+  const logger = {
+    debug: loggerDebug,
+    info: loggerInfo,
+    warn: loggerWarn,
+    error: loggerError,
+    child: loggerChild,
+  } as unknown as Logger;
 
-    loggerChild.mockReturnValue(logger);
+  loggerChild.mockReturnValue(logger);
 
-    return {
-      mockLogger: logger,
-      mockLoggerDebug: loggerDebug,
-      mockLoggerError: loggerError,
-      mockLoggerChild: loggerChild,
-    };
-  });
+  return {
+    mockLogger: logger,
+    mockLoggerDebug: loggerDebug,
+    mockLoggerInfo: loggerInfo,
+    mockLoggerWarn: loggerWarn,
+    mockLoggerError: loggerError,
+    mockLoggerChild: loggerChild,
+  };
+});
 
 vi.mock("mongodb", () => {
   const MockMongoClient = vi.fn(function (this: Record<string, unknown>) {
@@ -105,6 +113,22 @@ const testSchema: IMongoSchema = {
   ],
 };
 
+/** The log methods: `child` is left out, since the constructor calls it. */
+const logMethods = {
+  debug: mockLoggerDebug,
+  info: mockLoggerInfo,
+  warn: mockLoggerWarn,
+  error: mockLoggerError,
+};
+
+function expectNoLogsBut(...allowed: (keyof typeof logMethods)[]): void {
+  for (const [name, spy] of Object.entries(logMethods)) {
+    if (!allowed.includes(name as keyof typeof logMethods)) {
+      expect(spy, `logger.${name}`).not.toHaveBeenCalled();
+    }
+  }
+}
+
 // ─── Tests ───────────────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -117,11 +141,6 @@ beforeEach(() => {
 describe("MongoDatabase", () => {
   describe("constructor", () => {
     it("should accept options and set defaults", () => {
-      const db = createDatabase();
-      expect(db.isConnected()).toBe(false);
-    });
-
-    it("should default debug to false", () => {
       const db = createDatabase();
       expect(db.isConnected()).toBe(false);
     });
@@ -200,35 +219,6 @@ describe("MongoDatabase", () => {
       await expect(db.connect()).rejects.toThrow("Connection refused");
       expect(db.isConnected()).toBe(false);
       expect(mockClose).toHaveBeenCalledOnce();
-    });
-
-    it("should log debug messages when debug is enabled", async () => {
-      const db = createDatabase({ debug: true, schemas: [testSchema] });
-      await db.connect();
-
-      expect(mockLoggerDebug).toHaveBeenCalledWith(
-        expect.stringContaining("Collection 'users'"),
-      );
-    });
-
-    it("should not log debug messages when debug is disabled", async () => {
-      const db = createDatabase({ debug: false, schemas: [testSchema] });
-      await db.connect();
-
-      expect(mockLoggerDebug).not.toHaveBeenCalled();
-    });
-
-    it("should log errors when connection fails", async () => {
-      mockConnect.mockRejectedValueOnce(new Error("Connection refused"));
-      const db = createDatabase();
-
-      await expect(db.connect()).rejects.toThrow("Connection refused");
-      expect(mockLoggerError).toHaveBeenCalledWith(
-        "Failed to connect to MongoDB.",
-        expect.objectContaining({
-          error: expect.any(Error),
-        }),
-      );
     });
   });
 
@@ -339,6 +329,78 @@ describe("MongoDatabase", () => {
         validator: schemaNoIndexes.validation,
       });
       expect(mockCreateIndexes).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("logging", () => {
+    it("should log a created collection at debug, and nothing else", async () => {
+      const db = createDatabase({ schemas: [testSchema] });
+      await db.connect();
+
+      expect(mockLoggerDebug).toHaveBeenCalledOnce();
+      expect(mockLoggerDebug).toHaveBeenCalledWith(
+        "Collection 'users' created.",
+      );
+      expectNoLogsBut("debug");
+    });
+
+    it("should log a dropped index at warn with its definition, and nothing else", async () => {
+      const oldIndex = { name: "old_idx", key: { legacy: 1 }, unique: true };
+      mockListCollectionsToArray.mockResolvedValueOnce([{ name: "users" }]);
+      mockListIndexesToArray.mockResolvedValueOnce([
+        { name: "_id_" },
+        { name: "email_unique", key: { email: 1 }, unique: true },
+        oldIndex,
+      ]);
+      const db = createDatabase({ schemas: [testSchema] });
+      await db.connect();
+
+      expect(mockDbCommand).toHaveBeenCalledWith({
+        collMod: "users",
+        validator: testSchema.validation,
+      });
+      expect(mockCreateIndexes).toHaveBeenCalledWith(testSchema.indexes);
+      expect(mockDropIndex).toHaveBeenCalledWith("old_idx");
+      expect(mockLoggerWarn).toHaveBeenCalledOnce();
+      expect(mockLoggerWarn).toHaveBeenCalledWith(
+        "Index 'old_idx' dropped from collection 'users'.",
+        { index: { name: "old_idx", key: { legacy: 1 }, unique: true } },
+      );
+      expectNoLogsBut("warn");
+    });
+
+    it("should log nothing on connect without schemas and disconnect", async () => {
+      const db = createDatabase();
+      await db.connect();
+      await db.disconnect();
+
+      expectNoLogsBut();
+    });
+
+    it("should rethrow a failed connection without logging it", async () => {
+      const error = new Error("Connection refused");
+      mockConnect.mockRejectedValueOnce(error);
+      const db = createDatabase();
+
+      await expect(db.connect()).rejects.toBe(error);
+      expect(mockClose).toHaveBeenCalledOnce();
+      expectNoLogsBut();
+    });
+
+    it("should create a child logger with a fixed context and the dbName", () => {
+      createDatabase();
+
+      expect(mockLoggerChild).toHaveBeenCalledOnce();
+      expect(mockLoggerChild).toHaveBeenCalledWith({
+        context: "MongoDatabase",
+        metadata: { dbName: "test-db" },
+      });
+    });
+
+    it("should connect without a logger option", async () => {
+      const db = new MongoDatabase({ ...baseOptions, schemas: [testSchema] });
+
+      await expect(db.connect()).resolves.toBeUndefined();
     });
   });
 });

@@ -48,15 +48,12 @@ export interface IMongoSchema {
  * @property dbUri - MongoDB connection URI.
  * @property dbName - Name of the database to connect to.
  * @property schemas - Optional array of collection schemas to initialize on connect.
- * @property logger - Optional logger instance to use for diagnostics.
- * @property debug - When `true`, emit debug-level messages during initialization.
- * @property debugNamespace - Optional context label used for child logger namespace.
+ * @property logger - Optional logger. It gets a collection created at `debug`,
+ * and an index dropped at `warn` with its definition as `index` metadata.
  */
 export interface IMongoDatabaseOptions {
   readonly dbUri: string;
   readonly dbName: string;
   readonly schemas?: IMongoSchema[];
   readonly logger?: Logger;
-  readonly debug?: boolean;
-  readonly debugNamespace?: string;
 }
