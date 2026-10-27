@@ -2,7 +2,7 @@ export type LoggerMetadata = Record<string, unknown>;
 
 export interface Logger {
   debug(message: string, metadata?: LoggerMetadata): void;
-  error(message: string, metadata?: LoggerMetadata): void;
+  warn(message: string, metadata?: LoggerMetadata): void;
   child?(options: { context?: string; metadata?: LoggerMetadata }): Logger;
 }
 
@@ -11,7 +11,7 @@ export function createNoopLogger(): Logger {
 
   return {
     debug: noop,
-    error: noop,
+    warn: noop,
     child() {
       return this;
     },

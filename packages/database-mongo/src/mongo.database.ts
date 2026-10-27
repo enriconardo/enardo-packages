@@ -20,8 +20,6 @@ import { createNoopLogger, type Logger, withLoggerContext } from "./logger";
  * const db = new MongoDatabase({
  *   dbUri: "mongodb://localhost:27017",
  *   dbName: "myapp",
- *   debug: true,
- *   debugNamespace: "enardo:database-mongo",
  *   schemas: [UserSchema, OrderSchema],
  * });
  *
@@ -35,22 +33,20 @@ export default class MongoDatabase implements IMongoDatabase {
   private readonly dbUri: string;
   private readonly dbName: string;
   private readonly schemas: IMongoSchema[];
-  private readonly debug: boolean;
   private readonly logger: Logger;
 
   private client: MongoClient | undefined;
   private conn: Db | undefined;
 
   constructor(options: IMongoDatabaseOptions) {
-    const { schemas, dbUri, dbName, debug, debugNamespace, logger } = options;
+    const { schemas, dbUri, dbName, logger } = options;
     this.logger = withLoggerContext(
       logger ?? createNoopLogger(),
-      debugNamespace ?? "MongoDatabase",
+      "MongoDatabase",
       {
         dbName,
       },
     );
-    this.debug = debug ?? false;
     this.schemas = schemas ?? [];
     this.dbUri = dbUri;
     this.dbName = dbName;
@@ -65,9 +61,6 @@ export default class MongoDatabase implements IMongoDatabase {
    * @throws {DatabaseError} If the connection or initialization fails.
    */
   public async connect(): Promise<void> {
-    if (this.debug) {
-      this.logger.debug("Connecting to MongoDB.");
-    }
     const client = new MongoClient(this.dbUri);
 
     try {
@@ -75,13 +68,7 @@ export default class MongoDatabase implements IMongoDatabase {
       this.client = client;
       this.conn = client.db(this.dbName);
       await this.initCollections();
-      if (this.debug) {
-        this.logger.debug("MongoDB connection established.");
-      }
     } catch (error) {
-      this.logger.error("Failed to connect to MongoDB.", {
-        error,
-      });
       await client.close().catch(() => undefined);
       this.client = undefined;
       this.conn = undefined;
@@ -95,16 +82,9 @@ export default class MongoDatabase implements IMongoDatabase {
   public async disconnect(): Promise<void> {
     if (!this.client) return;
 
-    if (this.debug) {
-      this.logger.debug("Disconnecting from MongoDB.");
-    }
-
     await this.client.close();
     this.client = undefined;
     this.conn = undefined;
-    if (this.debug) {
-      this.logger.debug("MongoDB disconnected.");
-    }
   }
 
   /**
@@ -175,28 +155,18 @@ export default class MongoDatabase implements IMongoDatabase {
         await this.conn.createCollection(name, {
           validator: schema.validation,
         });
-        if (this.debug) {
-          this.logger.debug(`Collection '${name}' created with validator.`);
-        }
+        this.logger.debug(`Collection '${name}' created.`);
       } else {
         await this.conn.command({
           collMod: name,
           validator: schema.validation,
         });
-        if (this.debug) {
-          this.logger.debug(`Collection '${name}' updated with new validator.`);
-        }
       }
 
       // Always update/create indexes (idempotent)
       const indexes = schema.indexes ?? [];
       if (indexes.length > 0) {
         await this.conn.collection(name).createIndexes(indexes);
-        if (this.debug) {
-          this.logger.debug(
-            `Indexes for collection '${name}' ensured/updated.`,
-          );
-        }
       }
 
       // Remove indexes that are no longer present in the schema
@@ -212,11 +182,10 @@ export default class MongoDatabase implements IMongoDatabase {
         if (schemaIndexNames.includes(idx.name)) continue;
 
         await collection.dropIndex(idx.name);
-        if (this.debug) {
-          this.logger.debug(
-            `Index '${idx.name}' dropped from collection '${name}'.`,
-          );
-        }
+        this.logger.warn(
+          `Index '${idx.name}' dropped from collection '${name}'.`,
+          { index: idx },
+        );
       }
     }
   }
