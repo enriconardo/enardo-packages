@@ -11,7 +11,7 @@ branch: fix/http-client/error-body-limit
 
 ## Why
 
-With `throwOnError`, the client reads the body of an error response whole, into a string, with no size limit (`readText`, `src/http-client.ts:398`). An upstream that sends a large error body, or one that never ends, fills the caller's memory for as long as the timeout lets it: 30 s by default, gigabytes on a fast link. Without `throwOnError` the caller reads the `Response` and can bound the read; with it, the client reads, and the caller has no way to bound it but a `fetchImpl` that wraps the stream. The package's `CLAUDE.md` makes server needs requirements, and the README lists this one as the last thing a server needs before it relies on the client (*Not there yet*).
+With `throwOnError`, the client reads the body of an error response whole, into a string, with no size limit (`readText`, `src/http-client.ts:398`). An upstream that sends a large error body, or one that never ends, fills the caller's memory for as long as the timeout lets it, 30 s by default: nothing else bounds the read (a local server sent 13.4 MB in 2 s, `docs/specs/2026-10-07-timeouts-and-abort.md`). No consumer has met it: the only one runs in a browser. Without `throwOnError` the caller reads the `Response` and can bound the read; with it, the client reads, and the caller has no way to bound it but a `fetchImpl` that wraps the stream. The package's `CLAUDE.md` makes server needs requirements, and the README lists this one as the last thing a server needs before it relies on the client (*Not there yet*).
 
 From the backlog, queued; the item comes from the spec of `feature/http/client-errors` (2026-10-05).
 
