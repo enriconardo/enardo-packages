@@ -1,12 +1,24 @@
 import type { Db, IndexDescriptionInfo } from "mongodb";
-import { MongoClient } from "mongodb";
+import { MongoClient, MongoServerError } from "mongodb";
 import { DatabaseError } from "@enardo/database";
 import type {
   IMongoDatabase,
   IMongoDatabaseOptions,
+  IMongoIndex,
   IMongoSchema,
 } from "./mongo.database.types";
 import { createNoopLogger, type Logger, withLoggerContext } from "./logger";
+
+/** `IndexOptionsConflict` and `IndexKeySpecsConflict`: the index exists with another definition. */
+const INDEX_CONFLICT_CODES = [85, 86];
+
+function isIndexConflict(error: unknown): error is MongoServerError {
+  return (
+    error instanceof MongoServerError &&
+    typeof error.code === "number" &&
+    INDEX_CONFLICT_CODES.includes(error.code)
+  );
+}
 
 /**
  * MongoDB implementation of the {@link IMongoDatabase} interface.
@@ -56,7 +68,15 @@ export default class MongoDatabase implements IMongoDatabase {
    * Establish a connection to MongoDB.
    *
    * Creates a new {@link MongoClient}, connects to the server,
-   * and initializes all configured collections and indexes.
+   * and initializes all configured collections and indexes. Indexes are
+   * created when missing and an existing one is never changed: when a schema
+   * names one with another definition, `connect()` rejects with an `Error`
+   * naming the index and the collection, whose `cause` is the server's error,
+   * and drops no index of that collection. Drop the index by hand and
+   * `connect()` creates the schema's definition.
+   *
+   * `hidden` applies when an index is created: on an existing index it is
+   * neither applied nor checked, and changes through `collMod`.
    *
    * @throws {DatabaseError} If the connection or initialization fails.
    */
@@ -130,12 +150,51 @@ export default class MongoDatabase implements IMongoDatabase {
   }
 
   /**
+   * Create the indexes of a collection that don't exist yet.
+   *
+   * One `createIndexes` for all of them. When the server rejects it because an
+   * index exists with another definition, each index goes to its own call to
+   * find the one at fault: the server judges whether two definitions differ,
+   * since it normalizes what it stores and compares.
+   */
+  private async createIndexes(
+    collectionName: string,
+    indexes: IMongoIndex[],
+  ): Promise<void> {
+    if (indexes.length === 0) return;
+    const collection = this.getDb().collection(collectionName);
+
+    try {
+      await collection.createIndexes(indexes);
+      return;
+    } catch (error) {
+      if (!isIndexConflict(error)) throw error;
+    }
+
+    // The batch is all or nothing, so this pass starts from the same state.
+    for (const index of indexes) {
+      try {
+        await collection.createIndexes([index]);
+      } catch (error) {
+        if (!isIndexConflict(error)) throw error;
+        throw new Error(
+          `Index '${index.name}' of collection '${collectionName}' conflicts with an existing index: ${error.errmsg}. MongoDatabase never changes an existing index: drop it, and connect() creates the schema's definition.`,
+          { cause: error },
+        );
+      }
+    }
+  }
+
+  /**
    * Initialize collections, validators, and indexes based on configured schemas.
    *
    * For each schema:
    * - Creates the collection with its validator if it doesn't exist.
-   * - Updates the validator if the collection already exists.
-   * - Creates/updates indexes (idempotent).
+   * - Replaces the validator if the collection already exists.
+   * - Creates the indexes that are missing. An existing index is never
+   *   changed: when the schema names one with another definition, the sync
+   *   rejects, naming it, and drops no index of that collection. `hidden` applies
+   *   at creation only, and changes through `collMod`.
    * - Removes indexes that are no longer present in the schema.
    */
   private async initCollections(): Promise<void> {
@@ -163,11 +222,8 @@ export default class MongoDatabase implements IMongoDatabase {
         });
       }
 
-      // Always update/create indexes (idempotent)
       const indexes = schema.indexes ?? [];
-      if (indexes.length > 0) {
-        await this.conn.collection(name).createIndexes(indexes);
-      }
+      await this.createIndexes(name, indexes);
 
       // Remove indexes that are no longer present in the schema
       const collection = this.conn.collection(name);

@@ -127,6 +127,9 @@ importers:
       '@enardo/typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
+      '@enardo/vitest-config':
+        specifier: workspace:^
+        version: link:../vitest-config
       '@types/node':
         specifier: 'catalog:'
         version: 26.4.0
@@ -136,6 +139,9 @@ importers:
       mongodb:
         specifier: ^7.6.0
         version: 7.6.0
+      mongodb-memory-server:
+        specifier: 'catalog:'
+        version: 10.4.3
       prettier:
         specifier: 'catalog:'
         version: 3.9.6

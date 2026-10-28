@@ -15,7 +15,8 @@ export type IMongoDatabase = IDatabase;
  *
  * Extends the native MongoDB {@link IndexDescription} to enforce
  * explicit naming for all indexes, enabling deterministic
- * index synchronization.
+ * index synchronization: the name is how the sync matches an index
+ * of the schema with one of the database.
  */
 export interface IMongoIndex extends IndexDescription {
   name: string;
