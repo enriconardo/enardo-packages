@@ -6,7 +6,7 @@ The user reads it at the review that the backlog queues, once it holds 25 lesson
 
 - **Verdict:** `keep`, `revise` or `drop`.
 - **Form alone:** whether the proposal form alone would have given the verdict (`yes`, `no`).
-- **Main agent:** what it did with the verdict (`applied`, `rejected: <reason>`).
+- **Main agent:** what it did with the verdict (`applied`, `rejected: <reason>`, `not judged` for a rewrite other than the revised text).
 - **Outcome:** the user's (`applied`, `reworded`, `dropped`, `taken back`).
 - **Cost:** the tokens the Agent tool reported, and the time.
 

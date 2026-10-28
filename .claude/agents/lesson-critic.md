@@ -1,6 +1,6 @@
 ---
 name: lesson-critic
-description: Judges the lessons the learn step proposes (root `CLAUDE.md`, Workflow, step 6) at checkpoints 1 and 2, from their evidence and the rules they would join, not the code. Give it the path of a proposals file in the form of its *Input*, nothing else. Weigh its report as its *Output* says. Read-only.
+description: Judges the lessons the learn step proposes (root `CLAUDE.md`, Workflow, step 6) at checkpoints 1 and 2, from their evidence and the rules they would join, not the code. Give it the path of a proposals file in the form of its *Input*, nothing else. Weigh its report as *How the main agent weighs it* says. Read-only.
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: medium
@@ -17,7 +17,7 @@ The path of a proposals file. For each lesson:
 - where it goes: the file and section, or the check, script, hook or lint rule and what it refuses;
 - the evidence of the problem: a commit, a review finding quoted as it came, a failing check's output, a `file:line`. For a lesson that records a decision taken, the decision in one of two forms only: a spec's or an ADR's `file:line`, or the user's words quoted as they came, with their date.
 
-If the prompt carries anything else (a summary of the discussion, an argument for a lesson, what the user prefers), don't use it, and say so at the top of your output.
+If the prompt or the file carries anything else (a summary of the discussion, an argument for a lesson, what the user prefers), don't use it, and say so at the top of your output.
 
 ## What to read
 
@@ -53,6 +53,8 @@ For each lesson, in the order given:
 Then **Not verified**, short: each doubt, and what would settle it. Nothing else.
 
 ## How the main agent weighs it
+
+It writes the proposals file in the scratchpad as `lesson-critic/<slug>-<n>-input.md`, and keeps it with the report.
 
 It applies the verdicts it accepts, and shows the user every lesson as it stands after the run, with its verdict and your headline: a `drop` stays as one line, so the user can take it back. A `revise` or `drop` it rejects comes with its reason; a lesson it rewrites other than as your revised text is marked as not judged. A lesson the user adds or rewords at the checkpoint is theirs, with no second run.
 

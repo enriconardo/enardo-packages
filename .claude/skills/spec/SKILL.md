@@ -131,7 +131,7 @@ A proposal outside a spec (a rule of the learn step, a discussion), when the use
 ## Checkpoint 1
 
 - **The spec and its open questions** go to the user, who approves it before any production code.
-- **The lessons of the spec phase**, proposed in the learn step's form (root `CLAUDE.md`, *Workflow*), since the `/clear` loses them, after the `lesson-critic`'s run (its input, outcome and log: its definition). The approved ones are committed on the branch before the `/clear`, with the log's rows; one in the form of code is reviewed with the rest of the task.
+- **The lessons of the spec phase**, proposed in the learn step's form (root `CLAUDE.md`, *Workflow*), since the `/clear` loses them, after the `lesson-critic`'s run (its input, outcome and log: its definition). The approved ones are committed on the branch before the `/clear`, with the log's rows of every lesson judged; one in the form of code is reviewed with the rest of the task.
 - **Then end with the three steps**, filled in:
   1. set the model and effort of `implementer` in the interface;
   2. `/clear`;
