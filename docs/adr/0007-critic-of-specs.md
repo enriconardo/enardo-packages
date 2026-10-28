@@ -1,6 +1,6 @@
 # 0007. A critic that sees only the spec judges it before the user does
 
-- Status: accepted; point 5 superseded by 0009; point 2's run on a learn rule superseded by 0015
+- Status: accepted; point 5 superseded by 0009
 - Date: 2026-10-16
 - Spec: docs/specs/2026-10-16-spec-critic.md
 

@@ -14,7 +14,7 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0004](0004-shared-packages-published-to-a-private-registry.md) | The shared packages are published to a private registry, and depend on each other through `workspace:^` | accepted |
 | [0005](0005-workflow-sized-to-the-task.md) | The workflow is sized to the task, and a review blocks only on defects a real caller meets | accepted; point 1 superseded by 0008; point 6's "no new subagents" superseded by 0007 |
 | [0006](0006-test-author-suite-recorded-at-handoff.md) | The test-author's suite is recorded at handoff, and a change to it needs a reason | accepted |
-| [0007](0007-critic-of-specs.md) | A critic that sees only the spec judges it before the user does | accepted; point 5 superseded by 0009; point 2's run on a learn rule superseded by 0015 |
+| [0007](0007-critic-of-specs.md) | A critic that sees only the spec judges it before the user does | accepted; point 5 superseded by 0009 |
 | [0008](0008-implementation-on-the-specs-model.md) | Four ratings raise the tier, and an M or L task is implemented in a fresh session on the spec's model | accepted |
 | [0009](0009-critic-runs-no-longer-logged.md) | The critic keeps its triggers, and its runs are no longer logged | accepted |
 | [0010](0010-a-vitest-preset-package.md) | The browser test project lives in a vitest preset package | accepted |
