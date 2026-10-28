@@ -21,7 +21,7 @@ Applications are built on these packages, and the user wants them structurally s
   git log --follow --name-status --format= -- <folder>/package.json | grep -v -E '^(M|$)' | awk '!/^R/{exit} {print}'
   ```
 
-  This repo starts from one commit, made when `en-monorepo` was split (2026-10-16): the history before that is in the archived `en-monorepo` (`~/Projects/en-monorepo`), where the package lived at `packages/<name>`. Run this lookup and the `git log` of section 2 there too, on that folder: here they print nothing older than the split.
+  This repo's history starts from one commit, of 2026-10-16: the lookups print nothing older.
 
   If it prints a former folder, every lookup of section 2 runs for the old name, folder and scope too. A former folder that several packages print is a package they were split from: its history is context, not the package's own.
 

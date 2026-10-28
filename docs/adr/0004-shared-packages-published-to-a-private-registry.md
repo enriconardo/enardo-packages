@@ -2,11 +2,11 @@
 
 - Status: accepted
 - Date: 2026-10-16
-- Spec: docs/specs/2026-10-15-split-repos.md
+- Spec: `git show c337d77:docs/specs/2026-10-15-split-repos.md` (removed from the tree)
 
 ## Context
 
-The shared packages and Cambusa moved to repos of their own (`enardo-packages` and `cambusa`). Cambusa can no longer link the `@enardo/*` packages through the workspace: it installs them from the user's Verdaccio registry, `https://npm.enriconardo.com`, which needs a token to read and to publish.
+The shared packages moved to a repo of their own, `enardo-packages`, and each project built on them to its own. A project can no longer link the `@enardo/*` packages through the workspace: it installs them from the user's Verdaccio registry, `https://npm.enriconardo.com`, which needs a token to read and to publish.
 
 [ADR 0001](0001-shared-configs-as-workspace-packages.md) has every package depend on the presets with `workspace:*`. `pnpm pack` turns `workspace:*` into the exact version (`1.0.0`), and `workspace:^` into a caret range on it (`^1.0.0`). With exact versions, a consumer that installs two packages built on different patch releases of a third gets two copies of it.
 
