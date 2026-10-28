@@ -27,6 +27,8 @@ All on MongoDB 7.0.24 (the in-memory server of `mongodb-memory-server` 10.4.3), 
   - same name and key: `unique` added or removed, `sparse` added, `partialFilterExpression` changed, `collation` added, key order or direction changed → 86. `expireAfterSeconds` added or changed, text `weights` changed → 85. Every errmsg of 85 and 86 except the rename names the requested and the existing definition.
   - `hidden: true` added → resolves, the index stays visible. An index created hidden, then requested without `hidden` → resolves, it stays hidden. A fresh index with `hidden: true` is listed with `hidden: true`.
   - `background: true` added → resolves (the option is ignored since 4.2). `version: 1`, `textIndexVersion: 2`, `2dsphereIndexVersion: 2` → resolve, the index keeps v2, 3 and 3 (the `critic`'s probe).
+  - `default_language` added or changed, `language_override` added, `bits` added or changed, `min`/`max` added or changed, `storageEngine` added, `bucketSize` added to a `2d` index → 85. `wildcardProjection` added or changed → 86. A fresh `geoHaystack` index with `bucketSize` → 67 `CannotCreateIndex` (removed in 5.0).
+  - With these, every option of the driver's `IndexDescription` (`mongodb.d.ts`: `key`, `name`, `collation` and the 18 picked from `CreateIndexesOptions`) is probed: each change rejects with 85 or 86, but `hidden`, `background`, `version`, `textIndexVersion` and `2dsphereIndexVersion`, which resolve.
   - an identical definition → resolves.
   - another name, another `partialFilterExpression`, same key → resolves: both indexes exist.
 - A hidden `unique` index still rejects a duplicate with 11000, and the planner ignores it (`find({ a: 1 })` plans a `COLLSCAN`); an index hidden with `collMod`, then requested without `hidden`, resolves (the `critic`'s probe).
@@ -34,7 +36,8 @@ All on MongoDB 7.0.24 (the in-memory server of `mongodb-memory-server` 10.4.3), 
 - The server normalizes what it stores and compares: a `collation: { locale: "en" }` becomes ten fields, a text key `{ a: "text" }` becomes `{ _fts: "text", _ftsx: 1 }` with three more options. A comparison of definitions in the package would have to mirror it; the server's own check does not.
 - The rejection is a `MongoServerError` (`name` `MongoServerError`) with a numeric `code`.
 - Current sync → `packages/database-mongo/src/mongo.database.ts:141-191`; the JSDoc to correct → `:132-140` and `:166`.
-- Test setup to reuse → `packages/transaction-manager-mongo/__tests__/setup/replica-set.ts`, `__tests__/support/fixtures.ts`, and the `test` block of its `vitest.config.ts`. `mongodb-memory-server` is `^10.4.3` there, not in the catalog; `allowBuilds` already has it.
+- Test setup to reuse → `mongoReplicaSet()` of `@enardo/vitest-config` (its README, *The Mongo replica set*), as `packages/transaction-manager-mongo/vitest.config.ts` and `__tests__/support/fixtures.ts` use it; `mongodb-memory-server` is in the catalog and in `allowBuilds`.
+- The registry has `@enardo/database-mongo` 1.0.0 only (`pnpm view`, 2026-10-28): the manifest's 2.0.0 is unpublished, and this change ships in it.
 - Not probed: a unique index built over duplicate values rejects with 11000 `DuplicateKey` (test case 11 relies on it; the implementer confirms it when writing the case).
 
 ## Decisions
@@ -48,8 +51,7 @@ All on MongoDB 7.0.24 (the in-memory server of `mongodb-memory-server` 10.4.3), 
 
 ## Open questions
 
-- **The version.** The rejection of a conflict changes from a `MongoServerError` with `code` 85 or 86 to a native `Error` with that error as its `cause`: a caller reading `error.code` on `connect()` no longer sees it. Every `connect()` that resolves today still resolves. The JSDoc promised a `DatabaseError`, so the old form was never documented; and the condition is a misconfiguration no caller should branch on. Recommended: a patch. The other option is a major, which the backlog item *The error contract and the docs of `@enardo/database` and `@enardo/database-mongo`* brings anyway, so this fix could wait to ship with it.
-- **The vitest `test` block.** ADR 0010 point 3 and ADR 0011 point 1 move an object that a second package needs into a preset; it is already in two packages, and this branch would add a third copy. Recommended: move it into `@enardo/vitest-config` first, in a branch of its own (the item *The vitest `test` block of the Mongo adapters*, queued ahead of this one), and rebase this branch on it. The other option is the third copy, with the item updated to count it.
+None.
 
 ## Changes
 
@@ -63,8 +65,8 @@ All on MongoDB 7.0.24 (the in-memory server of `mongodb-memory-server` 10.4.3), 
   The connection cleanup of `connect()` is unchanged: the client is closed and `isConnected()` is `false`.
 - The JSDoc of `initCollections` and `connect()`: indexes are created when missing, an existing one is never changed, `connect()` rejects when one conflicts with the schema, and `hidden` applies at creation only. The `@throws {DatabaseError}` of `connect()` is left to the backlog item on the error contract. The `// Always update/create indexes (idempotent)` comment goes. `IMongoIndex`'s JSDoc says the name is how the sync matches an index.
 - `__tests__/mongo.database.test.ts`: the suite moves from the mock of `mongodb` to the in-memory replica set, one database per test (`test_<uuid>`). The cases of `connect`, `schema without indexes` and the log points of `logging` become the cases below; every other existing case keeps what it asserts, on the real server: `disconnect`, `isConnected`, `getDb`, `getClient`, the constructor, the child logger with its context and `dbName`, and `connect()` without a logger. The logger stays a set of `vi.fn()`.
-- `__tests__/setup/replica-set.ts` and `__tests__/support/fixtures.ts`: as in `@enardo/transaction-manager-mongo`, reduced to what this suite uses. The `test` block of `vitest.config.ts` as the open question settles.
-- `package.json`: `mongodb-memory-server` `^10.4.3` in `devDependencies`.
+- `vitest.config.ts`: `...mongoReplicaSet()` in `test`, as in `@enardo/transaction-manager-mongo`. `__tests__/support/fixtures.ts`: the `mongoUri` declaration, `connect()`, and a database per test, as there, reduced to what this suite uses.
+- `package.json`: `@enardo/vitest-config` (`workspace:^`) and `mongodb-memory-server` (`catalog:`) in `devDependencies`.
 - `CLAUDE.md`, new: the rules of the schema sync (an existing index is never changed, the server judges a conflict; `hidden` applies at creation only; stale indexes are dropped only after every schema index is in place, and an instance on an older schema drops the newer indexes; a collection's validator is replaced on every `connect()`), and that the tests run against the in-memory replica set, one database per test, with no mock of `mongodb`.
 
 ## Test cases
@@ -103,7 +105,7 @@ Cases 7–10, 12 and 14 are written first, and fail on `main`'s code with a bare
 
 ## Plan
 
-1. **Tests on the replica set, no behavior change.** Setup, fixtures, `vitest.config.ts`, the devDependency; the suite rewritten on the real server with the cases that hold on today's code (1–6, 11, 13, 15–17, and the other existing cases). Green.
+1. **Tests on the replica set, no behavior change.** Fixtures, `vitest.config.ts`, the devDependency; the suite rewritten on the real server with the cases that hold on today's code (1–6, 11, 13, 15–17, and the other existing cases). Green.
 2. **Test-first: the conflicts.** Cases 7–10, 12, 14 fail on today's code; then the per-index pass and the wrapping. Green.
 3. **Docs.** The JSDoc, and the package's `CLAUDE.md`.
 4. The backlog item removed, in a commit of its own.
