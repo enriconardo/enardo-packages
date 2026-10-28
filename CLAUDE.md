@@ -89,7 +89,7 @@ The table is the floor: a `high` among the brief's four ratings makes the task L
 
 | Tier | What | Steps |
 | --- | --- | --- |
-| S | nothing a consumer sees changes (public API, documented behavior, dependency ranges), or docs, config, tooling only; one package or area | branch → change → verify → ⏸ 2 → integrate. No spec (the intent goes in the commit body), no subagent |
+| S | nothing a consumer sees changes (public API, documented behavior, dependency ranges), or docs, config, tooling only; one package or area | branch → change → verify → ⏸ 2 → integrate. No spec (the intent goes in the commit body), no subagent but the `lesson-critic` |
 | M | what a consumer sees changes | branch → spec → ⏸ 1 → model, `/clear`, `/implement` → ⏸ 2 → integrate |
 | L | a new package, a change across packages, the dev environment or the workflow; a `high` rating | as M, with an ADR for a decision that outlives the task |
 
@@ -98,7 +98,7 @@ The table is the floor: a `high` among the brief's four ratings makes the task L
 3. **⏸ Checkpoint 1**: the user approves the spec before any production code (the `spec` skill).
 4. **Implement, review, ⏸ checkpoint 2**: the `implement` skill, in that fresh session. An S task: verify, then the summary and the diff, and wait for the go-ahead.
 5. **Integrate**, when verify is green (dependents included) and the README follows the public API: `scripts/integrate.sh` (verify, `merge --no-ff`, branch deleted), after the spec's `done`. No PRs. Publishing and follow-ups go in a session of their own.
-6. **Learn**, at checkpoints 1 and 2, for a problem that could recur and costs more than its rule costs to read: propose it, on the task's branch. Prefer a check, script, hook or lint rule; else the agent, skill or package `CLAUDE.md` it applies to; this file only for what every task needs. The rule, not its story. `scripts/check-context-size.sh` caps this file at 12 000 bytes and each agent at 6 000: a new rule merges with or replaces an old one.
+6. **Learn**, at checkpoints 1 and 2, for a problem that could recur and costs more than its rule costs to read: propose it, after the `lesson-critic`'s run, on the task's branch. Prefer a check, script, hook or lint rule; else the agent, skill or package `CLAUDE.md` it applies to; this file only for what every task needs. The rule, not its story. `scripts/check-context-size.sh` caps this file at 12 000 bytes and each agent at 6 000: a new rule merges with or replaces an old one.
 
 Roles: the main agent holds the intent; the `critic` starts from the spec alone, the `test-author` from the spec and the `reviewer` from the spec and the diff, in fresh contexts, so they don't share the author's blind spots; `pnpm verify` cannot talk itself into accepting a failure.
 

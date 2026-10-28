@@ -1,6 +1,6 @@
 # 0005. The workflow is sized to the task, and a review blocks only on defects a real caller meets
 
-- Status: accepted; point 1 superseded by 0008; point 6's "no new subagents" superseded by 0007
+- Status: accepted; point 1 superseded by 0008; point 6's "no new subagents" superseded by 0007, and also lifted by 0015 for the `lesson-critic`
 - Date: 2026-10-16
 - Spec: docs/specs/2026-10-16-lean-workflow.md
 
