@@ -63,7 +63,7 @@ Run `./dev.sh exec pnpm verify` again, then report, one line for what passed and
 - the backlog candidates and the follow-ups;
 - `git diff --stat main...HEAD`: the full diff is the user's to read.
 
-Then the learn step's proposals (root `CLAUDE.md`, *Workflow*), and wait for the go-ahead.
+Then the learn step's proposals (root `CLAUDE.md`, *Workflow*), after the `lesson-critic`'s run (its input, outcome and log: its definition; the log's rows go on the branch after the user's answer), and wait for the go-ahead.
 
 ## 7. The integration
 
