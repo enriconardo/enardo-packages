@@ -2,7 +2,7 @@
 
 - Status: accepted; point 5 superseded by 0009; *Every rule of the learn step* overturned by 0015
 - Date: 2026-10-16
-- Spec: docs/specs/2026-10-16-spec-critic.md
+- Spec: `git show c337d77:docs/specs/2026-10-16-spec-critic.md` (removed from the tree)
 
 ## Context
 

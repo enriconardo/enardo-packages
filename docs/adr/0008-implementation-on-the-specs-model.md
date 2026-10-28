@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-10-21
-- Spec: docs/specs/2026-10-21-orchestrated-workflow.md
+- Spec: `git show c337d77:docs/specs/2026-10-21-orchestrated-workflow.md` (removed from the tree)
 
 ## Context
 

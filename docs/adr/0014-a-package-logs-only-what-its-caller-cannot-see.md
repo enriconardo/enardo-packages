@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-10-26
-- Spec: docs/specs/2026-10-26-what-a-package-logs.md
+- Spec: `git show c337d77:docs/specs/2026-10-26-what-a-package-logs.md` (removed from the tree)
 
 ## Context
 

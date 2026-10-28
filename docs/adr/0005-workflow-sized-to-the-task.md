@@ -2,11 +2,11 @@
 
 - Status: accepted; point 1 superseded by 0008; point 6's "no new subagents" superseded by 0007, and also lifted by 0015 for the `lesson-critic`
 - Date: 2026-10-16
-- Spec: docs/specs/2026-10-16-lean-workflow.md
+- Spec: `git show c337d77:docs/specs/2026-10-16-lean-workflow.md` (removed from the tree)
 
 ## Context
 
-In `en-monorepo`, from 2026-09-23 to 2026-10-16, small changes cost long sessions. Measured over the transcripts of its sessions:
+In the monorepo this repo was split from, from 2026-09-23 to 2026-10-16, small changes cost long sessions. Measured over the transcripts of its sessions:
 
 - The main agent took 78% of the input tokens, the `reviewer` 15%, the `test-author` 7%. Most of a review round's cost was the main agent's: tens of calls on a context of 200k to 500k tokens.
 - 64 reviews, about 9 minutes each; 36 of the 59 with a verdict asked for changes. One fix took 6 reviews, about 126M tokens and a 66 KB spec; the blocking findings of its third and fifth reviews came from inputs built to break the code, such as a getter that answers differently on two reads.

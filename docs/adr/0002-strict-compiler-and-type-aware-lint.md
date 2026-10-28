@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-09-24
-- Spec: docs/specs/2026-09-24-package-tooling.md
+- Spec: `git show c337d77:docs/specs/2026-09-24-package-tooling.md` (removed from the tree)
 
 ## Context
 

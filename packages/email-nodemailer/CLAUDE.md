@@ -1,6 +1,6 @@
 # @enardo/email-nodemailer
 
-The nodemailer implementation of `@enardo/email`'s `EmailSender`. The public contract is in [README.md](./README.md); this file holds the rules for changing the package. The reasons behind them, and the probes, are in `docs/specs/2026-10-14-nodemailer-contract-compliance.md`, for the errors of `send` and LMTP in `docs/specs/2026-10-20-email-send-errors.md`, for the constructor's `transport-options` refusal in `docs/specs/2026-10-21-nodemailer-redact-transport-errors.md`, and for the refusal of content that is not a string in `docs/specs/2026-10-21-nodemailer-non-string-content.md`.
+The nodemailer implementation of `@enardo/email`'s `EmailSender`. The public contract is in [README.md](./README.md); this file holds the rules for changing the package. The reasons behind them, and the probes, are in `docs/specs/2026-10-14-nodemailer-contract-compliance.md`, for the errors of `send` and LMTP in `docs/specs/2026-10-20-email-send-errors.md`, for the constructor's `transport-options` refusal in `docs/specs/2026-10-21-nodemailer-redact-transport-errors.md`, and for the refusal of content that is not a string in `docs/specs/2026-10-21-nodemailer-non-string-content.md`, removed from the tree: read them with `git show c337d77:<path>`.
 
 ## Layout
 

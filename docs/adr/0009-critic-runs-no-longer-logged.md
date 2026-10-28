@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-10-22
-- Spec: docs/specs/2026-10-22-evaluate-critic.md
+- Spec: `git show c337d77:docs/specs/2026-10-22-evaluate-critic.md` (removed from the tree)
 
 ## Context
 
