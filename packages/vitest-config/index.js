@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { playwright } from "@vitest/browser-playwright";
 import { configDefaults } from "vitest/config";
 
@@ -56,5 +57,22 @@ export function browserProject() {
         ],
       },
     },
+  };
+}
+
+/**
+ * The `test` options of a package whose tests need MongoDB transactions: a
+ * global setup that starts one in-memory single-node replica set for the whole
+ * run and provides its URI as `mongoUri`, read with `inject("mongoUri")`.
+ *
+ * Spread it into `test`. The package installs `mongodb-memory-server` itself
+ * and declares the key in vitest's `ProvidedContext`, which this JavaScript
+ * cannot do for it.
+ *
+ * @returns {{ globalSetup: string[] }}
+ */
+export function mongoReplicaSet() {
+  return {
+    globalSetup: [fileURLToPath(new URL("./replica-set.js", import.meta.url))],
   };
 }

@@ -39,11 +39,12 @@
   "devDependencies": {
     "@enardo/eslint-config": "workspace:^",
     "@enardo/typescript-config": "workspace:^",
+    "@enardo/vitest-config": "workspace:^",
     "@enardo/uow-repository": "workspace:^",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "mongodb": "^7.6.0",
-    "mongodb-memory-server": "^10.4.3",
+    "mongodb-memory-server": "catalog:",
     "prettier": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

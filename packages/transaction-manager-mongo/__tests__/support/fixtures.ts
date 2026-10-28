@@ -2,6 +2,12 @@ import { randomUUID } from "node:crypto";
 import { MongoClient, type Db, type MongoClientOptions } from "mongodb";
 import { inject } from "vitest";
 
+declare module "vitest" {
+  export interface ProvidedContext {
+    mongoUri: string;
+  }
+}
+
 /** Connects to the replica set the global setup started. */
 export async function connect(
   options?: MongoClientOptions,
