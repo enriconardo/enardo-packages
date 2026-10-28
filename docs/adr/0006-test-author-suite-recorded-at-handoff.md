@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-10-16
-- Spec: docs/specs/2026-10-16-test-handoff-and-idle-verify.md
+- Spec: `git show c337d77:docs/specs/2026-10-16-test-handoff-and-idle-verify.md` (removed from the tree)
 
 ## Context
 

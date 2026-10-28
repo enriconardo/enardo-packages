@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-10-23
-- Spec: docs/specs/2026-10-23-contract-peer-of-adapter.md
+- Spec: `git show c337d77:docs/specs/2026-10-23-contract-peer-of-adapter.md` (removed from the tree)
 
 ## Context
 
