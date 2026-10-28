@@ -214,6 +214,9 @@ describe("MongoDatabase", () => {
           }),
         ]),
       );
+      expect(
+        indexes.find((index) => index.name === "createdAt_idx")?.unique,
+      ).toBeUndefined();
     });
 
     it("should replace the validator of an existing collection", async () => {
@@ -316,6 +319,9 @@ describe("MongoDatabase", () => {
         name: "MongoServerError",
         code: 11000,
       });
+      expect(db.isConnected()).toBe(false);
+      expect(() => db.getDb()).toThrow(DatabaseError);
+      expectNoLogsBut();
     });
 
     describe("an index the schema changed", () => {
