@@ -521,6 +521,124 @@ describe("MongoDatabase", () => {
       expect(logger.debug).toHaveBeenCalledWith("Collection 'users' created.");
       expectNoLogsBut("debug");
     });
+
+    describe("a stale index dropped concurrently", () => {
+      /** The names `dropIndex` was called with, by the instances under test. */
+      let dropped: string[];
+
+      /**
+       * Makes the next `dropIndex` miss: the index is dropped through
+       * `setupDb` first, as another instance would, then the original runs.
+       */
+      function dropFirstElsewhere(): void {
+        const original = Collection.prototype.dropIndex;
+        dropped = [];
+        vi.spyOn(Collection.prototype, "dropIndex").mockImplementationOnce(
+          async function (this: Collection, indexName, options) {
+            dropped.push(indexName);
+            await setupDb.command({
+              dropIndexes: this.collectionName,
+              index: indexName,
+            });
+            return original.call(this, indexName, options);
+          },
+        );
+      }
+
+      it("should resolve when the stale index was dropped between the list and the drop", async () => {
+        await setupDb.createCollection("users");
+        await setupDb
+          .collection("users")
+          .createIndexes([{ name: "old_idx", key: { legacy: 1 } }]);
+        dropFirstElsewhere();
+        const db = createDatabase({ schemas: [testSchema] });
+
+        await expect(db.connect()).resolves.toBeUndefined();
+
+        expect(dropped).toEqual(["old_idx"]);
+        expect(db.isConnected()).toBe(true);
+        expect(await indexNames(setupDb, "users")).not.toContain("old_idx");
+        expectNoLogsBut();
+      });
+
+      it("should drop the stale indexes after a missing one, logging only that drop", async () => {
+        await setupDb.createCollection("users");
+        await setupDb.collection("users").createIndexes([
+          { name: "old_a", key: { a: 1 } },
+          { name: "old_b", key: { b: 1 } },
+        ]);
+        const listed = await listIndexes(setupDb, "users");
+        dropFirstElsewhere();
+        const db = createDatabase({ schemas: [testSchema] });
+
+        await expect(db.connect()).resolves.toBeUndefined();
+
+        const [missed] = dropped;
+        expect(["old_a", "old_b"]).toContain(missed);
+        const other = missed === "old_a" ? "old_b" : "old_a";
+        const names = await indexNames(setupDb, "users");
+        expect(names).not.toContain("old_a");
+        expect(names).not.toContain("old_b");
+        expect(logger.warn).toHaveBeenCalledOnce();
+        expect(logger.warn).toHaveBeenCalledWith(
+          `Index '${other}' dropped from collection 'users'.`,
+          { index: listed.find((index) => index.name === other) },
+        );
+        expectNoLogsBut("warn");
+      });
+
+      it("should resolve every instance connecting at once, each drop logged once", async () => {
+        await setupDb.createCollection("users");
+        await setupDb.collection("users").createIndexes([
+          { name: "old_a", key: { a: 1 } },
+          { name: "old_b", key: { b: 1 } },
+        ]);
+        const instances = Array.from({ length: 4 }, () =>
+          createDatabase({ schemas: [testSchema] }),
+        );
+
+        const results = await Promise.allSettled(
+          instances.map((instance) => instance.connect()),
+        );
+
+        expect(results).toEqual(
+          Array.from({ length: 4 }, () => ({
+            status: "fulfilled",
+            value: undefined,
+          })),
+        );
+        expect((await indexNames(setupDb, "users")).sort()).toEqual([
+          "_id_",
+          "createdAt_idx",
+          "email_unique",
+        ]);
+        expect(logger.warn).toHaveBeenCalledTimes(2);
+        const messages = logger.warn.mock.calls.map(
+          ([message]: unknown[]) => message,
+        );
+        expect(messages.sort()).toEqual([
+          "Index 'old_a' dropped from collection 'users'.",
+          "Index 'old_b' dropped from collection 'users'.",
+        ]);
+      });
+
+      it("should reject with a server error of another code, logging nothing", async () => {
+        await setupDb.createCollection("users");
+        await setupDb
+          .collection("users")
+          .createIndexes([{ name: "old_idx", key: { legacy: 1 } }]);
+        const error = new MongoServerError({
+          code: 26,
+          errmsg: "ns not found",
+        });
+        vi.spyOn(Collection.prototype, "dropIndex").mockRejectedValue(error);
+        const db = createDatabase({ schemas: [testSchema] });
+
+        await expect(db.connect()).rejects.toBe(error);
+
+        expectNoLogsBut();
+      });
+    });
   });
 
   describe("disconnect", () => {
