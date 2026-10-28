@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   Collection,
+  MongoServerError,
   type Db,
   type IndexDescriptionInfo,
   type MongoClient,
@@ -82,6 +83,52 @@ async function validatorOf(db: Db, collection: string): Promise<unknown> {
     options?: { validator?: unknown };
   }[];
   return info?.options?.validator;
+}
+
+async function indexNamed(
+  db: Db,
+  collection: string,
+  name: string,
+): Promise<IndexDescriptionInfo | undefined> {
+  return (await listIndexes(db, collection)).find(
+    (index) => index.name === name,
+  );
+}
+
+/**
+ * Asserts that `connect()` rejects with a conflict: a native `Error`, not the
+ * server's, naming the collection and the index, whose `cause` is the
+ * server's error with `code`. Then, that the instance is left disconnected
+ * and nothing was logged. Returns the error, for further assertions.
+ */
+async function expectConflict(
+  database: MongoDatabase,
+  expected: { collection: string; index: string; code: number },
+): Promise<Error> {
+  let rejection: unknown;
+  try {
+    await database.connect();
+  } catch (error) {
+    rejection = error;
+  }
+
+  expect(rejection, "connect() rejection").toBeInstanceOf(Error);
+  const error = rejection as Error;
+  expect(error.name, "the rejection's name").toBe("Error");
+  expect(error).not.toBeInstanceOf(MongoServerError);
+  expect(error.message).toContain(`'${expected.collection}'`);
+  expect(error.message).toContain(`'${expected.index}'`);
+  expect(error.cause).toBeInstanceOf(MongoServerError);
+  expect(error.cause).toMatchObject({
+    name: "MongoServerError",
+    code: expected.code,
+  });
+
+  expect(database.isConnected()).toBe(false);
+  expect(() => database.getDb()).toThrow(DatabaseError);
+  expectNoLogsBut();
+
+  return error;
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────
@@ -268,6 +315,124 @@ describe("MongoDatabase", () => {
       await expect(db.connect()).rejects.toMatchObject({
         name: "MongoServerError",
         code: 11000,
+      });
+    });
+
+    describe("an index the schema changed", () => {
+      it("should reject an index renamed onto another key, dropping nothing", async () => {
+        await setupDb.createCollection("users");
+        await setupDb.collection("users").createIndexes([
+          { name: "i", key: { a: 1 } },
+          { name: "old", key: { old: 1 } },
+        ]);
+        const db = createDatabase({
+          schemas: [
+            {
+              collectionName: "users",
+              validation: anyDocument,
+              indexes: [{ name: "i", key: { b: 1 } }],
+            },
+          ],
+        });
+
+        await expectConflict(db, { collection: "users", index: "i", code: 86 });
+
+        expect((await indexNamed(setupDb, "users", "i"))?.key).toEqual({
+          a: 1,
+        });
+        expect(await indexNames(setupDb, "users")).toContain("old");
+      });
+
+      it("should reject a key given another name", async () => {
+        await setupDb.createCollection("users");
+        await setupDb
+          .collection("users")
+          .createIndexes([{ name: "i", key: { a: 1 } }]);
+        const db = createDatabase({
+          schemas: [
+            {
+              collectionName: "users",
+              validation: anyDocument,
+              indexes: [{ name: "j", key: { a: 1 } }],
+            },
+          ],
+        });
+
+        await expectConflict(db, { collection: "users", index: "j", code: 85 });
+
+        const names = await indexNames(setupDb, "users");
+        expect(names).toContain("i");
+        expect(names).not.toContain("j");
+      });
+
+      it("should reject an index made unique", async () => {
+        await setupDb.createCollection("users");
+        await setupDb
+          .collection("users")
+          .createIndexes([{ name: "i", key: { a: 1 } }]);
+        const db = createDatabase({
+          schemas: [
+            {
+              collectionName: "users",
+              validation: anyDocument,
+              indexes: [{ name: "i", key: { a: 1 }, unique: true }],
+            },
+          ],
+        });
+
+        await expectConflict(db, { collection: "users", index: "i", code: 86 });
+
+        const index = await indexNamed(setupDb, "users", "i");
+        expect(index).toBeDefined();
+        expect(index?.unique).not.toBe(true);
+      });
+
+      it("should reject a changed expireAfterSeconds", async () => {
+        await setupDb.createCollection("users");
+        await setupDb
+          .collection("users")
+          .createIndexes([
+            { name: "i", key: { a: 1 }, expireAfterSeconds: 10 },
+          ]);
+        const db = createDatabase({
+          schemas: [
+            {
+              collectionName: "users",
+              validation: anyDocument,
+              indexes: [{ name: "i", key: { a: 1 }, expireAfterSeconds: 20 }],
+            },
+          ],
+        });
+
+        await expectConflict(db, { collection: "users", index: "i", code: 85 });
+      });
+
+      it("should name the conflicting index, not the one before it, and keep that one", async () => {
+        await setupDb.createCollection("users");
+        await setupDb
+          .collection("users")
+          .createIndexes([{ name: "i", key: { a: 1 } }]);
+        const db = createDatabase({
+          schemas: [
+            {
+              collectionName: "users",
+              validation: anyDocument,
+              indexes: [
+                { name: "z", key: { z: 1 } },
+                { name: "i", key: { b: 1 } },
+              ],
+            },
+          ],
+        });
+
+        const error = await expectConflict(db, {
+          collection: "users",
+          index: "i",
+          code: 86,
+        });
+
+        expect(error.message).not.toContain("'z'");
+        expect(await indexNames(setupDb, "users")).toContain("z");
       });
     });
 
