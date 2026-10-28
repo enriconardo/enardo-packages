@@ -25,6 +25,7 @@ In the dev container, vitest 4, `mongodb-memory-server` 10.4.3.
 - An optional peer, in a throwaway pnpm 11.28.9 workspace (`node:24-bookworm`): a packed stand-in preset with `is-odd` as its optional peer, installed from its tarball by a package that also depends on `is-odd` → the preset's own `require.resolve("is-odd")` finds it, from `.pnpm/fake-preset@…_is-odd@3.0.1`. A second package of that workspace without `is-odd` shares the same instance, so it resolves too: within one workspace the peer cannot be shown missing.
 - The timeouts: vitest 4.1.12 awaits a global setup with no timeout (`vitest/dist/chunks/cli-api.B0Pz1_R7.js:10809-10816`), and `hookTimeout` bounds `beforeAll`/`beforeEach` only (`:9236`) (the `critic`'s reading). At vitest's defaults (`--hookTimeout=10000 --testTimeout=5000`): `transaction-manager-mongo` 6 of 6 in 974 ms, `uow-repository-mongo` 40 of 40 in 8.2 s, the slowest test 306 ms (the `critic`'s run); and `turbo run test --force -- --hookTimeout=10000 --testTimeout=5000`, every package at once as under `pnpm verify` → 28 of 28 tasks green, 40 s. The timeouts came with the import from `en-monorepo` (2099677), with no reason recorded.
 - `vitest.config.ts` is not in any package's typecheck (`typescript-config/library.json` includes `src` and `__tests__`), and the preset ships JavaScript only: the type of `inject("mongoUri")` comes from a `ProvidedContext` declaration in `__tests__`, today in the setup file at `replica-set.ts:3-7`.
+- `pnpm view @enardo/vitest-config versions --registry https://npm.enriconardo.com`, on the host outside the repo → `["1.0.0"]`.
 - Every mention of the setup file or of `mongodb-memory-server` outside specs and the lockfile (`git grep`) → root `CLAUDE.md:74`, the two packages' `README.md` (`transaction-manager-mongo:60`, `uow-repository-mongo:307` and `:331`), their `package.json` and `vitest.config.ts`.
 ## Decisions
 
@@ -34,11 +35,12 @@ In the dev container, vitest 4, `mongodb-memory-server` 10.4.3.
 - **The global setup ships in the preset** as `replica-set.js`, as it is today but in JavaScript, and provides `mongoUri`.
 - **`mongodb-memory-server` is an optional peer and a devDependency of the preset**, as `vitest` is a peer and a devDependency: a package that calls only `browserProject()` does not install it. Each Mongo package keeps it in its `devDependencies`. Since three packages now list it, it moves into the catalog.
 - **The `ProvidedContext` declaration stays in each package**, in `__tests__/support/fixtures.ts`: it must be in the typecheck, which the preset's JavaScript is not. The README of the preset names the key. Not taken: a `.d.ts` shipped by the preset, which `__tests__` would have to import for its side effect.
+- **`@enardo/vitest-config` 1.1.0**: the change adds an export and an optional peer, and 1.0.0 is on the registry.
 - No ADR: the decision applies ADR 0010 and ADR 0011.
 
 ## Open questions
 
-- **The version of `@enardo/vitest-config`.** The change adds an export and an optional peer: a minor. Its manifest says 1.0.0, and dab4a5a changed it on 2026-10-27 without a bump. If 1.0.0 is on the registry, this branch sets 1.1.0; if not, 1.0.0 takes the change as it is (the `spec` skill, *Probing*). The registry needs the token, on the host: `pnpm view @enardo/vitest-config versions --registry https://npm.enriconardo.com`, outside the repo.
+None.
 
 ## Changes
 
@@ -46,7 +48,7 @@ In the dev container, vitest 4, `mongodb-memory-server` 10.4.3.
 
 - `replica-set.js`, new: the global setup of today's `replica-set.ts`, in JavaScript with JSDoc, starting one single-node replica set per run and providing its URI as `mongoUri`.
 - `index.js`: `mongoReplicaSet()`, with its JSDoc, returning `{ globalSetup: [<absolute path of replica-set.js>] }`.
-- `package.json`: `replica-set.js` in `files`, and in the `lint` and `format` scripts; `mongodb-memory-server: "catalog:"` in `peerDependencies`, with `peerDependenciesMeta` marking it optional, and in `devDependencies`. The description names both presets. The version as the open question settles.
+- `package.json`: `replica-set.js` in `files`, and in the `lint` and `format` scripts; `mongodb-memory-server: "catalog:"` in `peerDependencies`, with `peerDependenciesMeta` marking it optional, and in `devDependencies`. The description names both presets. `version` 1.1.0.
 - `README.md`: the `mongoReplicaSet()` row of *Presets*, its usage, the `mongoUri` key and the `ProvidedContext` declaration a package writes, that a package installs `mongodb-memory-server` itself, and that the preset brings the browser tooling with it.
 
 ### `@enardo/transaction-manager-mongo`, `@enardo/uow-repository-mongo`
