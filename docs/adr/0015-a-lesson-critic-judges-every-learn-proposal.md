@@ -1,6 +1,6 @@
 # 0015. A light critic judges every lesson the learn step proposes, from its evidence and the rules it would join
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-28
 - Spec: docs/specs/2026-10-28-lesson-critic.md
 
@@ -24,7 +24,7 @@ This overturns ADR 0007's set-aside alternative *Every rule of the learn step*, 
 
 ## Consequences
 
-- Every checkpoint with a proposal costs a run and waits for it, an S task's included; a checkpoint without one costs nothing. The spec's trial run: (to be filled at checkpoint 2).
+- Every checkpoint with a proposal costs a run and waits for it, an S task's included; a checkpoint without one costs nothing. The spec's trial run on five past lessons (2026-10-28): 71 516 tokens, 12 tool calls, 81 s, against about 140 000 tokens and 450 s for the `critic` on this spec; the expected verdicts came out (a held lesson dropped, the two narrow *Probing* rules merged into one on a claim over a set), each citing the rule that holds it at its tree.
 - A lesson that is wrong about the code or a tool can pass the light run: it is listed under *Not verified*.
 - A lesson in the form of code is judged on whether it is needed and where; whether the code works stays with the reviewer or verify.
 - The main agent has to write the evidence of each lesson, which a lesson without a problem seen cannot give.
