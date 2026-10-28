@@ -8,7 +8,7 @@ Personal TypeScript monorepo of reusable infrastructure packages (`@enardo/*`), 
 packages/<name>             @enardo/<name>, shared, project-agnostic libraries
 packages/typescript-config  tsconfig presets (library, node-app, react-app, runtime-browser, runtime-node)
 packages/eslint-config      ESLint presets (node, react, runtimeNeutral)
-packages/vitest-config      vitest presets (the browser test project)
+packages/vitest-config      vitest presets (the browser test project, the Mongo replica set)
 docker/                     dev container, test browsers, compose stack (./dev.sh; docker/README.md)
 scripts/                    workflow scripts
 docs/specs/                 task specs
@@ -31,7 +31,7 @@ Every command that touches `node_modules` runs in the `dev` container. The host 
 ./dev.sh clean               # remove every node_modules and dist
 ```
 
-- **Never run `pnpm` on the host.** `bcrypt` and `mongodb-memory-server` are native modules: installs from two environments into one `node_modules` break them. Recovery: `./dev.sh clean`, then `./dev.sh exec pnpm install`. The one exception is publishing (the `publish` skill).
+- **Never run `pnpm` on the host.** `bcrypt` and `mongodb-memory-server` are native modules: installs from two environments into one `node_modules` break them. Recovery: `./dev.sh clean`, then `./dev.sh exec pnpm install`. The one exception is the registry, from outside the repo (the `publish` skill).
 - **Never `npm i` in the dev container**, which can move files of `node_modules`: a probe that needs a package outside the lockfile runs in a throwaway container (the `spec` skill, *Probing*).
 - The repo is mounted at `/workspaces/enardo-packages` in the container. Browser tests run in the `playwright` service: see [docker/README.md](docker/README.md), which also says what the containers never mount.
 
@@ -71,7 +71,7 @@ Packages are published through the `publish` skill, each publish approved by the
 
 ## Testing
 
-- Tests live in `<package>/__tests__/`, mirroring `src/`, as `*.test.ts`. Adapters are tested against an in-memory Mongo replica set that the tests start (`__tests__/setup/replica-set.ts`, one database per test).
+- Tests live in `<package>/__tests__/`, mirroring `src/`, as `*.test.ts`. Adapters are tested against an in-memory Mongo replica set that the tests start (`mongoReplicaSet()` of `@enardo/vitest-config`, one database per test).
 - A package whose `src/` runs in browsers runs its tests there too; the presets (`@enardo/vitest-config`, the runtime programs of `typescript-config`, `eslint-config`'s `runtimeNeutral`) hold those checks; `@enardo/http-client` is the example ([its CLAUDE.md](packages/http-client/CLAUDE.md), *Checks*). A test that needs Node goes in a `*.node.test.ts` beside its `*.test.ts`.
 - Refactors keep the existing tests green without changing them, unless the spec says so.
 

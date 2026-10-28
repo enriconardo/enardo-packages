@@ -11,6 +11,7 @@ argument-hint: "<package...>"
 - The packages are published to the private Verdaccio registry `https://npm.enriconardo.com`, which needs a token to read and to publish.
 - Each manifest pins it with `publishConfig.registry`. With `pnpm publish`, it wins over `--registry` and over the scope's registry, so a publish never reaches the public npm registry. `npm publish` lets `--registry` and the scope's registry override it: **never publish with npm.**
 - Only the user's account can publish or unpublish `@enardo/*`. A project installs with the token of a read-only user, kept in that project's dev environment.
+- Every command to the registry runs on the host, from outside the repo, where pnpm touches no `node_modules`: the one exception to "never run `pnpm` on the host". The token never enters a container, where dependencies' code runs. The published versions of a package: `pnpm view <package> versions --registry https://npm.enriconardo.com`.
 
 ## Versions
 
@@ -27,13 +28,13 @@ A published version never changes: a change to a published package ships under a
 
    `<dir>` is a folder in the repo, the only one the container and the host share; remove it after the publish. `pack` turns `workspace:^` into a caret range on the current version, and `catalog:` into its range.
 
-2. **Check the login, on the host, from outside the repo**, where pnpm touches no `node_modules` (the one exception to "never run `pnpm` on the host"):
+2. **Check the login, on the host, from outside the repo** (*The registry*):
 
    ```sh
    pnpm whoami --registry https://npm.enriconardo.com    # answers enardo
    ```
 
-   If it does not, the user logs in with `pnpm login --registry https://npm.enriconardo.com`, which pnpm keeps in `~/.config/pnpm/auth.ini`. The publish token never enters a container.
+   If it does not, the user logs in with `pnpm login --registry https://npm.enriconardo.com`, which pnpm keeps in `~/.config/pnpm/auth.ini`.
 
 3. **Dry run**, from outside the repo: `pnpm publish <tarball> --dry-run` shows the registry each tarball goes to.
 

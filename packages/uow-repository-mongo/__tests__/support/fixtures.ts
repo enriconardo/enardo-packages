@@ -9,6 +9,12 @@ import {
 import { inject } from "vitest";
 import { MongoDataStore } from "~/mongo-data-store";
 
+declare module "vitest" {
+  export interface ProvidedContext {
+    mongoUri: string;
+  }
+}
+
 /** A product is stored as one document. */
 export interface ProductRecord {
   _id: ObjectId;

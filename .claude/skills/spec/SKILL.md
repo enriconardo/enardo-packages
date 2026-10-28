@@ -92,7 +92,8 @@ Each fact the plan relies on is probed in the dev container before the spec stat
   ```
 - **A library's documentation is not a probe.** The cases a library produces (its errors, their types or statuses, its options) come from its installed source, or from running them.
 - **A type probe marks the error it expects on each line**, and every other line compiles: compare the output with the marks.
-- **A type declaration is not a probe of a runtime.** What a runtime defines (its globals, its modules) is enumerated in that runtime, every one, not a sample.
+- **A type declaration is not a probe of a runtime.** What a runtime defines is probed in that runtime.
+- **A claim over a set** ("every", "only", "all but": a runtime's globals, an API's options, the levels a tool compares) enumerates the set from its source, every one, not a sample.
 - **An install is probed on the consumer's shape**: a workspace whose packages import the same package, not a one-package app. Packed tarballs go to a local Verdaccio, reached on `127.0.0.1`: pnpm 11 fails on `localhost` (`ECONNREFUSED`).
 - **Advisories.** The version that closes a module's advisories is read from the `patched_versions` of every one of them (`pnpm audit --json`), not from one. The version an upgrade moves to is audited itself, with `npm audit` on a lockfile of that version in a throwaway container: it can bring advisories of its own.
 - **Commands for agents.** A command that a skill, an agent or a `CLAUDE.md` gives to agents is probed on every package it can run on, not on the one at hand.
@@ -102,7 +103,6 @@ Each fact the plan relies on is probed in the dev container before the spec stat
 - **A removed dependency between two packages:** look for every doc line that names both, not only for the symbols that move.
 - **A value the code does not control.** When the code starts reading one where it used to pass it along (a rejection, an abort reason, a parsed body), the spec states what happens when a read throws, and when the value is cyclic or very deep. On an error path, a throw replaces the error being reported.
 - **A copy of a caller's value** changes what a library reads downstream: a spread keeps own enumerable properties only, and loses the prototype, its getters and the non-enumerable ones. Check what the library produced from the value.
-- **A tool that refuses a mismatch** (a version, a protocol): probe every level it could compare, patch, minor and major, not only one it refuses.
 - **The version a change ships in** comes from the registry's published versions (the `publish` skill, *The registry*), not from the manifest: an unpublished version takes the change as it is.
 
 ## Designing the test cases

@@ -1,7 +1,7 @@
 {
   "name": "@enardo/vitest-config",
-  "version": "1.0.0",
-  "description": "Shared vitest presets for the monorepo: the browser test project",
+  "version": "1.1.0",
+  "description": "Shared vitest presets for the monorepo: the browser test project and the in-memory Mongo replica set",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
@@ -9,28 +9,36 @@
   },
   "type": "module",
   "files": [
-    "index.js"
+    "index.js",
+    "replica-set.js"
   ],
   "exports": {
     ".": "./index.js"
   },
   "scripts": {
-    "lint": "eslint index.js",
-    "lint:fix": "eslint index.js --fix",
-    "format": "prettier --write index.js",
-    "format:check": "prettier --check index.js"
+    "lint": "eslint index.js replica-set.js",
+    "lint:fix": "eslint index.js replica-set.js --fix",
+    "format": "prettier --write index.js replica-set.js",
+    "format:check": "prettier --check index.js replica-set.js"
   },
   "dependencies": {
     "@vitest/browser-playwright": "catalog:",
     "playwright": "catalog:"
   },
   "peerDependencies": {
+    "mongodb-memory-server": "catalog:",
     "vitest": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "mongodb-memory-server": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
     "eslint": "catalog:",
     "globals": "catalog:",
+    "mongodb-memory-server": "catalog:",
     "prettier": "catalog:",
     "vitest": "catalog:"
   }

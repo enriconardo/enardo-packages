@@ -57,7 +57,7 @@ The manager holds no state: create it once and share it.
 
 ## Contributing
 
-The tests run against a real single-node replica set. A Vitest global setup starts it with `mongodb-memory-server`, once per run, and every test uses a database of its own. The first run downloads a `mongod` binary.
+The tests run against a real single-node replica set. The global setup of `mongoReplicaSet()` from `@enardo/vitest-config` starts it with `mongodb-memory-server`, once per run, and every test uses a database of its own. The first run downloads a `mongod` binary.
 
 ```sh
 pnpm install
