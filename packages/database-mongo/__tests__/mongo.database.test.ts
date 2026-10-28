@@ -523,7 +523,7 @@ describe("MongoDatabase", () => {
     });
 
     describe("a stale index dropped concurrently", () => {
-      /** The names `dropIndex` was called with, by the instances under test. */
+      /** The name of the `dropIndex` call made to miss. */
       let dropped: string[];
 
       /**

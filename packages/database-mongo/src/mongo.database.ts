@@ -87,8 +87,8 @@ export default class MongoDatabase implements IMongoDatabase {
    * `hidden` applies when an index is created: on an existing index it is
    * neither applied nor checked, and changes through `collMod`.
    *
-   * It drops the indexes the schema no longer names; instances connecting at
-   * once on the same schemas all resolve.
+   * It drops the indexes the schema no longer names; one that another
+   * instance dropped first does not reject `connect()`.
    *
    * @throws {DatabaseError} If the connection or initialization fails.
    */
@@ -254,8 +254,8 @@ export default class MongoDatabase implements IMongoDatabase {
         try {
           await collection.dropIndex(idx.name);
         } catch (error) {
-          // Another instance dropped it between the list and the drop: the
-          // index is gone, and that instance logged it.
+          // Dropped elsewhere between the list and the drop: the index is
+          // gone, and a MongoDatabase that dropped it logged its own drop.
           if (isIndexNotFound(error)) continue;
           throw error;
         }

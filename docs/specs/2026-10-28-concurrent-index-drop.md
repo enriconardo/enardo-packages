@@ -29,7 +29,7 @@ Root cause: `initCollections()` lists a collection's indexes, then drops each on
 ## Decisions
 
 - **A `dropIndex` that rejects with `MongoServerError` code 27 is the outcome sought**: the loop goes on to the next stale index, and nothing is logged for it, since the instance that dropped it logged it. Any other rejection still rejects `connect()`, as today.
-- **A concurrent `createCollection` stays as it is** (taken with the user at intake, on the condition of the probe): the server accepts it with the same options. With other options it rejects with 48, which needs two schema versions both creating the same absent collection at once, an empty database during a rolling deploy: out of scope.
+- **A concurrent `createCollection` stays as it is** (taken with the user at intake, on the condition of the probe): the server accepts two concurrent creates with the same options. It rejects with 48 with other options, and, found by the reviewer, also with the same validator after another instance's `collMod` (which stores `validationLevel` and `validationAction`), on one schema; and `collMod` rejects with 12587 during another instance's index build. Out of scope: this fix makes only the stale index drop safe, and the docs say so; the two go to the backlog.
 
 ## Open questions
 
@@ -38,8 +38,8 @@ None.
 ## Changes
 
 - `packages/database-mongo/src/mongo.database.ts`: an `isIndexNotFound(error)` guard beside `isIndexConflict` (`MongoServerError`, `code === 27`), and the drop loop catches that rejection and skips the `warn`; the JSDoc of `initCollections()` says a stale index another instance dropped first is skipped.
-- `connect()`'s JSDoc: it drops the indexes the schema no longer names, and instances connecting at once on the same schemas all resolve.
-- `packages/database-mongo/CLAUDE.md`, *The schema sync*: the stale-index rule says that concurrent `connect()`s each drop what is left, and only the drop that happened is logged; and that two schema versions creating the same absent collection at once with different validators reject one of them with 48 (probed on 7.0.24), left as it is.
+- `connect()`'s JSDoc: it drops the indexes the schema no longer names, and one that another instance dropped first does not reject `connect()`.
+- `packages/database-mongo/CLAUDE.md`, *The schema sync*: the stale-index rule says that a stale index another instance dropped first is skipped and only the drop that happened is logged; and that concurrent `connect()`s are otherwise not made safe: 12587 on a `collMod` during an index build, 48 on a `createCollection` after another instance's `collMod`, even on one schema (probed on 7.0.24), left as they are.
 
 ## Test cases
 
@@ -56,7 +56,7 @@ Risk `medium`: the guard is the only line between a tolerated race and a hidden 
 
 ## Out of scope
 
-- `NamespaceExists` (48) on a concurrent `createCollection` with different options (*Decisions*).
+- `NamespaceExists` (48) on a concurrent `createCollection`, and `BackgroundOperationInProgressForNamespace` (12587) on a `collMod` during an index build (*Decisions*).
 - A repeated or concurrent `connect()` on one instance: the backlog item *A second `connect()` of `MongoDatabase` leaks the first `MongoClient`*.
 - The error contract and the README: the backlog item *The error contract and the docs of `@enardo/database` and `@enardo/database-mongo`*.
 
