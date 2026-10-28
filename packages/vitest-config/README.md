@@ -9,9 +9,9 @@ The vitest presets of the `@enardo/*` packages, and the projects built on them. 
 | `browserProject()` | packages whose `src/` runs in browsers | every test file but `*.node.test.ts`, in Chromium, Firefox and WebKit, one file at a time in each browser, headless, with no screenshots of failures |
 | `mongoReplicaSet()` | packages whose tests need MongoDB transactions | one in-memory single-node replica set for the whole run, started by a global setup |
 
-It returns a project to put in `test.projects`, next to the package's own `node` project, which keeps running every file. It extends the root config (`extends: true`), so the `~` alias and the other options apply to both.
+`browserProject()` returns a project to put in `test.projects`, next to the package's own `node` project, which keeps running every file. It extends the root config (`extends: true`), so the `~` alias and the other options apply to both.
 
-## Usage
+## Usage of `browserProject()`
 
 ```ts
 // vitest.config.ts

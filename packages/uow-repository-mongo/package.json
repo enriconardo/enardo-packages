@@ -39,8 +39,8 @@
   "devDependencies": {
     "@enardo/eslint-config": "workspace:^",
     "@enardo/typescript-config": "workspace:^",
-    "@enardo/vitest-config": "workspace:^",
     "@enardo/uow-repository": "workspace:^",
+    "@enardo/vitest-config": "workspace:^",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "mongodb": "^7.6.0",

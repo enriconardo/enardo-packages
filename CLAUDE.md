@@ -8,7 +8,7 @@ Personal TypeScript monorepo of reusable infrastructure packages (`@enardo/*`), 
 packages/<name>             @enardo/<name>, shared, project-agnostic libraries
 packages/typescript-config  tsconfig presets (library, node-app, react-app, runtime-browser, runtime-node)
 packages/eslint-config      ESLint presets (node, react, runtimeNeutral)
-packages/vitest-config      vitest presets (the browser test project)
+packages/vitest-config      vitest presets (the browser test project, the Mongo replica set)
 docker/                     dev container, test browsers, compose stack (./dev.sh; docker/README.md)
 scripts/                    workflow scripts
 docs/specs/                 task specs

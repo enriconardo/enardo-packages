@@ -329,6 +329,7 @@ src/
   errors/                       one BaseError subclass per file
 __tests__/
   support/fixtures.ts           client, per-test database, the `mongoUri` declaration, record types and stores
+  error-codes.test.ts           the error classes' codes
   mongo-data-store.test.ts      the DataStore contract, called directly
   repository-with-mongo.test.ts Repository and UnitOfWork end to end
 ```
