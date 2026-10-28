@@ -304,7 +304,7 @@ cd packages/uow-repository-mongo
 pnpm test
 ```
 
-The tests run against a real single-node replica set. A Vitest global setup starts it with `mongodb-memory-server`, once per run, and every test uses a database of its own. The first run downloads a `mongod` binary.
+The tests run against a real single-node replica set. The global setup of `mongoReplicaSet()` from `@enardo/vitest-config` starts it with `mongodb-memory-server`, once per run, and every test uses a database of its own. The first run downloads a `mongod` binary.
 
 ### Commands
 
@@ -328,8 +328,7 @@ src/
   mongo-data-store.ts           MongoDataStore and its option types
   errors/                       one BaseError subclass per file
 __tests__/
-  setup/replica-set.ts          global setup: starts the replica set, provides its URI
-  support/fixtures.ts           client, per-test database, record types and stores
+  support/fixtures.ts           client, per-test database, the `mongoUri` declaration, record types and stores
   mongo-data-store.test.ts      the DataStore contract, called directly
   repository-with-mongo.test.ts Repository and UnitOfWork end to end
 ```

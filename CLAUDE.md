@@ -71,7 +71,7 @@ Packages are published through the `publish` skill, each publish approved by the
 
 ## Testing
 
-- Tests live in `<package>/__tests__/`, mirroring `src/`, as `*.test.ts`. Adapters are tested against an in-memory Mongo replica set that the tests start (`__tests__/setup/replica-set.ts`, one database per test).
+- Tests live in `<package>/__tests__/`, mirroring `src/`, as `*.test.ts`. Adapters are tested against an in-memory Mongo replica set that the tests start (`mongoReplicaSet()` of `@enardo/vitest-config`, one database per test).
 - A package whose `src/` runs in browsers runs its tests there too; the presets (`@enardo/vitest-config`, the runtime programs of `typescript-config`, `eslint-config`'s `runtimeNeutral`) hold those checks; `@enardo/http-client` is the example ([its CLAUDE.md](packages/http-client/CLAUDE.md), *Checks*). A test that needs Node goes in a `*.node.test.ts` beside its `*.test.ts`.
 - Refactors keep the existing tests green without changing them, unless the spec says so.
 
