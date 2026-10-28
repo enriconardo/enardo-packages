@@ -144,7 +144,7 @@ const client = new HttpClient({
 **`HttpResponseError`**: `code` is `"HTTP_RESPONSE_ERROR"`, `details` is `{ method, url, status }`, and two more fields hold the response:
 
 - `headers`: the response's `Headers`;
-- `body`: the parsed value when the body is JSON, the text otherwise, `undefined` when it is empty or could not be read.
+- `body`: the parsed value when the body is JSON, the text otherwise, `undefined` when it is empty, over 1 MiB or could not be read. The limit counts the bytes read (decoded, for a compressed body), and the client stops reading and closes the connection past it. A body that is not a web stream, from another `fetchImpl`, is read whole with `text()`, with no limit.
 
 Branch on `details.status`, never on the message:
 
@@ -215,12 +215,6 @@ The `fetch` of npm `undici` 7 or 8 fits `FetchImpl` in a program with the Node t
 `src/` uses only what browsers and Node 24 both define, and the public types resolve with the DOM libs alone or with the Node types alone. [CLAUDE.md](./CLAUDE.md) lists the checks that keep it so. The tests run on Node and in Playwright's builds of Chromium, Firefox and WebKit, apart from those that need Node.
 
 A request with a `signal` passes it through `AbortSignal.any()`, combined with its timeout when it has one. Browsers have it since Chrome 116, Firefox 124 and Safari 17.4, according to MDN's compatibility data. The tests cover only Playwright's current builds, not those first versions.
-
-## Not there yet
-
-A server needs this before it relies on the client. [docs/backlog.md](../../docs/backlog.md) has it, to evaluate.
-
-- **The error body is read whole**, with no size limit.
 
 ## Contributing
 

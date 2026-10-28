@@ -5,6 +5,7 @@ import { createServer as createNetServer } from "node:net";
 import type { AddressInfo, Server as NetServer, Socket } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
 import { inspect } from "node:util";
+import { gzipSync } from "node:zlib";
 import {
   describe,
   it,
@@ -754,6 +755,99 @@ describe("HttpClient", () => {
       const read = await trackUntilSettled(reading, DEADLINE);
 
       expect(reasonNow(read)).toBe(reason);
+    });
+  });
+
+  // The limit counts the bytes read, whatever content-length says: these run
+  // Node's fetch, which decodes a compressed body, against local servers.
+  describe("the limit of an error body with Node's fetch and local servers", () => {
+    /** The limit: 1 MiB, counted in bytes. */
+    const LIMIT = 1024 * 1024;
+    const TWO_MIB = 2 * LIMIT;
+
+    const servers: LocalServer[] = [];
+
+    async function serve(handler: RequestListener): Promise<LocalServer> {
+      const server = await startServer(handler);
+      servers.push(server);
+      return server;
+    }
+
+    afterEach(async () => {
+      await Promise.all(servers.splice(0).map((server) => server.close()));
+    });
+
+    it("should give an undefined body for a 500 of 2 MiB with its content-length, and close its connection", async () => {
+      const server = await serve((_request, response) => {
+        response.writeHead(500, {
+          "content-type": "text/plain",
+          "content-length": String(TWO_MIB),
+        });
+        response.end(Buffer.alloc(TWO_MIB, "a"));
+      });
+      const client = new HttpClient({ baseUrl: server.baseUrl });
+
+      const error = await rejectionOf(
+        client.get("/", { throwOnError: true }),
+        HttpResponseError,
+      );
+
+      expect(error.details.status).toBe(500);
+      expect(typeof error.body, "the type of the body").toBe("undefined");
+      await expectSocketsClosed(server);
+    });
+
+    // Before the timeout: the limit stops the read, not the deadline.
+    it(
+      "should reject with an HttpResponseError with an undefined body, not a TimeoutError, a chunked 500 that never ends, and close its connection",
+      async () => {
+        const chunk = Buffer.alloc(16 * 1024, "a");
+        const server = await serve((_request, response) => {
+          response.writeHead(500, { "content-type": "text/plain" });
+          const timer = setInterval(() => {
+            response.write(chunk);
+          }, 1);
+          response.on("close", () => {
+            clearInterval(timer);
+          });
+        });
+        const client = new HttpClient({ baseUrl: server.baseUrl });
+
+        const call = await trackUntilSettled(
+          client.get("/", { throwOnError: true, timeout: 5_000 }),
+          5_000 + DEADLINE,
+        );
+
+        const error = rejectionNow(call, HttpResponseError);
+        expect(error.details.status).toBe(500);
+        expect(typeof error.body, "the type of the body").toBe("undefined");
+        await expectSocketsClosed(server);
+      },
+      // The timeout of 5,000 ms, and the DEADLINE of the sockets.
+      5_000 + 3 * DEADLINE,
+    );
+
+    it("should give an undefined body for a gzip 500 that decodes to 2 MiB, whose content-length is its encoded size", async () => {
+      const encoded = gzipSync(Buffer.alloc(TWO_MIB, "a"));
+      // The premise: the header alone says the body is under the limit.
+      expect(encoded.byteLength).toBeLessThan(LIMIT);
+      const server = await serve((_request, response) => {
+        response.writeHead(500, {
+          "content-type": "text/plain",
+          "content-encoding": "gzip",
+          "content-length": String(encoded.byteLength),
+        });
+        response.end(encoded);
+      });
+      const client = new HttpClient({ baseUrl: server.baseUrl });
+
+      const error = await rejectionOf(
+        client.get("/", { throwOnError: true }),
+        HttpResponseError,
+      );
+
+      expect(error.details.status).toBe(500);
+      expect(typeof error.body, "the type of the body").toBe("undefined");
     });
   });
 

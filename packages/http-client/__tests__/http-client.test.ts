@@ -1050,6 +1050,167 @@ describe("HttpClient", () => {
     });
   });
 
+  // With throwOnError the client reads the error body, so it bounds the read:
+  // past 1 MiB of bytes read, it stops and gives no body.
+  describe("the limit of an error body", () => {
+    /** The limit: 1 MiB, counted in bytes. */
+    const LIMIT = 1024 * 1024;
+
+    /** A chunk of `size` bytes, each the UTF-8 of "a". */
+    function bytesOfA(size: number): Uint8Array {
+      return new Uint8Array(size).fill(0x61);
+    }
+
+    /** What the client rejects with for a 500 that `fetchImpl` resolves with. */
+    async function errorFor(answer: unknown): Promise<HttpResponseError> {
+      const client = new HttpClient({
+        baseUrl: BASE_URL,
+        fetchImpl: vi.fn<FetchImpl>().mockResolvedValue(answer as Response),
+      });
+
+      const error = await rejectionOf(
+        client.get(MARKED_PATH, { throwOnError: true }),
+        HttpResponseError,
+      );
+      expect(error.details.status).toBe(500);
+      return error;
+    }
+
+    it("should give a body of exactly the limit", async () => {
+      const text = "a".repeat(LIMIT);
+
+      const error = await errorFor(new Response(text, { status: 500 }));
+
+      expect(error.body).toBe(text);
+    });
+
+    it("should give an undefined body, and the answer's headers, for a body of one byte over the limit in one chunk", async () => {
+      const headers = new Headers({
+        "content-type": "text/plain",
+        "retry-after": "120",
+      });
+
+      const error = await errorFor(
+        new Response(createReadableStream("a".repeat(LIMIT + 1)), {
+          status: 500,
+          headers,
+        }),
+      );
+
+      expect(typeof error.body, "the type of the body").toBe("undefined");
+      expect([...error.headers]).toEqual([...headers]);
+    });
+
+    // é is two bytes in UTF-8: a limit on characters would keep both bodies.
+    it("should give a body of LIMIT / 2 two-byte characters, exactly the limit in bytes", async () => {
+      const text = "é".repeat(LIMIT / 2);
+      // The premise: the text is LIMIT bytes.
+      expect(encoder.encode(text).byteLength).toBe(LIMIT);
+
+      const error = await errorFor(new Response(text, { status: 500 }));
+
+      expect(error.body).toBe(text);
+    });
+
+    it("should give an undefined body for LIMIT / 2 + 1 two-byte characters, fewer characters than the limit and two bytes over it", async () => {
+      const text = "é".repeat(LIMIT / 2 + 1);
+      // The premise: fewer characters than the limit, more bytes.
+      expect(text.length).toBeLessThan(LIMIT);
+      expect(encoder.encode(text).byteLength).toBe(LIMIT + 2);
+
+      const error = await errorFor(new Response(text, { status: 500 }));
+
+      expect(typeof error.body, "the type of the body").toBe("undefined");
+    });
+
+    // A stream that enqueues on each pull and never closes would keep the
+    // read in microtasks: no timer fires, and a read with no limit grows
+    // until V8 throws. This one closes after 64 chunks, 4 MiB.
+    it("should stop reading past the limit, and cancel the stream once, with no reason", async () => {
+      const CHUNK = 64 * 1024;
+      const cancel = vi.fn<(reason: unknown) => void>();
+      let pulls = 0;
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          pulls++;
+          controller.enqueue(bytesOfA(CHUNK));
+          if (pulls === 64) controller.close();
+        },
+        cancel,
+      });
+
+      const error = await errorFor(new Response(body, { status: 500 }));
+
+      expect(typeof error.body, "the type of the body").toBe("undefined");
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(cancel.mock.calls[0]?.[0], "the reason of the cancel").toBe(
+        undefined,
+      );
+      // The limit is passed at the 17th chunk.
+      expect(pulls, "the pulls of the stream").toBeLessThan(32);
+    });
+
+    // Nothing can stop text(): a body that is not a web stream, from another
+    // fetchImpl, is read whole.
+    it("should give the whole text of a body over the limit with no getReader, of a value that is not a Response", async () => {
+      const text = "a".repeat(LIMIT + 1);
+      const answer = {
+        status: 500,
+        headers: new Headers(),
+        body: {},
+        text: vi.fn(() => Promise.resolve(text)),
+      };
+      expect(answer).not.toBeInstanceOf(Response);
+      expect(answer.body).not.toHaveProperty("getReader");
+
+      const error = await errorFor(answer);
+
+      expect(error.body).toBe(text);
+      expect(answer.text).toHaveBeenCalledTimes(1);
+    });
+
+    it.each<{ misbehaves: string; cancel: () => void | Promise<void> }>([
+      {
+        misbehaves: "throws",
+        cancel: () => {
+          throw new Error("The cancel threw");
+        },
+      },
+      {
+        misbehaves: "rejects",
+        cancel: () => Promise.reject(new Error("The cancel rejected")),
+      },
+    ])(
+      "should give an undefined body, and let nothing reach process, when the cancel of a body over the limit $misbehaves",
+      async ({ cancel: misbehave }) => {
+        const cancel = vi.fn(misbehave);
+        // One chunk of LIMIT + 1 bytes; the stream closes on the second
+        // read after it, which a read that stops at the chunk never makes.
+        let pulls = 0;
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(bytesOfA(LIMIT + 1));
+          },
+          pull(controller) {
+            pulls++;
+            if (pulls === 2) controller.close();
+          },
+          cancel,
+        });
+
+        let error: HttpResponseError | undefined;
+        const reached = await errorsReachingProcess(async () => {
+          error = await errorFor(new Response(body, { status: 500 }));
+        });
+
+        expect(error).toBeInstanceOf(HttpResponseError);
+        expect(typeof error?.body, "the type of the body").toBe("undefined");
+        expect(cancel, "the cancel of the stream").toHaveBeenCalled();
+        expect(reached).toEqual([]);
+      },
+    );
+  });
+
   // An integer from 1 to 2147483647, the longest delay setTimeout keeps, or
   // false for none. Anything else is the caller's error.
   describe("the timeout's value", () => {

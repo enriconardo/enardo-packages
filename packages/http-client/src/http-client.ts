@@ -14,6 +14,10 @@ import { hasCredentials, isStreamBody, toBasePrefix, toHeaders } from "./utils";
 
 const DEFAULT_TIMEOUT = 30_000;
 
+// Fixed, not an option: no caller asked for one, and one can come later
+// without a break. Far above any error body an API sends.
+const MAX_ERROR_BODY_BYTES = 1024 * 1024;
+
 /**
  * HTTP client over the Fetch API, for browsers and Node alike.
  *
@@ -364,21 +368,23 @@ function cancelQuietly(cancel: () => unknown): void {
 
 /**
  * The body of an error response: the parsed value when it is JSON, the text
- * otherwise, `undefined` when it is empty or cannot be read. Reading it
- * releases the connection, which an unread body would hold.
+ * otherwise, `undefined` when it is empty, over 1 MiB or cannot be read.
+ * Over the limit it is not the text cut there: a cut JSON body does not
+ * parse, and a cut text looks whole. Reading it releases the connection,
+ * which an unread body would hold.
  */
 async function readBody(
   response: Response,
   signal: AbortSignal | undefined,
 ): Promise<unknown> {
-  let text: string;
+  let text: string | undefined;
   try {
     text = await readText(response, signal);
   } catch {
     return undefined;
   }
 
-  if (text === "") return undefined;
+  if (text === undefined || text === "") return undefined;
 
   try {
     return JSON.parse(text) as unknown;
@@ -392,13 +398,15 @@ async function readBody(
  * dropped. Read through a reader of the client's own, which `signal`
  * cancels: `text()` would hold the stream's lock, and nothing could stop a
  * read that the request no longer waits for, from a fetchImpl that ignores
- * the signal. A body that is not a web stream, from another fetch
- * implementation, is read with `text()`, which nothing can cancel.
+ * the signal. Resolves with `undefined` once more than 1 MiB has been read:
+ * the bytes are counted, before decoding, and the reader is cancelled, which
+ * closes the connection. A body that is not a web stream, from another fetch
+ * implementation, is read with `text()`, which nothing can cancel or limit.
  */
 async function readText(
   response: Response,
   signal: AbortSignal | undefined,
-): Promise<string> {
+): Promise<string | undefined> {
   const body: unknown = response.body;
   // Read once: a getter could give another value the second time.
   const getReader =
@@ -424,9 +432,15 @@ async function readText(
 
     const decoder = new TextDecoder();
     let text = "";
+    let bytes = 0;
     for (;;) {
       const { done, value } = await reader.read();
       if (done) return text + decoder.decode();
+      bytes += value.byteLength;
+      if (bytes > MAX_ERROR_BODY_BYTES) {
+        cancel();
+        return undefined;
+      }
       text += decoder.decode(value, { stream: true });
     }
   } finally {

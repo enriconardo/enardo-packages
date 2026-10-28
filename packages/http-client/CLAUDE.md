@@ -2,7 +2,7 @@
 
 HTTP client over the Fetch API: it makes requests, in browsers and on Node alike. A web app, in a repo of its own, is its only consumer today; a Node consumer would be a server calling upstream services. The public contract is in [README.md](./README.md); this file holds the rules for changing the package.
 
-Server needs are requirements, not extras: timeouts, a `baseUrl` with a path, errors whose `toJSON()` holds no response body or query string. The errors, the `baseUrl` and the timeouts meet them (below).
+Server needs are requirements, not extras: timeouts, a `baseUrl` with a path, errors whose `toJSON()` holds no response body or query string. The errors, the `baseUrl`, the timeouts and the error-body limit meet them (below).
 
 ## Layout
 
@@ -44,7 +44,7 @@ __tests__/support/          the helpers both kinds of test file share, beyond a 
 - **`request()` never waits for `fetchImpl` to honor the signal.** `Deadline.race` settles at the abort. A response that arrives later has its body cancelled, recognized by its shape (a `body` with a `cancel` method), never by `instanceof Response`: npm `undici`'s `Response` is another class. A later rejection, or a failure there, is dropped.
 - **The timeout ends when `request()` settles**, in a `finally`. The caller's signal keeps reaching the body of a returned response through `init.signal`.
 - **A caller's signal always goes through `AbortSignal.any()`**, with the timeout's signal or alone. It leaves no listener on the caller's signal: a listener of the client's own would have to stay there as long as the body can be read, and a long-lived signal, passed to every request, would collect them. It also throws a `TypeError`, before anything is sent, for a value that is not an `AbortSignal` (one that claims to be aborted is taken at its word by the check that comes first). The client's listeners go on the combined signal, and leave it when they are done: `race`'s when its promise settles, `readText`'s when the read ends. Node keeps a combined signal alive while it has an `abort` listener, so a listener left there keeps one per request: the third review measured it with a long-lived caller's signal.
-- **The error body is read through a reader of the client's own** (`readText`), which the deadline cancels, with no reason. `response.text()` would hold the stream's lock, so a read that the request stopped waiting for would go on, buffering, from a `fetchImpl` that ignores the signal. It decodes as `text()` does: UTF-8, a leading BOM dropped. A body that is not a web stream is read with `text()`. Every `cancel()` on a value from `fetchImpl` goes through `cancelQuietly`: one in an `abort` listener that throws would end a Node process.
+- **The error body is read through a reader of the client's own** (`readText`), which the deadline cancels, with no reason. `response.text()` would hold the stream's lock, so a read that the request stopped waiting for would go on, buffering, from a `fetchImpl` that ignores the signal. It decodes as `text()` does: UTF-8, a leading BOM dropped. It counts the bytes of each chunk before decoding, and past 1 MiB (fixed) cancels and gives `undefined`, not the text cut there (a cut JSON body does not parse, and a cut text looks whole); `content-length` is not read, since the count alone bounds the memory and a compressed body's header is its encoded size. A body that is not a web stream is read whole with `text()`, with no limit: nothing can stop it, and skipping it would leave a body with no `cancel` holding its connection (`node-fetch`). Every `cancel()` on a value from `fetchImpl` goes through `cancelQuietly`: one in an `abort` listener that throws would end a Node process.
 - **`toTimeout` checks every timeout**: an integer from 1 to 2147483647, or `false`. Node turns `Infinity`, `NaN`, a negative or a larger delay into 1 ms, with only a warning.
 
 ## Two runtimes
@@ -93,6 +93,7 @@ This package is the example of the opt-in. Another package whose `src/` runs in 
 
 **Timers:**
 - The timeout cases with a stub run under fake timers; those with Node's `fetch`, under real ones.
+- A stub stream whose `pull` enqueues at once never yields to a timer: a read of it ends only when the stream does (or at the 1 MiB limit), so a case that relies on a timeout uses a real server, or a stream that closes or waits (`createEndlessStream`).
 - A check that needs a real body to have been read, such as the rejection of an `HttpResponseError` with its body, waits for the request to settle: Firefox reads a body later than the other runtimes, after more than one real macrotask. A check of what has settled at an instant of the fake clock (`track`, `advanceTo`, `rejectionNow`) stays valid when nothing it checks waits on such a read.
 - `errorsReachingProcess` listens on `process` on Node, and on the page in a browser. It waits with timers captured before any test fakes them.
 

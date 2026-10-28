@@ -106,7 +106,7 @@ export interface RequestOptions {
   query?: Record<string, QueryValue>;
   /**
    * When `true`, a response with a status in 400–599 is not returned: the
-   * client reads its body and throws an `HttpResponseError`.
+   * client reads its body, up to 1 MiB for a web stream, and throws an `HttpResponseError`.
    *
    * @default false
    */
