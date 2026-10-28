@@ -22,7 +22,7 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0012](0012-errors-recognized-by-a-brand.md) | An error of the ecosystem is recognized by a brand and its `code`, never by `BaseError`'s identity | accepted; point 3's open question settled by 0013 |
 | [0013](0013-contract-peer-of-its-adapter.md) | A contract is a peer of the adapter that implements it | accepted |
 | [0014](0014-a-package-logs-only-what-its-caller-cannot-see.md) | A package logs only what its caller cannot see, at `debug` or `warn`, and takes no `logger` without a log point | accepted |
-| [0015](0015-a-light-critic-judges-every-new-rule.md) | A light critic judges every new rule before the user does, from its evidence and the rules it would join | proposed |
+| [0015](0015-a-lesson-critic-judges-every-learn-proposal.md) | A light critic judges every lesson the learn step proposes, from its evidence and the rules it would join | proposed |
 
 ## Template
 
