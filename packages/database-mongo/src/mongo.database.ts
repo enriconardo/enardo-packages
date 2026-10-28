@@ -72,8 +72,11 @@ export default class MongoDatabase implements IMongoDatabase {
    * created when missing and an existing one is never changed: when a schema
    * names one with another definition, `connect()` rejects with an `Error`
    * naming the index and the collection, whose `cause` is the server's error,
-   * and nothing is dropped. Drop the index by hand and `connect()` creates the
-   * schema's definition.
+   * and drops no index of that collection. Drop the index by hand and
+   * `connect()` creates the schema's definition.
+   *
+   * `hidden` applies when an index is created: on an existing index it is
+   * neither applied nor checked, and changes through `collMod`.
    *
    * @throws {DatabaseError} If the connection or initialization fails.
    */
@@ -190,7 +193,8 @@ export default class MongoDatabase implements IMongoDatabase {
    * - Replaces the validator if the collection already exists.
    * - Creates the indexes that are missing. An existing index is never
    *   changed: when the schema names one with another definition, the sync
-   *   rejects, naming it, and drops nothing. `hidden` applies at creation only.
+   *   rejects, naming it, and drops no index of that collection. `hidden` applies
+   *   at creation only, and changes through `collMod`.
    * - Removes indexes that are no longer present in the schema.
    */
   private async initCollections(): Promise<void> {
