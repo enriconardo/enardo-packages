@@ -12,6 +12,15 @@ import { createNoopLogger, type Logger, withLoggerContext } from "./logger";
 /** `IndexOptionsConflict` and `IndexKeySpecsConflict`: the index exists with another definition. */
 const INDEX_CONFLICT_CODES = [85, 86];
 
+/** `IndexNotFound`: the index to drop is already gone. */
+const INDEX_NOT_FOUND_CODE = 27;
+
+function isIndexNotFound(error: unknown): error is MongoServerError {
+  return (
+    error instanceof MongoServerError && error.code === INDEX_NOT_FOUND_CODE
+  );
+}
+
 function isIndexConflict(error: unknown): error is MongoServerError {
   return (
     error instanceof MongoServerError &&
@@ -77,6 +86,9 @@ export default class MongoDatabase implements IMongoDatabase {
    *
    * `hidden` applies when an index is created: on an existing index it is
    * neither applied nor checked, and changes through `collMod`.
+   *
+   * It drops the indexes the schema no longer names; one that another
+   * instance dropped first does not reject `connect()`.
    *
    * @throws {DatabaseError} If the connection or initialization fails.
    */
@@ -195,7 +207,9 @@ export default class MongoDatabase implements IMongoDatabase {
    *   changed: when the schema names one with another definition, the sync
    *   rejects, naming it, and drops no index of that collection. `hidden` applies
    *   at creation only, and changes through `collMod`.
-   * - Removes indexes that are no longer present in the schema.
+   * - Removes indexes that are no longer present in the schema. One that
+   *   another instance dropped first is skipped, and only the drops this
+   *   instance made are logged.
    */
   private async initCollections(): Promise<void> {
     if (!this.conn) {
@@ -237,7 +251,14 @@ export default class MongoDatabase implements IMongoDatabase {
         if (idx.name === undefined || idx.name === "_id_") continue;
         if (schemaIndexNames.includes(idx.name)) continue;
 
-        await collection.dropIndex(idx.name);
+        try {
+          await collection.dropIndex(idx.name);
+        } catch (error) {
+          // Dropped elsewhere between the list and the drop: the index is
+          // gone, and a MongoDatabase that dropped it logged its own drop.
+          if (isIndexNotFound(error)) continue;
+          throw error;
+        }
         this.logger.warn(
           `Index '${idx.name}' dropped from collection '${name}'.`,
           { index: idx },
