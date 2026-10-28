@@ -22,6 +22,8 @@ Root cause: `initCollections()` lists a collection's indexes, then drops each on
 - 4 `MongoDatabase` on an empty database, one schema, `connect()`ed together, 5 runs → all 4 resolved in every run: a concurrent `createCollection` and `createIndexes` with the same definition are accepted.
 - `create` of an existing collection: same validator → accepted; another validator, or none → `code` 48 `NamespaceExists`, `already exists, but with different options`.
 - `MONGODB_ERROR_CODES` of the driver is not exported by the ESM entry (`import * as m from "mongodb"` → `undefined`): the code is a local constant, as `INDEX_CONFLICT_CODES` is (`mongo.database.ts:13`).
+- `new MongoServerError({ code: 26, errmsg: "ns not found" })` (driver 7.6.0) → `instanceof MongoServerError`, `code` 26, `name` `MongoServerError`: the input of case 4.
+- Only MongoDB 7.0.24 was probed, the suite's server; another version, or `mongos`, is not probed.
 - Published versions of `@enardo/database-mongo` (registry) → `1.0.0` only: the manifest's `2.0.0` is unpublished, and the fix ships in it with no bump.
 
 ## Decisions
@@ -36,7 +38,8 @@ None.
 ## Changes
 
 - `packages/database-mongo/src/mongo.database.ts`: an `isIndexNotFound(error)` guard beside `isIndexConflict` (`MongoServerError`, `code === 27`), and the drop loop catches that rejection and skips the `warn`; the JSDoc of `initCollections()` says a stale index another instance dropped first is skipped.
-- `packages/database-mongo/CLAUDE.md`, *The schema sync*: the stale-index rule says that concurrent `connect()`s each drop what is left, and only the drop that happened is logged.
+- `connect()`'s JSDoc: it drops the indexes the schema no longer names, and instances connecting at once on the same schemas all resolve.
+- `packages/database-mongo/CLAUDE.md`, *The schema sync*: the stale-index rule says that concurrent `connect()`s each drop what is left, and only the drop that happened is logged; and that two schema versions creating the same absent collection at once with different validators reject one of them with 48 (probed on 7.0.24), left as it is.
 
 ## Test cases
 
@@ -60,6 +63,6 @@ Risk `medium`: the guard is the only line between a tolerated race and a hidden 
 ## Plan
 
 1. Test-first: cases 1–4 (`test-author`); 1, 2 and 3 fail with code 27, 4 passes today and pins the boundary. Then the guard and the loop change; the suite green. One commit, `[@enardo/database-mongo] fix: tolerate a stale index already dropped`.
-2. `packages/database-mongo/CLAUDE.md` and the JSDoc, if not in step 1.
+2. `packages/database-mongo/CLAUDE.md` and the JSDocs, if not in step 1.
 3. Remove the item from `docs/backlog.md`, in a commit of its own.
 4. `pnpm verify`.
