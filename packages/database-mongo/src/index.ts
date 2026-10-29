@@ -5,5 +5,6 @@ export type {
   IMongoIndex,
   IMongoValidation,
   IMongoDatabaseOptions,
+  SchemaSyncResult,
+  StaleIndexDropResult,
 } from "./mongo.database.types";
-export type { Logger, LoggerMetadata } from "./logger";

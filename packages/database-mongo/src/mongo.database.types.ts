@@ -1,14 +1,50 @@
-import type { IndexDescription } from "mongodb";
+import type { IndexDescription, IndexDescriptionInfo } from "mongodb";
 import type { IDatabase } from "@enardo/database";
-import type { Logger } from "./logger";
 
 /**
- * MongoDB-specific database interface.
+ * What {@link IMongoDatabase.syncSchema} did.
  *
- * Currently identical to {@link IDatabase}. Extend this interface
- * to add MongoDB-specific methods if needed in the future.
+ * @property createdCollections - The collections it created, in the order of
+ * the schemas.
  */
-export type IMongoDatabase = IDatabase;
+export interface SchemaSyncResult {
+  createdCollections: string[];
+}
+
+/**
+ * What {@link IMongoDatabase.dropStaleIndexes} did.
+ *
+ * @property droppedIndexes - Each index dropped, with the definition the
+ * server listed, in the order of the schemas, then of the list.
+ */
+export interface StaleIndexDropResult {
+  droppedIndexes: { collection: string; index: IndexDescriptionInfo }[];
+}
+
+/**
+ * MongoDB-specific database interface: {@link IDatabase} plus the two steps
+ * that bring the database to the schemas. Both reject with a `DatabaseError`
+ * (`NOT_CONNECTED`) before `connect()`.
+ */
+export interface IMongoDatabase extends IDatabase {
+  /**
+   * Create the collections, validators and missing indexes of the schemas,
+   * the expand step of a deploy. It drops nothing.
+   *
+   * @returns The collections it created.
+   */
+  syncSchema(schemas: readonly IMongoSchema[]): Promise<SchemaSyncResult>;
+
+  /**
+   * Drop the indexes the schemas do not name, the contract step of a deploy.
+   * It drops nothing while a schema's collection or index is missing.
+   *
+   * @returns The indexes it dropped.
+   */
+  dropStaleIndexes(
+    schemas: readonly IMongoSchema[],
+  ): Promise<StaleIndexDropResult>;
+}
 
 /**
  * MongoDB index definition with a required `name` field.
@@ -35,7 +71,8 @@ export interface IMongoValidation {
  * Schema definition for a MongoDB collection.
  *
  * Used by {@link MongoDatabase} to create/update collections,
- * apply JSON Schema validation, and manage indexes on connection.
+ * apply JSON Schema validation, and manage indexes, through
+ * {@link IMongoDatabase.syncSchema} and {@link IMongoDatabase.dropStaleIndexes}.
  */
 export interface IMongoSchema {
   readonly collectionName: string;
@@ -48,13 +85,8 @@ export interface IMongoSchema {
  *
  * @property dbUri - MongoDB connection URI.
  * @property dbName - Name of the database to connect to.
- * @property schemas - Optional array of collection schemas to initialize on connect.
- * @property logger - Optional logger. It gets a collection created at `debug`,
- * and an index dropped at `warn` with its definition as `index` metadata.
  */
 export interface IMongoDatabaseOptions {
   readonly dbUri: string;
   readonly dbName: string;
-  readonly schemas?: IMongoSchema[];
-  readonly logger?: Logger;
 }

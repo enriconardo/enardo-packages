@@ -6,18 +6,19 @@ import type {
   IMongoDatabaseOptions,
   IMongoIndex,
   IMongoSchema,
+  SchemaSyncResult,
+  StaleIndexDropResult,
 } from "./mongo.database.types";
-import { createNoopLogger, type Logger, withLoggerContext } from "./logger";
 
 /** `IndexOptionsConflict` and `IndexKeySpecsConflict`: the index exists with another definition. */
 const INDEX_CONFLICT_CODES = [85, 86];
 
-/** `IndexNotFound`: the index to drop is already gone. */
-const INDEX_NOT_FOUND_CODE = 27;
+/** `NamespaceNotFound`: the collection does not exist. */
+const NAMESPACE_NOT_FOUND_CODE = 26;
 
-function isIndexNotFound(error: unknown): error is MongoServerError {
+function isNamespaceNotFound(error: unknown): error is MongoServerError {
   return (
-    error instanceof MongoServerError && error.code === INDEX_NOT_FOUND_CODE
+    error instanceof MongoServerError && error.code === NAMESPACE_NOT_FOUND_CODE
   );
 }
 
@@ -32,19 +33,23 @@ function isIndexConflict(error: unknown): error is MongoServerError {
 /**
  * MongoDB implementation of the {@link IMongoDatabase} interface.
  *
- * Manages the connection lifecycle to a MongoDB instance and
- * automatically initializes collections, validators, and indexes
- * based on the provided schemas.
+ * Manages the connection lifecycle to a MongoDB instance. The schemas'
+ * collections, validators and indexes are synced on request, as a step of
+ * a deploy outside the instances: {@link MongoDatabase.syncSchema} creates
+ * and updates, {@link MongoDatabase.dropStaleIndexes} removes. Running one
+ * at a time is the caller's job; no race is tolerated.
  *
  * @example
  * ```ts
  * const db = new MongoDatabase({
  *   dbUri: "mongodb://localhost:27017",
  *   dbName: "myapp",
- *   schemas: [UserSchema, OrderSchema],
  * });
  *
  * await db.connect();
+ * await db.syncSchema([UserSchema, OrderSchema]);
+ * // ... after every instance runs the new code:
+ * await db.dropStaleIndexes([UserSchema, OrderSchema]);
  * const mongoDb = db.getDb();
  * // ... use mongoDb
  * await db.disconnect();
@@ -53,22 +58,13 @@ function isIndexConflict(error: unknown): error is MongoServerError {
 export default class MongoDatabase implements IMongoDatabase {
   private readonly dbUri: string;
   private readonly dbName: string;
-  private readonly schemas: IMongoSchema[];
-  private readonly logger: Logger;
 
   private client: MongoClient | undefined;
   private conn: Db | undefined;
+  private connecting: Promise<void> | undefined;
 
   constructor(options: IMongoDatabaseOptions) {
-    const { schemas, dbUri, dbName, logger } = options;
-    this.logger = withLoggerContext(
-      logger ?? createNoopLogger(),
-      "MongoDatabase",
-      {
-        dbName,
-      },
-    );
-    this.schemas = schemas ?? [];
+    const { dbUri, dbName } = options;
     this.dbUri = dbUri;
     this.dbName = dbName;
   }
@@ -76,30 +72,30 @@ export default class MongoDatabase implements IMongoDatabase {
   /**
    * Establish a connection to MongoDB.
    *
-   * Creates a new {@link MongoClient}, connects to the server,
-   * and initializes all configured collections and indexes. Indexes are
-   * created when missing and an existing one is never changed: when a schema
-   * names one with another definition, `connect()` rejects with an `Error`
-   * naming the index and the collection, whose `cause` is the server's error,
-   * and drops no index of that collection. Drop the index by hand and
-   * `connect()` creates the schema's definition.
+   * Creates a {@link MongoClient} and connects to the server; it touches no
+   * collection. See {@link MongoDatabase.syncSchema}.
    *
-   * `hidden` applies when an index is created: on an existing index it is
-   * neither applied nor checked, and changes through `collMod`.
+   * Idempotent: once connected it resolves without a new client, and
+   * concurrent calls share one attempt; after a rejection the next call tries
+   * again.
    *
-   * It drops the indexes the schema no longer names; one that another
-   * instance dropped first does not reject `connect()`.
-   *
-   * @throws {DatabaseError} If the connection or initialization fails.
+   * @throws {DatabaseError} If the connection fails.
    */
-  public async connect(): Promise<void> {
+  public connect(): Promise<void> {
+    if (this.isConnected()) return Promise.resolve();
+    this.connecting ??= this.openConnection().finally(() => {
+      this.connecting = undefined;
+    });
+    return this.connecting;
+  }
+
+  private async openConnection(): Promise<void> {
     const client = new MongoClient(this.dbUri);
 
     try {
       await client.connect();
       this.client = client;
       this.conn = client.db(this.dbName);
-      await this.initCollections();
     } catch (error) {
       await client.close().catch(() => undefined);
       this.client = undefined;
@@ -190,7 +186,7 @@ export default class MongoDatabase implements IMongoDatabase {
       } catch (error) {
         if (!isIndexConflict(error)) throw error;
         throw new Error(
-          `Index '${index.name}' of collection '${collectionName}' conflicts with an existing index: ${error.errmsg}. MongoDatabase never changes an existing index: drop it, and connect() creates the schema's definition.`,
+          `Index '${index.name}' of collection '${collectionName}' conflicts with an existing index: ${error.errmsg}. MongoDatabase never changes an existing index: drop it, and syncSchema() creates the schema's definition.`,
           { cause: error },
         );
       }
@@ -198,72 +194,129 @@ export default class MongoDatabase implements IMongoDatabase {
   }
 
   /**
-   * Initialize collections, validators, and indexes based on configured schemas.
+   * Sync the collections, validators and indexes of the schemas: the expand
+   * step of a deploy. It drops nothing.
    *
-   * For each schema:
+   * For each schema, in order:
    * - Creates the collection with its validator if it doesn't exist.
-   * - Replaces the validator if the collection already exists.
    * - Creates the indexes that are missing. An existing index is never
-   *   changed: when the schema names one with another definition, the sync
-   *   rejects, naming it, and drops no index of that collection. `hidden` applies
-   *   at creation only, and changes through `collMod`.
-   * - Removes indexes that are no longer present in the schema. One that
-   *   another instance dropped first is skipped, and only the drops this
-   *   instance made are logged.
+   *   changed: when the schema names one with another definition, it rejects
+   *   with an `Error` naming the index and the collection, whose `cause` is
+   *   the server's error, before the validator is replaced. Drop the index by
+   *   hand and `syncSchema()` creates the schema's definition.
+   * - Replaces the validator of a collection that existed. The indexes come
+   *   first because a build outlives its client: a run killed mid-build and
+   *   run again waits on the identical `createIndexes`, where a `collMod`
+   *   first would reject until the build ends.
+   *
+   * `hidden` applies when an index is created: on an existing index it is
+   * neither applied nor checked, and changes through `collMod`.
+   *
+   * Run it once per deploy, before the rollout; a failed run is run again.
+   * The instance stays connected on a rejection.
+   *
+   * @returns The collections it created, in the order of the schemas. A call
+   * that rejects reports none of its changes.
+   * @throws {DatabaseError} `NOT_CONNECTED` before {@link MongoDatabase.connect}.
    */
-  private async initCollections(): Promise<void> {
-    if (!this.conn) {
-      throw new DatabaseError("Database not initialized", {
-        code: "NOT_CONNECTED",
-      });
-    }
+  public async syncSchema(
+    schemas: readonly IMongoSchema[],
+  ): Promise<SchemaSyncResult> {
+    const db = this.getDb();
+    const createdCollections: string[] = [];
 
-    for (const schema of this.schemas) {
+    for (const schema of schemas) {
       const name = schema.collectionName;
 
-      const exists =
-        (await this.conn.listCollections({ name }).toArray()).length > 0;
+      const exists = (await db.listCollections({ name }).toArray()).length > 0;
 
       if (!exists) {
-        await this.conn.createCollection(name, {
-          validator: schema.validation,
-        });
-        this.logger.debug(`Collection '${name}' created.`);
-      } else {
-        await this.conn.command({
-          collMod: name,
-          validator: schema.validation,
-        });
+        await db.createCollection(name, { validator: schema.validation });
+        createdCollections.push(name);
       }
 
-      const indexes = schema.indexes ?? [];
-      await this.createIndexes(name, indexes);
+      await this.createIndexes(name, schema.indexes ?? []);
 
-      // Remove indexes that are no longer present in the schema
-      const collection = this.conn.collection(name);
-      // listIndexes' cursor is typed `any`; this is the shape the command returns.
-      const existingIndexes = (await collection
-        .listIndexes()
-        .toArray()) as IndexDescriptionInfo[];
-      const schemaIndexNames = indexes.map((idx) => idx.name).filter(Boolean);
+      if (exists) {
+        await db.command({ collMod: name, validator: schema.validation });
+      }
+    }
 
-      for (const idx of existingIndexes) {
+    return { createdCollections };
+  }
+
+  /**
+   * Drop the indexes the schemas do not name (`_id_` is kept): the contract
+   * step of a deploy, run after every instance runs the new code.
+   *
+   * It drops nothing while a schema's collection or index is missing: it
+   * lists every collection first and rejects with an `Error` naming each
+   * collection that is missing, or lacks indexes its schema names (an index
+   * still building counts as missing). `syncSchema()` was not run or not
+   * finished. Other server errors, a drop of an index gone elsewhere
+   * included, are rethrown. The instance stays connected on a rejection.
+   *
+   * @returns Each index dropped, with the definition the server listed, in the
+   * order of the schemas, then of the list. A call that rejects reports none of
+   * its drops: a job that needs the definitions lists the indexes first.
+   * @throws {DatabaseError} `NOT_CONNECTED` before {@link MongoDatabase.connect}.
+   */
+  public async dropStaleIndexes(
+    schemas: readonly IMongoSchema[],
+  ): Promise<StaleIndexDropResult> {
+    const db = this.getDb();
+    const listed: { name: string; existing: IndexDescriptionInfo[] }[] = [];
+    const problems: string[] = [];
+
+    for (const schema of schemas) {
+      const name = schema.collectionName;
+      let existing: IndexDescriptionInfo[];
+      try {
+        // listIndexes' cursor is typed `any`; this is the shape it returns.
+        existing = (await db
+          .collection(name)
+          .listIndexes()
+          .toArray()) as IndexDescriptionInfo[];
+      } catch (error) {
+        if (!isNamespaceNotFound(error)) throw error;
+        problems.push(`collection '${name}' is missing`);
+        continue;
+      }
+
+      const listedNames = existing.map((idx) => idx.name);
+      const missing = (schema.indexes ?? [])
+        .map((idx) => idx.name)
+        .filter((idxName) => !listedNames.includes(idxName));
+      if (missing.length > 0) {
+        problems.push(
+          `collection '${name}' lacks ${missing.map((m) => `'${m}'`).join(", ")}`,
+        );
+      }
+      listed.push({ name, existing });
+    }
+
+    if (problems.length > 0) {
+      throw new Error(
+        `Stale indexes not dropped: ${problems.join("; ")}. Run syncSchema() to completion first.`,
+      );
+    }
+
+    const droppedIndexes: StaleIndexDropResult["droppedIndexes"] = [];
+
+    for (const [i, { name, existing }] of listed.entries()) {
+      const schemaIndexNames = (schemas[i]?.indexes ?? []).map(
+        (idx) => idx.name,
+      );
+
+      for (const idx of existing) {
         if (idx.name === undefined || idx.name === "_id_") continue;
         if (schemaIndexNames.includes(idx.name)) continue;
 
-        try {
-          await collection.dropIndex(idx.name);
-        } catch (error) {
-          // Dropped elsewhere between the list and the drop: the index is
-          // gone, and a MongoDatabase that dropped it logged its own drop.
-          if (isIndexNotFound(error)) continue;
-          throw error;
-        }
-        this.logger.warn(
-          `Index '${idx.name}' dropped from collection '${name}'.`,
-          { index: idx },
-        );
+        await db.collection(name).dropIndex(idx.name);
+        droppedIndexes.push({ collection: name, index: idx });
       }
     }
+
+    return { droppedIndexes };
   }
 }

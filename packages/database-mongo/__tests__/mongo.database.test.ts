@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   Collection,
+  MongoClient,
   MongoServerError,
   type Db,
   type IndexDescriptionInfo,
-  type MongoClient,
 } from "mongodb";
 import { DatabaseError } from "@enardo/database";
 import MongoDatabase from "~/mongo.database";
@@ -15,31 +15,6 @@ import type {
 import { connect, mongoUri, uniqueDbName } from "./support/fixtures";
 
 // ─── Helpers ─────────────────────────────────────────────────────────
-
-const logger = {
-  debug: vi.fn(),
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  child: vi.fn(),
-};
-logger.child.mockReturnValue(logger);
-
-/** The log methods: `child` is left out, since the constructor calls it. */
-const logMethods = {
-  debug: logger.debug,
-  info: logger.info,
-  warn: logger.warn,
-  error: logger.error,
-};
-
-function expectNoLogsBut(...allowed: (keyof typeof logMethods)[]): void {
-  for (const [name, spy] of Object.entries(logMethods)) {
-    if (!allowed.includes(name as keyof typeof logMethods)) {
-      expect(spy, `logger.${name}`).not.toHaveBeenCalled();
-    }
-  }
-}
 
 /** A validation that accepts every document. */
 const anyDocument = { $jsonSchema: {} };
@@ -95,39 +70,71 @@ async function indexNamed(
   );
 }
 
-/**
- * Asserts that `connect()` rejects with a conflict: a native `Error`, not the
- * server's, naming the collection and the index, whose `cause` is the
- * server's error with `code`. Then, that the instance is left disconnected
- * and nothing was logged. Returns the error, for further assertions.
- */
-async function expectConflict(
-  database: MongoDatabase,
-  expected: { collection: string; index: string; code: number },
-): Promise<Error> {
+/** Asserts that a call rejects with `DatabaseError`, `code` `NOT_CONNECTED`. */
+async function expectNotConnected(call: () => Promise<unknown>): Promise<void> {
   let rejection: unknown;
   try {
-    await database.connect();
+    await call();
   } catch (error) {
     rejection = error;
   }
 
-  expect(rejection, "connect() rejection").toBeInstanceOf(Error);
+  expect(rejection).toBeInstanceOf(DatabaseError);
+  expect(rejection).toMatchObject({ code: "NOT_CONNECTED" });
+}
+
+/**
+ * Asserts that `syncSchema(schemas)` rejects with a conflict: a native
+ * `Error`, not the server's, naming the collection, the index and
+ * `syncSchema()`, whose `cause` is the server's error with `code`. Then, that
+ * the instance is left connected. Returns the error, for further assertions.
+ */
+async function expectConflict(
+  database: MongoDatabase,
+  schemas: readonly IMongoSchema[],
+  expected: { collection: string; index: string; code: number },
+): Promise<Error> {
+  let rejection: unknown;
+  try {
+    await database.syncSchema(schemas);
+  } catch (error) {
+    rejection = error;
+  }
+
+  expect(rejection, "syncSchema() rejection").toBeInstanceOf(Error);
   const error = rejection as Error;
   expect(error.name, "the rejection's name").toBe("Error");
   expect(error).not.toBeInstanceOf(MongoServerError);
   expect(error.message).toContain(`'${expected.collection}'`);
   expect(error.message).toContain(`'${expected.index}'`);
+  expect(error.message).toContain("syncSchema()");
   expect(error.cause).toBeInstanceOf(MongoServerError);
   expect(error.cause).toMatchObject({
     name: "MongoServerError",
     code: expected.code,
   });
 
-  expect(database.isConnected()).toBe(false);
-  expect(() => database.getDb()).toThrow(DatabaseError);
-  expectNoLogsBut();
+  expect(database.isConnected()).toBe(true);
 
+  return error;
+}
+
+/**
+ * Asserts that a call rejects with a native `Error`, not the server's, and
+ * returns it, for assertions on its message.
+ */
+async function expectNativeError(call: () => Promise<unknown>): Promise<Error> {
+  let rejection: unknown;
+  try {
+    await call();
+  } catch (error) {
+    rejection = error;
+  }
+
+  expect(rejection).toBeInstanceOf(Error);
+  const error = rejection as Error;
+  expect(error.name, "the rejection's name").toBe("Error");
+  expect(error).not.toBeInstanceOf(MongoServerError);
   return error;
 }
 
@@ -145,16 +152,20 @@ function createDatabase(
   const database = new MongoDatabase({
     dbUri: mongoUri(),
     dbName,
-    logger: logger,
     ...overrides,
   });
   databases.push(database);
   return database;
 }
 
+/** A `MongoDatabase` on the test's database, connected. */
+async function createConnectedDatabase(): Promise<MongoDatabase> {
+  const database = createDatabase();
+  await database.connect();
+  return database;
+}
+
 beforeEach(async () => {
-  vi.clearAllMocks();
-  logger.child.mockReturnValue(logger);
   databases = [];
   dbName = uniqueDbName();
   client = await connect();
@@ -174,11 +185,22 @@ describe("MongoDatabase", () => {
       expect(db.isConnected()).toBe(false);
     });
 
-    it("should default schemas to empty array", async () => {
-      const db = createDatabase();
-      await db.connect();
+    it("should not accept schemas or logger as options", () => {
+      const withSchemas = new MongoDatabase({
+        dbUri: mongoUri(),
+        dbName,
+        // @ts-expect-error -- the schemas are an argument of the sync methods
+        schemas: [testSchema],
+      });
+      const withLogger = new MongoDatabase({
+        dbUri: mongoUri(),
+        dbName,
+        // @ts-expect-error -- the package logs nothing
+        logger: { debug: () => undefined, warn: () => undefined },
+      });
 
-      expect(await setupDb.listCollections().toArray()).toEqual([]);
+      expect(withSchemas.isConnected()).toBe(false);
+      expect(withLogger.isConnected()).toBe(false);
     });
   });
 
@@ -192,9 +214,91 @@ describe("MongoDatabase", () => {
       });
     });
 
+    it("should clean up and rethrow an unreachable server", async () => {
+      const db = createDatabase({
+        dbUri: "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=200",
+      });
+
+      await expect(db.connect()).rejects.toMatchObject({
+        name: "MongoServerSelectionError",
+      });
+      expect(db.isConnected()).toBe(false);
+    });
+
+    describe("a repeated connect", () => {
+      it("should keep one client when called again once connected", async () => {
+        const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+        const db = createDatabase();
+        await db.connect();
+        const first = db.getClient();
+
+        await db.connect();
+
+        expect(connectSpy).toHaveBeenCalledOnce();
+        expect(db.getClient()).toBe(first);
+        await db.disconnect();
+        await expect(first.db("x").command({ ping: 1 })).rejects.toThrow();
+      });
+
+      it("should share one client between concurrent calls", async () => {
+        const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+        const db = createDatabase();
+
+        const outcomes = await Promise.allSettled([db.connect(), db.connect()]);
+
+        expect(outcomes.map((outcome) => outcome.status)).toEqual([
+          "fulfilled",
+          "fulfilled",
+        ]);
+        expect(connectSpy).toHaveBeenCalledOnce();
+        await db.disconnect();
+        expect(db.isConnected()).toBe(false);
+      });
+
+      it("should try again after a rejected connect", async () => {
+        const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+        const db = createDatabase({
+          dbUri: "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=200",
+        });
+
+        await expect(db.connect()).rejects.toMatchObject({
+          name: "MongoServerSelectionError",
+        });
+        await expect(db.connect()).rejects.toMatchObject({
+          name: "MongoServerSelectionError",
+        });
+
+        expect(connectSpy).toHaveBeenCalledTimes(2);
+      });
+
+      it("should connect again after disconnect", async () => {
+        const db = createDatabase();
+        await db.connect();
+        await db.disconnect();
+
+        await db.connect();
+
+        expect(db.isConnected()).toBe(true);
+        await expect(
+          db.getClient().db(dbName).command({ ping: 1 }),
+        ).resolves.toMatchObject({ ok: 1 });
+      });
+    });
+  });
+
+  describe("syncSchema", () => {
+    it("should reject with NOT_CONNECTED before connect", async () => {
+      const db = createDatabase();
+
+      await expectNotConnected(() => db.syncSchema([testSchema]));
+    });
+
     it("should create a missing collection with its validator and indexes", async () => {
-      const db = createDatabase({ schemas: [testSchema] });
-      await db.connect();
+      const db = await createConnectedDatabase();
+
+      await expect(db.syncSchema([testSchema])).resolves.toEqual({
+        createdCollections: ["users"],
+      });
 
       expect(await validatorOf(setupDb, "users")).toEqual(
         testSchema.validation,
@@ -223,105 +327,110 @@ describe("MongoDatabase", () => {
       await setupDb.createCollection("users", {
         validator: { $jsonSchema: { bsonType: "object", required: ["old"] } },
       });
-      const db = createDatabase({ schemas: [testSchema] });
-      await db.connect();
+      const db = await createConnectedDatabase();
+
+      await expect(db.syncSchema([testSchema])).resolves.toEqual({
+        createdCollections: [],
+      });
 
       expect(await validatorOf(setupDb, "users")).toEqual(
         testSchema.validation,
       );
     });
 
-    it("should leave the indexes unchanged when another instance connects with the same schema", async () => {
-      const first = createDatabase({ schemas: [testSchema] });
-      await first.connect();
-      await first.disconnect();
+    it("should leave the indexes unchanged when run again with the same schema", async () => {
+      const db = await createConnectedDatabase();
+      await db.syncSchema([testSchema]);
       const before = await listIndexes(setupDb, "users");
-      vi.clearAllMocks();
-      logger.child.mockReturnValue(logger);
 
-      const second = createDatabase({ schemas: [testSchema] });
-      await expect(second.connect()).resolves.toBeUndefined();
+      await expect(db.syncSchema([testSchema])).resolves.toEqual({
+        createdCollections: [],
+      });
 
       const after = await listIndexes(setupDb, "users");
       expect(after).toEqual(before);
-      expectNoLogsBut();
-    });
-
-    it("should drop an index the schema does not name, and log it", async () => {
-      await setupDb.createCollection("users");
-      await setupDb
-        .collection("users")
-        .createIndexes([{ name: "old_idx", key: { legacy: 1 }, unique: true }]);
-      const [listed] = (await listIndexes(setupDb, "users")).filter(
-        (index) => index.name === "old_idx",
-      );
-      const db = createDatabase({ schemas: [testSchema] });
-      await db.connect();
-
-      const names = await indexNames(setupDb, "users");
-      expect(names).not.toContain("old_idx");
-      expect(logger.warn).toHaveBeenCalledOnce();
-      expect(logger.warn).toHaveBeenCalledWith(
-        "Index 'old_idx' dropped from collection 'users'.",
-        { index: listed },
-      );
-      expectNoLogsBut("warn");
-    });
-
-    it("should keep only _id_ for a schema without indexes", async () => {
-      await setupDb.createCollection("logs");
-      await setupDb
-        .collection("logs")
-        .createIndexes([{ name: "old_idx", key: { legacy: 1 } }]);
-      const db = createDatabase({
-        schemas: [{ collectionName: "logs", validation: anyDocument }],
-      });
-      await db.connect();
-
-      const names = await indexNames(setupDb, "logs");
-      expect(names).toEqual(["_id_"]);
-    });
-
-    it("should create the schema's index and drop the one it replaced by name", async () => {
-      await setupDb.createCollection("users");
-      await setupDb
-        .collection("users")
-        .createIndexes([{ name: "a_1", key: { a: 1 } }]);
-      const db = createDatabase({
-        schemas: [
-          {
-            collectionName: "users",
-            validation: anyDocument,
-            indexes: [{ name: "b_1", key: { b: 1 } }],
-          },
-        ],
-      });
-      await db.connect();
-
-      const names = await indexNames(setupDb, "users");
-      expect(names).toContain("b_1");
-      expect(names).not.toContain("a_1");
     });
 
     it("should reject with the server's error when a unique index meets duplicates", async () => {
       await setupDb.collection("users").insertMany([{ a: 1 }, { a: 1 }]);
-      const db = createDatabase({
-        schemas: [
+      const db = await createConnectedDatabase();
+
+      await expect(
+        db.syncSchema([
           {
             collectionName: "users",
             validation: anyDocument,
             indexes: [{ name: "a_unique", key: { a: 1 }, unique: true }],
           },
-        ],
-      });
-
-      await expect(db.connect()).rejects.toMatchObject({
+        ]),
+      ).rejects.toMatchObject({
         name: "MongoServerError",
         code: 11000,
       });
-      expect(db.isConnected()).toBe(false);
-      expect(() => db.getDb()).toThrow(DatabaseError);
-      expectNoLogsBut();
+      expect(db.isConnected()).toBe(true);
+    });
+
+    it("should report the collections it created, in the order of the schemas", async () => {
+      await setupDb.createCollection("orders");
+      const db = await createConnectedDatabase();
+
+      await expect(
+        db.syncSchema([
+          testSchema,
+          { collectionName: "orders", validation: anyDocument },
+          { collectionName: "logs", validation: anyDocument },
+        ]),
+      ).resolves.toEqual({ createdCollections: ["users", "logs"] });
+    });
+
+    it("should create nothing for an empty list", async () => {
+      const db = await createConnectedDatabase();
+
+      await expect(db.syncSchema([])).resolves.toEqual({
+        createdCollections: [],
+      });
+
+      expect(await setupDb.listCollections().toArray()).toEqual([]);
+    });
+
+    it("should drop no index the schema does not name", async () => {
+      await setupDb.createCollection("users");
+      await setupDb
+        .collection("users")
+        .createIndexes([{ name: "old_idx", key: { legacy: 1 } }]);
+      const db = await createConnectedDatabase();
+
+      await db.syncSchema([testSchema]);
+
+      const names = await indexNames(setupDb, "users");
+      expect(names).toContain("old_idx");
+      expect(names).toContain("email_unique");
+      expect(names).toContain("createdAt_idx");
+    });
+
+    it("should leave the validator as it was when an index conflicts", async () => {
+      const oldValidator = {
+        $jsonSchema: { bsonType: "object", required: ["old"] },
+      };
+      await setupDb.createCollection("users", { validator: oldValidator });
+      await setupDb
+        .collection("users")
+        .createIndexes([{ name: "i", key: { a: 1 } }]);
+      const db = await createConnectedDatabase();
+
+      await expectConflict(
+        db,
+        [
+          {
+            collectionName: "users",
+            validation: testSchema.validation,
+            indexes: [{ name: "i", key: { b: 1 } }],
+          },
+        ],
+        { collection: "users", index: "i", code: 86 },
+      );
+
+      expect(await validatorOf(setupDb, "users")).toEqual(oldValidator);
     });
 
     describe("an index the schema changed", () => {
@@ -331,17 +440,19 @@ describe("MongoDatabase", () => {
           { name: "i", key: { a: 1 } },
           { name: "old", key: { old: 1 } },
         ]);
-        const db = createDatabase({
-          schemas: [
+        const db = await createConnectedDatabase();
+
+        await expectConflict(
+          db,
+          [
             {
               collectionName: "users",
               validation: anyDocument,
               indexes: [{ name: "i", key: { b: 1 } }],
             },
           ],
-        });
-
-        await expectConflict(db, { collection: "users", index: "i", code: 86 });
+          { collection: "users", index: "i", code: 86 },
+        );
 
         expect((await indexNamed(setupDb, "users", "i"))?.key).toEqual({
           a: 1,
@@ -354,17 +465,19 @@ describe("MongoDatabase", () => {
         await setupDb
           .collection("users")
           .createIndexes([{ name: "i", key: { a: 1 } }]);
-        const db = createDatabase({
-          schemas: [
+        const db = await createConnectedDatabase();
+
+        await expectConflict(
+          db,
+          [
             {
               collectionName: "users",
               validation: anyDocument,
               indexes: [{ name: "j", key: { a: 1 } }],
             },
           ],
-        });
-
-        await expectConflict(db, { collection: "users", index: "j", code: 85 });
+          { collection: "users", index: "j", code: 85 },
+        );
 
         const names = await indexNames(setupDb, "users");
         expect(names).toContain("i");
@@ -376,17 +489,19 @@ describe("MongoDatabase", () => {
         await setupDb
           .collection("users")
           .createIndexes([{ name: "i", key: { a: 1 } }]);
-        const db = createDatabase({
-          schemas: [
+        const db = await createConnectedDatabase();
+
+        await expectConflict(
+          db,
+          [
             {
               collectionName: "users",
               validation: anyDocument,
               indexes: [{ name: "i", key: { a: 1 }, unique: true }],
             },
           ],
-        });
-
-        await expectConflict(db, { collection: "users", index: "i", code: 86 });
+          { collection: "users", index: "i", code: 86 },
+        );
 
         const index = await indexNamed(setupDb, "users", "i");
         expect(index).toBeDefined();
@@ -400,17 +515,19 @@ describe("MongoDatabase", () => {
           .createIndexes([
             { name: "i", key: { a: 1 }, expireAfterSeconds: 10 },
           ]);
-        const db = createDatabase({
-          schemas: [
+        const db = await createConnectedDatabase();
+
+        await expectConflict(
+          db,
+          [
             {
               collectionName: "users",
               validation: anyDocument,
               indexes: [{ name: "i", key: { a: 1 }, expireAfterSeconds: 20 }],
             },
           ],
-        });
-
-        await expectConflict(db, { collection: "users", index: "i", code: 85 });
+          { collection: "users", index: "i", code: 85 },
+        );
       });
 
       it("should name the conflicting index, not the one before it, and keep that one", async () => {
@@ -418,8 +535,11 @@ describe("MongoDatabase", () => {
         await setupDb
           .collection("users")
           .createIndexes([{ name: "i", key: { a: 1 } }]);
-        const db = createDatabase({
-          schemas: [
+        const db = await createConnectedDatabase();
+
+        const error = await expectConflict(
+          db,
+          [
             {
               collectionName: "users",
               validation: anyDocument,
@@ -429,13 +549,8 @@ describe("MongoDatabase", () => {
               ],
             },
           ],
-        });
-
-        const error = await expectConflict(db, {
-          collection: "users",
-          index: "i",
-          code: 86,
-        });
+          { collection: "users", index: "i", code: 86 },
+        );
 
         expect(error.message).not.toContain("'z'");
         expect(await indexNames(setupDb, "users")).toContain("z");
@@ -443,16 +558,15 @@ describe("MongoDatabase", () => {
     });
 
     it("should create an index hidden when the schema says so", async () => {
-      const db = createDatabase({
-        schemas: [
-          {
-            collectionName: "users",
-            validation: anyDocument,
-            indexes: [{ name: "a_1", key: { a: 1 }, hidden: true }],
-          },
-        ],
-      });
-      await db.connect();
+      const db = await createConnectedDatabase();
+
+      await db.syncSchema([
+        {
+          collectionName: "users",
+          validation: anyDocument,
+          indexes: [{ name: "a_1", key: { a: 1 }, hidden: true }],
+        },
+      ]);
 
       const indexes = await listIndexes(setupDb, "users");
       expect(indexes).toContainEqual(
@@ -469,175 +583,242 @@ describe("MongoDatabase", () => {
         collMod: "users",
         index: { name: "i", hidden: true },
       });
-      const db = createDatabase({
-        schemas: [
-          {
-            collectionName: "users",
-            validation: anyDocument,
-            indexes: [{ name: "i", key: { a: 1 } }],
-          },
-        ],
-      });
+      const db = await createConnectedDatabase();
 
-      await expect(db.connect()).resolves.toBeUndefined();
+      await db.syncSchema([
+        {
+          collectionName: "users",
+          validation: anyDocument,
+          indexes: [{ name: "i", key: { a: 1 } }],
+        },
+      ]);
 
       const indexes = await listIndexes(setupDb, "users");
       expect(indexes).toContainEqual(
         expect.objectContaining({ name: "i", hidden: true }),
       );
     });
+  });
 
-    it("should reject with a failed drop of a stale index, logging nothing", async () => {
+  describe("dropStaleIndexes", () => {
+    it("should reject with NOT_CONNECTED before connect", async () => {
+      const db = createDatabase();
+
+      await expectNotConnected(() => db.dropStaleIndexes([testSchema]));
+    });
+
+    it("should drop an index the schema does not name, and report it", async () => {
+      await setupDb.createCollection("users");
+      await setupDb
+        .collection("users")
+        .createIndexes([{ name: "old_idx", key: { legacy: 1 }, unique: true }]);
+      const listed = await indexNamed(setupDb, "users", "old_idx");
+      expect(listed).toBeDefined();
+      const db = await createConnectedDatabase();
+      await db.syncSchema([testSchema]);
+
+      await expect(db.dropStaleIndexes([testSchema])).resolves.toEqual({
+        droppedIndexes: [{ collection: "users", index: listed }],
+      });
+
+      expect(await indexNames(setupDb, "users")).not.toContain("old_idx");
+    });
+
+    it("should keep only _id_ for a schema without indexes", async () => {
+      await setupDb.createCollection("logs");
+      await setupDb
+        .collection("logs")
+        .createIndexes([{ name: "old_idx", key: { legacy: 1 } }]);
+      const db = await createConnectedDatabase();
+
+      await db.dropStaleIndexes([
+        { collectionName: "logs", validation: anyDocument },
+      ]);
+
+      expect(await indexNames(setupDb, "logs")).toEqual(["_id_"]);
+    });
+
+    it("should drop the index the schema's index replaced by name", async () => {
+      await setupDb.createCollection("users");
+      await setupDb
+        .collection("users")
+        .createIndexes([{ name: "a_1", key: { a: 1 } }]);
+      const schemas: IMongoSchema[] = [
+        {
+          collectionName: "users",
+          validation: anyDocument,
+          indexes: [{ name: "b_1", key: { b: 1 } }],
+        },
+      ];
+      const db = await createConnectedDatabase();
+
+      await db.syncSchema(schemas);
+      await db.dropStaleIndexes(schemas);
+
+      const names = await indexNames(setupDb, "users");
+      expect(names).toContain("b_1");
+      expect(names).not.toContain("a_1");
+    });
+
+    it("should reject with a failed drop of a stale index", async () => {
       await setupDb.createCollection("users");
       await setupDb
         .collection("users")
         .createIndexes([{ name: "old_idx", key: { legacy: 1 } }]);
+      const db = await createConnectedDatabase();
+      await db.syncSchema([testSchema]);
       const error = new Error("drop failed");
       vi.spyOn(Collection.prototype, "dropIndex").mockRejectedValue(error);
-      const db = createDatabase({ schemas: [testSchema] });
 
-      await expect(db.connect()).rejects.toBe(error);
-
-      expectNoLogsBut();
+      await expect(db.dropStaleIndexes([testSchema])).rejects.toBe(error);
+      expect(db.isConnected()).toBe(true);
     });
 
-    it("should clean up and rethrow an unreachable server without logging", async () => {
-      const db = createDatabase({
-        dbUri: "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=200",
+    it("should report every drop with its collection, in order", async () => {
+      await setupDb.createCollection("users");
+      await setupDb
+        .collection("users")
+        .createIndexes([{ name: "old_a", key: { a: 1 } }]);
+      await setupDb.createCollection("logs");
+      await setupDb
+        .collection("logs")
+        .createIndexes([{ name: "old_b", key: { b: 1 } }]);
+      const oldA = await indexNamed(setupDb, "users", "old_a");
+      const oldB = await indexNamed(setupDb, "logs", "old_b");
+      expect(oldA).toBeDefined();
+      expect(oldB).toBeDefined();
+      const schemas: IMongoSchema[] = [
+        testSchema,
+        { collectionName: "logs", validation: anyDocument },
+      ];
+      const db = await createConnectedDatabase();
+      await db.syncSchema(schemas);
+
+      await expect(db.dropStaleIndexes(schemas)).resolves.toEqual({
+        droppedIndexes: [
+          { collection: "users", index: oldA },
+          { collection: "logs", index: oldB },
+        ],
+      });
+    });
+
+    it("should report nothing when nothing is stale", async () => {
+      const db = await createConnectedDatabase();
+      await db.syncSchema([testSchema]);
+      const before = await listIndexes(setupDb, "users");
+
+      await expect(db.dropStaleIndexes([testSchema])).resolves.toEqual({
+        droppedIndexes: [],
       });
 
-      await expect(db.connect()).rejects.toMatchObject({
-        name: "MongoServerSelectionError",
-      });
-      expect(db.isConnected()).toBe(false);
-      expectNoLogsBut();
+      expect(await listIndexes(setupDb, "users")).toEqual(before);
     });
 
-    it("should log a created collection at debug, and nothing else", async () => {
-      const db = createDatabase({ schemas: [testSchema] });
-      await db.connect();
+    it("should drop nothing in any collection while a schema index is missing", async () => {
+      await setupDb.createCollection("users");
+      await setupDb
+        .collection("users")
+        .createIndexes([{ name: "old_idx", key: { legacy: 1 } }]);
+      await setupDb.createCollection("logs");
+      const db = await createConnectedDatabase();
+      await db.syncSchema([testSchema]);
 
-      expect(logger.debug).toHaveBeenCalledOnce();
-      expect(logger.debug).toHaveBeenCalledWith("Collection 'users' created.");
-      expectNoLogsBut("debug");
-    });
-
-    describe("a stale index dropped concurrently", () => {
-      /** The name of the `dropIndex` call made to miss. */
-      let dropped: string[];
-
-      /**
-       * Makes the next `dropIndex` miss: the index is dropped through
-       * `setupDb` first, as another instance would, then the original runs.
-       */
-      function dropFirstElsewhere(): void {
-        const original = Collection.prototype.dropIndex;
-        dropped = [];
-        vi.spyOn(Collection.prototype, "dropIndex").mockImplementationOnce(
-          async function (this: Collection, indexName, options) {
-            dropped.push(indexName);
-            await setupDb.command({
-              dropIndexes: this.collectionName,
-              index: indexName,
-            });
-            return original.call(this, indexName, options);
+      const error = await expectNativeError(() =>
+        db.dropStaleIndexes([
+          testSchema,
+          {
+            collectionName: "logs",
+            validation: anyDocument,
+            indexes: [{ name: "a_1", key: { a: 1 } }],
           },
-        );
+        ]),
+      );
+
+      expect(error.message).toContain("'logs'");
+      expect(error.message).toContain("'a_1'");
+      expect(await indexNames(setupDb, "users")).toContain("old_idx");
+    });
+
+    it("should report a missing collection together with the other misses", async () => {
+      await setupDb.createCollection("users");
+      await setupDb.collection("users").createIndexes([
+        { name: "createdAt_idx", key: { createdAt: -1 } },
+        { name: "old_idx", key: { legacy: 1 } },
+      ]);
+      const db = await createConnectedDatabase();
+
+      const error = await expectNativeError(() =>
+        db.dropStaleIndexes([
+          { collectionName: "orders", validation: anyDocument },
+          testSchema,
+        ]),
+      );
+
+      expect(error.message).toContain("'orders'");
+      expect(error.message).toContain("'users'");
+      expect(error.message).toContain("'email_unique'");
+      expect(await indexNames(setupDb, "users")).toContain("old_idx");
+    });
+
+    it("should reject when a stale index was dropped by someone else", async () => {
+      await setupDb.createCollection("users");
+      await setupDb
+        .collection("users")
+        .createIndexes([{ name: "old_idx", key: { legacy: 1 } }]);
+      const db = await createConnectedDatabase();
+      await db.syncSchema([testSchema]);
+
+      // The index is dropped through `setupDb` first, as another run would,
+      // then the original `dropIndex` runs.
+      const original = Collection.prototype.dropIndex;
+      const dropped: string[] = [];
+      vi.spyOn(Collection.prototype, "dropIndex").mockImplementationOnce(
+        async function (this: Collection, indexName, options) {
+          dropped.push(indexName);
+          await setupDb.command({
+            dropIndexes: this.collectionName,
+            index: indexName,
+          });
+          return original.call(this, indexName, options);
+        },
+      );
+
+      let rejection: unknown;
+      try {
+        await db.dropStaleIndexes([testSchema]);
+      } catch (error) {
+        rejection = error;
       }
 
-      it("should resolve when the stale index was dropped between the list and the drop", async () => {
-        await setupDb.createCollection("users");
-        await setupDb
-          .collection("users")
-          .createIndexes([{ name: "old_idx", key: { legacy: 1 } }]);
-        dropFirstElsewhere();
-        const db = createDatabase({ schemas: [testSchema] });
+      expect(dropped).toEqual(["old_idx"]);
+      expect(rejection).toBeInstanceOf(MongoServerError);
+      expect(rejection).toMatchObject({ code: 27 });
+    });
 
-        await expect(db.connect()).resolves.toBeUndefined();
+    it("should leave the collections of no schema untouched", async () => {
+      await setupDb.createCollection("other");
+      await setupDb
+        .collection("other")
+        .createIndexes([{ name: "x_1", key: { x: 1 } }]);
+      const db = await createConnectedDatabase();
+      await db.syncSchema([testSchema]);
 
-        expect(dropped).toEqual(["old_idx"]);
-        expect(db.isConnected()).toBe(true);
-        expect(await indexNames(setupDb, "users")).not.toContain("old_idx");
-        expectNoLogsBut();
-      });
+      await db.dropStaleIndexes([testSchema]);
 
-      it("should drop the stale indexes after a missing one, logging only that drop", async () => {
-        await setupDb.createCollection("users");
-        await setupDb.collection("users").createIndexes([
-          { name: "old_a", key: { a: 1 } },
-          { name: "old_b", key: { b: 1 } },
-        ]);
-        const listed = await listIndexes(setupDb, "users");
-        dropFirstElsewhere();
-        const db = createDatabase({ schemas: [testSchema] });
+      expect(await indexNames(setupDb, "other")).toContain("x_1");
+    });
 
-        await expect(db.connect()).resolves.toBeUndefined();
+    it("should leave the validator alone", async () => {
+      const db = await createConnectedDatabase();
+      await db.syncSchema([testSchema]);
+      const replaced = {
+        $jsonSchema: { bsonType: "object", required: ["replaced"] },
+      };
+      await setupDb.command({ collMod: "users", validator: replaced });
 
-        const [missed] = dropped;
-        expect(["old_a", "old_b"]).toContain(missed);
-        const other = missed === "old_a" ? "old_b" : "old_a";
-        const names = await indexNames(setupDb, "users");
-        expect(names).not.toContain("old_a");
-        expect(names).not.toContain("old_b");
-        expect(logger.warn).toHaveBeenCalledOnce();
-        expect(logger.warn).toHaveBeenCalledWith(
-          `Index '${other}' dropped from collection 'users'.`,
-          { index: listed.find((index) => index.name === other) },
-        );
-        expectNoLogsBut("warn");
-      });
+      await db.dropStaleIndexes([testSchema]);
 
-      it("should resolve every instance connecting at once, each drop logged once", async () => {
-        await setupDb.createCollection("users");
-        await setupDb.collection("users").createIndexes([
-          { name: "old_a", key: { a: 1 } },
-          { name: "old_b", key: { b: 1 } },
-        ]);
-        const instances = Array.from({ length: 4 }, () =>
-          createDatabase({ schemas: [testSchema] }),
-        );
-
-        const results = await Promise.allSettled(
-          instances.map((instance) => instance.connect()),
-        );
-
-        expect(results).toEqual(
-          Array.from({ length: 4 }, () => ({
-            status: "fulfilled",
-            value: undefined,
-          })),
-        );
-        expect((await indexNames(setupDb, "users")).sort()).toEqual([
-          "_id_",
-          "createdAt_idx",
-          "email_unique",
-        ]);
-        expect(logger.warn).toHaveBeenCalledTimes(2);
-        const messages = logger.warn.mock.calls.map(
-          ([message]: unknown[]) => message,
-        );
-        expect(messages.sort()).toEqual([
-          "Index 'old_a' dropped from collection 'users'.",
-          "Index 'old_b' dropped from collection 'users'.",
-        ]);
-      });
-
-      it("should reject with a server error of another code, logging nothing", async () => {
-        await setupDb.createCollection("users");
-        await setupDb
-          .collection("users")
-          .createIndexes([{ name: "old_idx", key: { legacy: 1 } }]);
-        const error = new MongoServerError({
-          code: 26,
-          errmsg: "ns not found",
-        });
-        vi.spyOn(Collection.prototype, "dropIndex").mockRejectedValue(error);
-        const db = createDatabase({ schemas: [testSchema] });
-
-        await expect(db.connect()).rejects.toBe(error);
-
-        expectNoLogsBut();
-      });
+      expect(await validatorOf(setupDb, "users")).toEqual(replaced);
     });
   });
 
@@ -727,32 +908,6 @@ describe("MongoDatabase", () => {
         expect(error).toBeInstanceOf(DatabaseError);
         expect((error as DatabaseError).code).toBe("NOT_CONNECTED");
       }
-    });
-  });
-
-  describe("logging", () => {
-    it("should log nothing on connect without schemas and disconnect", async () => {
-      const db = createDatabase();
-      await db.connect();
-      await db.disconnect();
-
-      expectNoLogsBut();
-    });
-
-    it("should create a child logger with a fixed context and the dbName", () => {
-      createDatabase();
-
-      expect(logger.child).toHaveBeenCalledOnce();
-      expect(logger.child).toHaveBeenCalledWith({
-        context: "MongoDatabase",
-        metadata: { dbName },
-      });
-    });
-
-    it("should connect without a logger option", async () => {
-      const db = createDatabase({ schemas: [testSchema], logger: undefined });
-
-      await expect(db.connect()).resolves.toBeUndefined();
     });
   });
 });
