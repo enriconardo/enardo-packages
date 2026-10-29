@@ -956,4 +956,199 @@ describe("MongoDatabase", () => {
       expectThrowsNotConnected(() => db.getClient(), "getClient");
     });
   });
+
+  describe("the order of the calls", () => {
+    it("should end connected when connect is called during disconnect", async () => {
+      const db = await createConnectedDatabase();
+      const before = db.getClient();
+
+      const disconnecting = db.disconnect();
+      await db.connect();
+      await disconnecting;
+
+      expect(db.isConnected()).toBe(true);
+      await expect(db.getDb().command({ ping: 1 })).resolves.toMatchObject({
+        ok: 1,
+      });
+      expect(db.getClient() === before, "the client held before").toBe(true);
+    });
+
+    it("should let a disconnect called during connect wait for it, then close", async () => {
+      const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+      const db = createDatabase();
+      const settled: string[] = [];
+
+      const connecting = db.connect().then(() => settled.push("connect"));
+      const disconnecting = db
+        .disconnect()
+        .then(() => settled.push("disconnect"));
+      await Promise.all([connecting, disconnecting]);
+
+      expect(settled).toEqual(["connect", "disconnect"]);
+      expect(db.isConnected()).toBe(false);
+      expectThrowsNotConnected(() => db.getDb(), "getDb");
+      const opened = connectSpy.mock.contexts[0] as MongoClient | undefined;
+      expect(opened).toBeInstanceOf(MongoClient);
+      await expect(opened?.db(dbName).command({ ping: 1 })).rejects.toThrow();
+    });
+
+    it("should let a disconnect called during a failing connect resolve after it", async () => {
+      const db = createDatabase({
+        dbUri: "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=200",
+      });
+      const settled: string[] = [];
+
+      const connecting = db.connect().then(
+        () => settled.push("connect resolved"),
+        (error: unknown) => {
+          settled.push("connect rejected");
+          throw error;
+        },
+      );
+      const disconnecting = db
+        .disconnect()
+        .then(() => settled.push("disconnect"));
+
+      await expect(connecting).rejects.toMatchObject({
+        name: "MongoServerSelectionError",
+      });
+      await expect(disconnecting).resolves.toBeDefined();
+      expect(settled).toEqual(["connect rejected", "disconnect"]);
+      expect(db.isConnected()).toBe(false);
+    });
+
+    it("should end connected on one client after connect, disconnect, connect", async () => {
+      const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+      const db = createDatabase();
+
+      await Promise.all([db.connect(), db.disconnect(), db.connect()]);
+
+      expect(db.isConnected()).toBe(true);
+      await expect(db.getDb().command({ ping: 1 })).resolves.toMatchObject({
+        ok: 1,
+      });
+      const held = db.getClient();
+      expect(connectSpy.mock.contexts.length).toBeGreaterThan(0);
+      for (const context of connectSpy.mock.contexts) {
+        expect(context === held, "connect() called on the held client").toBe(
+          true,
+        );
+      }
+    });
+
+    it("should end disconnected after disconnect, connect, disconnect", async () => {
+      const db = await createConnectedDatabase();
+      const held = db.getClient();
+
+      await Promise.all([db.disconnect(), db.connect(), db.disconnect()]);
+
+      expect(db.isConnected()).toBe(false);
+      expectThrowsNotConnected(() => db.getDb(), "getDb");
+      await expect(held.db(dbName).command({ ping: 1 })).rejects.toThrow();
+    });
+
+    it("should share one attempt between two connects to an unreachable server", async () => {
+      const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+      const db = createDatabase({
+        dbUri: "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=200",
+      });
+
+      const outcomes = await Promise.allSettled([db.connect(), db.connect()]);
+
+      for (const outcome of outcomes) {
+        expect(outcome.status).toBe("rejected");
+        expect(
+          outcome.status === "rejected" ? outcome.reason : undefined,
+        ).toMatchObject({ name: "MongoServerSelectionError" });
+      }
+      expect(connectSpy).toHaveBeenCalledOnce();
+    });
+
+    it("should share one close between two disconnects", async () => {
+      const db = await createConnectedDatabase();
+      const closeSpy = vi.spyOn(MongoClient.prototype, "close");
+
+      const outcomes = await Promise.allSettled([
+        db.disconnect(),
+        db.disconnect(),
+      ]);
+
+      expect(outcomes.map((outcome) => outcome.status)).toEqual([
+        "fulfilled",
+        "fulfilled",
+      ]);
+      expect(closeSpy).toHaveBeenCalledOnce();
+      expect(db.isConnected()).toBe(false);
+    });
+  });
+
+  describe("one client", () => {
+    it("should reopen the same client, and what was built on it, after a reconnect", async () => {
+      const db = await createConnectedDatabase();
+      const held = db.getClient();
+      const heldDb = db.getDb();
+
+      await db.disconnect();
+
+      await expect(held.db(dbName).command({ ping: 1 })).rejects.toMatchObject({
+        name: "MongoNotConnectedError",
+      });
+
+      await db.connect();
+
+      expect(db.getClient() === held, "the client held before").toBe(true);
+      await expect(held.db(dbName).command({ ping: 1 })).resolves.toMatchObject(
+        { ok: 1 },
+      );
+      await expect(
+        heldDb.collection("users").insertOne({ email: "a@example.com" }),
+      ).resolves.toMatchObject({ acknowledged: true });
+    });
+
+    it("should try again after an unparseable URI, having created no client", async () => {
+      const db = createDatabase({ dbUri: "not-a-uri" });
+
+      await expect(db.connect()).rejects.toMatchObject({
+        name: "MongoParseError",
+      });
+      await expect(db.connect()).rejects.toMatchObject({
+        name: "MongoParseError",
+      });
+    });
+  });
+
+  describe("a client closed by hand", () => {
+    it("should count the instance as not connected", async () => {
+      const db = await createConnectedDatabase();
+
+      await db.getClient().close();
+
+      expect(db.isConnected()).toBe(false);
+      expectThrowsNotConnected(() => db.getDb(), "getDb");
+    });
+
+    it("should reopen the same client on the next connect", async () => {
+      const db = await createConnectedDatabase();
+      const held = db.getClient();
+      await held.close();
+
+      await db.connect();
+
+      expect(db.isConnected()).toBe(true);
+      expect(db.getClient() === held, "the client held before").toBe(true);
+      await expect(db.getDb().command({ ping: 1 })).resolves.toMatchObject({
+        ok: 1,
+      });
+    });
+
+    it("should not close it again on disconnect", async () => {
+      const db = await createConnectedDatabase();
+      await db.getClient().close();
+      const closeSpy = vi.spyOn(MongoClient.prototype, "close");
+
+      await expect(db.disconnect()).resolves.toBeUndefined();
+
+      expect(closeSpy).not.toHaveBeenCalled();
+    });
+  });
 });
