@@ -154,13 +154,16 @@ export default class MongoDatabase implements IMongoDatabase {
 
   private createClient(): MongoClient {
     const client = new MongoClient(this.dbUri);
+    // Throws for a name the driver refuses: before any field is set, so nothing
+    // is created and the next call tries again.
+    const conn = client.db(this.dbName);
     // The driver's one public signal of a closed client: emitted by `close()`
     // and by a failed `connect()`, never for a server down.
     client.on("topologyClosed", () => {
       this.open = false;
     });
     this.client = client;
-    this.conn = client.db(this.dbName);
+    this.conn = conn;
     return client;
   }
 
@@ -174,7 +177,8 @@ export default class MongoDatabase implements IMongoDatabase {
   /**
    * Get the underlying MongoDB {@link Db} instance.
    *
-   * @returns The active database connection.
+   * @returns The database connection: the same {@link Db} across reconnects, so
+   * one an app built on it works again after {@link MongoDatabase.connect}.
    * @throws {Error} When not connected: await {@link MongoDatabase.connect}
    * first.
    */
@@ -188,7 +192,10 @@ export default class MongoDatabase implements IMongoDatabase {
    * Useful for operations that require the client directly,
    * such as transaction management.
    *
-   * @returns The active MongoDB client.
+   * @returns The MongoDB client: the same one across reconnects, so what an app
+   * built on it works again after {@link MongoDatabase.connect}; between a
+   * `disconnect()` and the next `connect()` its operations reject with
+   * `MongoNotConnectedError`.
    * @throws {Error} When not connected: await {@link MongoDatabase.connect}
    * first.
    */

@@ -274,6 +274,19 @@ describe("MongoDatabase", () => {
       expect(db.isConnected()).toBe(false);
     });
 
+    it("should try again after a database name the driver refuses, creating no client", async () => {
+      const db = createDatabase({ dbName: "my.app" });
+
+      await expect(db.connect()).rejects.toMatchObject({
+        name: "MongoInvalidArgumentError",
+      });
+      await expect(db.connect()).rejects.toMatchObject({
+        name: "MongoInvalidArgumentError",
+      });
+      expect(db.isConnected()).toBe(false);
+      expectThrowsNotConnected(() => db.getClient(), "getClient");
+    });
+
     describe("a repeated connect", () => {
       it("should keep one client when called again once connected", async () => {
         const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
@@ -935,10 +948,20 @@ describe("MongoDatabase", () => {
 
     it("should throw the not-connected error while connect is in progress", async () => {
       const db = createDatabase();
-      const connecting = db.connect();
+      const driverConnect = MongoClient.prototype.connect;
+      // The check runs inside the driver's connect(), which is pending: a call
+      // made right after db.connect() would run before the queue starts it.
+      vi.spyOn(MongoClient.prototype, "connect").mockImplementation(function (
+        this: MongoClient,
+      ) {
+        const pending = driverConnect.call(this);
+        expectThrowsNotConnected(() => db.getDb(), "getDb");
+        expect(db.isConnected(), "isConnected() while connecting").toBe(false);
+        return pending;
+      });
 
-      expectThrowsNotConnected(() => db.getDb(), "getDb");
-      await expect(connecting).resolves.toBeUndefined();
+      await expect(db.connect()).resolves.toBeUndefined();
+      expect(db.isConnected()).toBe(true);
     });
   });
 

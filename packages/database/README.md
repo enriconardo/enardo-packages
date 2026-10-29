@@ -30,6 +30,10 @@ async function run(database: IDatabase, work: () => Promise<void>) {
 - `isConnected()` is `true` between a `connect()` that resolved and the close of the connection. It checks no server: with the server down it can stay `true`.
 - How calls made while another is in progress behave (a `disconnect()` during a `connect()`, two `connect()`s at once) is each implementation's to document.
 
+## Upgrading from 1.x
+
+`DatabaseError` is removed, with the dependency on `@enardo/errors`: using the database with no connection is a misuse, which an implementation reports with a native `Error`. A caller that read its `code` `NOT_CONNECTED` fixes the call order instead.
+
 ## Contributing
 
 Run these inside `packages/database`:
