@@ -86,10 +86,6 @@ importers:
         version: 4.1.12(@types/node@26.4.0)(@vitest/browser-playwright@4.1.12)(vite@8.2.4(@types/node@26.4.0))
 
   packages/database:
-    dependencies:
-      '@enardo/errors':
-        specifier: workspace:^
-        version: link:../errors
     devDependencies:
       '@enardo/eslint-config':
         specifier: workspace:^
@@ -97,9 +93,6 @@ importers:
       '@enardo/typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
-      '@types/node':
-        specifier: 'catalog:'
-        version: 26.4.0
       eslint:
         specifier: 'catalog:'
         version: 10.9.1
@@ -112,9 +105,6 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
-      vitest:
-        specifier: 'catalog:'
-        version: 4.1.12(@types/node@26.4.0)(@vitest/browser-playwright@4.1.12)(vite@8.2.4(@types/node@26.4.0))
 
   packages/database-mongo:
     devDependencies:
