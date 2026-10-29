@@ -40,6 +40,7 @@ From two backlog items:
   - a client never connected runs a `ping` (the driver connects it); after a `close()` it does not: `autoConnect` throws `MongoNotConnectedError` on `s.hasBeenClosed` (`lib/operations/execute_operation.js:104`), until a `connect()`.
 - The `critic`'s probe (dev container): `close()` 200 ms into a `connect()` on an unreachable host with `serverSelectionTimeoutMS=5000` → `close()` resolves at 210 ms, `connect()` rejects with `MongoTopologyClosedError` at 211 ms. `serverSelectionTimeoutMS` defaults to 30000 (`lib/connection_string.js:902`).
 - `mongodb` 7.5.0, the peer range's floor, in a throwaway container → the same two `topology.close()` sites (`mongo_client.js:260`, `:359`), the one `TOPOLOGY_CLOSED` emit (`sdam/topology.js:263`), the forwarding (`mongo_client.js:252`) and the `hasBeenClosed` check of `autoConnect`.
+- Projects outside this repo importing `DatabaseError` or reading `code` `NOT_CONNECTED` → none known to the user (2026-10-29); not probed, their repos are elsewhere.
 - Clients captured at construction → `MongoTransactionManager` (`packages/transaction-manager-mongo/src/mongo-transaction-manager.ts:29`) and `MongoDataStore` (`packages/uow-repository-mongo/src/mongo-data-store.ts:63`) take a `MongoClient` and keep it: an app passes them `db.getClient()`.
 - A contract package with no tests → `@enardo/password-hasher`: scripts on `src` only, no `vitest`, no `test` script, no `@types/node`; its README says why it has no tests.
 - The code to change → `MongoDatabase.connect()` `src/mongo.database.ts:84`, `disconnect()` `:110`, `isConnected()` `:123`, `getDb()` `:133`, `getClient()` `:151`; `IMongoDatabase` `src/mongo.database.types.ts:29`; the helper `expectNotConnected` `__tests__/mongo.database.test.ts:73`.
@@ -48,7 +49,7 @@ From two backlog items:
 
 1. **No connection: a native `Error`.** `getDb()` and `getClient()` throw `new Error("MongoDatabase is not connected: await connect() before <method>().")`, `<method>` being the method called (ADR 0012 point 6). `syncSchema()` and `dropStaleIndexes()` reject with the same, naming themselves, before any call to the server. Not taken: a `connect()` inside them, which hides the lifecycle that is the caller's.
 2. **`DatabaseError` goes**, from `@enardo/database` with its dependency on `@enardo/errors`: `@enardo/database` 2.0.0 holds `IDatabase` alone, as `@enardo/password-hasher` holds its interface. ADR 0012 gets no new ADR: point 6 already decides the case, so its status records that point 5 is settled by this branch, named by the branch, since a spec's path leaves the tree.
-3. **`IMongoDatabase` keeps its name** (without the prefix it would be the class's; the `I` prefix item renames the package's types together), **and declares `getDb()` and `getClient()`**: they are how an app uses the database, and adding a method to an interface later is a major, where 2.0.0 is unpublished. No app is known to type on `IMongoDatabase`.
+3. **`IMongoDatabase` keeps its name** (without the prefix it would be the class's; the `I` prefix item renames the package's types together), and its methods stay as they are, `IDatabase`'s and the sync's (the user's call). Not taken: declaring `getDb()` and `getClient()` on it, for a fake to stand in where the app calls `getDb()`: no app is known to type on `IMongoDatabase`, and a fake's `getDb()` needs a real `Db` anyway.
 4. **One client per instance.** The first `connect()` creates the `MongoClient`; `disconnect()` closes it, and a later `connect()` reopens that same client. `getClient()` returns it across reconnects, and so whatever an app built on it (`MongoTransactionManager`, `MongoDataStore`, a `Db`) works again after `connect()`; between `disconnect()` and the next `connect()` it rejects with `MongoNotConnectedError` (probes). A `new MongoClient` that throws (an unparseable URI) creates nothing, and the next `connect()` tries again. Not taken: a new client per `connect()`, as 2.0.0 does after a `disconnect()` and 1.x on every `connect()`, which leaves what the app built on the old client on a closed one while `isConnected()` is `true`.
 5. **The calls take effect in the order made; the last one wins.**
    - A `connect()` made while a `disconnect()` is in progress waits for it, then reopens the client.
@@ -62,9 +63,7 @@ From two backlog items:
 
 ## Open questions
 
-- **Decision 3, the user's:** the `critic` objects that no app is known to need `getDb()` and `getClient()` on `IMongoDatabase`, and that a fake's `getDb()` needs a real `Db` anyway. The decision stands until the user says otherwise; its reason now says what the methods cost later.
 - **Decisions 4 and 5 replace the intake's options** after the `critic`'s run: one client reopened, and a `disconnect()` during a `connect()` that closes at once. Confirm.
-- Whether a project outside this repo imports `DatabaseError` or reads `code` `NOT_CONNECTED`: not probed (their repos). Either breaks in 2.0.0, the first at compile time; the README's *Upgrading from 1.x* names both.
 
 ## Changes
 
@@ -76,8 +75,8 @@ From two backlog items:
 
 `@enardo/database-mongo` (2.0.0, unpublished):
 - `src/mongo.database.ts`: decisions 1, 4, 5, 6, 7; the import of `DatabaseError` goes; the JSDoc of `connect()` (`@throws` the driver's error; the order of the calls; the client reopened), `disconnect()` (the order), `isConnected()` (decision 7), `getDb()` and `getClient()` (`@throws {Error}` when not connected; the same client and `Db` across reconnects), `syncSchema()` and `dropStaleIndexes()` (`@throws {Error}` when not connected; the rejection "before `connect()`" becomes "when not connected").
-- `src/mongo.database.types.ts`: `IMongoDatabase` declares `getDb(): Db` and `getClient(): MongoClient`, with JSDoc; its JSDoc drops `DatabaseError`.
-- `README.md`: the paragraph on `connect()` (line 24) becomes a section *The connection*: decisions 4 to 7, that what an app builds on `getClient()` or `getDb()` lasts across reconnects, and what "not connected" means (never connected, a `connect()` in progress or rejected, after the close); line 35 names the native `Error`; *Upgrading from 1.x* adds: `getDb()` and `getClient()` throw a native `Error` where they threw `DatabaseError`, and `@enardo/database` `^2.0.0` is the peer; `IMongoDatabase` declares `getDb()` and `getClient()` too, so a fake adds them.
+- `src/mongo.database.types.ts`: `IMongoDatabase`'s JSDoc drops `DatabaseError` and says "when not connected".
+- `README.md`: the paragraph on `connect()` (line 24) becomes a section *The connection*: decisions 4 to 7, that what an app builds on `getClient()` or `getDb()` lasts across reconnects, and what "not connected" means (never connected, a `connect()` in progress or rejected, after the close); line 35 names the native `Error`; *Upgrading from 1.x* adds: `getDb()` and `getClient()` throw a native `Error` where they threw `DatabaseError`, and `@enardo/database` `^2.0.0` is the peer.
 - `CLAUDE.md`: a section *The connection*, with the rules of decisions 4 to 6 and their reasons: one client, for what the app captures; the order of the calls, and the `disconnect()` that does not wait; the shared call of the same kind; the `topologyClosed` listener and the driver sites that emit it, to re-check on a driver upgrade.
 
 Repo:
@@ -115,9 +114,6 @@ A client closed by hand:
 17. Then `await db.connect()` → `isConnected()` `true`, `getClient()` is the same client, and a `ping` through `getDb()` succeeds.
 18. `await db.disconnect()` after a hand close (no `connect()`) → resolves, and `MongoClient.prototype.close` is not called by it.
 
-Types:
-19. `expectTypeOf<IMongoDatabase["getDb"]>().returns.toEqualTypeOf<Db>()`, and the same for `getClient` and `MongoClient`.
-
 No case for `isConnected()` with the server down: the suite's replica set is shared and cannot be stopped, and a server of its own leaves the package's test rule for a behavior that is the driver's; decision 7 rests on the probe, and on decision 6's one listener, whose emit sites the package `CLAUDE.md` lists for a driver upgrade. Cases 16 and 17 show a driver that stops emitting `topologyClosed` on `close()`.
 
 Existing tests that change, all sending a call with no connection or asserting `DatabaseError`:
@@ -143,7 +139,7 @@ The other tests of *connect*, *disconnect* and *isConnected* stay as they are an
 ## Plan
 
 1. This spec, commit `[repo] docs: spec the database error contract and lifecycle`; the `critic`'s run.
-2. Test-first (`test-author`): cases 1–7 and 19, the existing tests changed as listed. Then decisions 1 and 3 in `@enardo/database-mongo`, with the JSDoc of the methods they touch; the suite and `typecheck` green. Commit `[@enardo/database-mongo] fix: throw a native error when not connected`.
+2. Test-first (`test-author`): cases 1–7, the existing tests changed as listed. Then decision 1 in `@enardo/database-mongo`, with the JSDoc of the methods they touch; the suite and `typecheck` green. Commit `[@enardo/database-mongo] fix: throw a native error when not connected`.
 3. Test-first (`test-author`): cases 8–18. Then decisions 4 to 7, with the JSDoc of `connect()`, `disconnect()` and `isConnected()`; the suite green. Commit `[@enardo/database-mongo] fix: order the connect and disconnect calls`.
 4. `@enardo/database` 2.0.0: `DatabaseError` and its test removed, the manifest and configs as in *Changes*, `IDatabase`'s JSDoc, the README; `./dev.sh exec pnpm install` for the lockfile; build, lint and typecheck of both packages green. Commit `[@enardo/database] feat: keep the IDatabase contract alone` (body: the breaking change).
 5. Docs: the README and `CLAUDE.md` of `@enardo/database-mongo`, ADR 0012's status and the ADR index. Commit `[@enardo/database-mongo] docs: document the connection lifecycle`.
