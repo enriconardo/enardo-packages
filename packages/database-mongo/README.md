@@ -21,7 +21,17 @@ The schema is synced by a step of the deploy, not by the instances: see [The sch
 
 > `mongodb` `^7.5.0` and `@enardo/database` are peer dependencies: install them beside the package.
 
-`connect()` only connects. It is idempotent: connected, it resolves without a new client; concurrent calls share one attempt; after a rejection the next call tries again.
+## The connection
+
+`connect()` only connects: it touches no collection.
+
+- **One client per instance.** The first `connect()` creates the `MongoClient`; `disconnect()` closes it, and a later `connect()` reopens that same client. `getClient()` returns it across reconnects, so what an app builds on `getClient()` or `getDb()` (a `MongoTransactionManager`, a `MongoDataStore`, a `Db`) works again after `connect()`. Between a `disconnect()` and the next `connect()`, an operation on it rejects with `MongoNotConnectedError`. An unparseable URI creates no client, and the next `connect()` tries again.
+- **The calls run one at a time, in the order made; the last one wins.** Each `connect()` and `disconnect()` waits for the call before it to settle, then runs. Connected with nothing in line, `connect()` resolves at once. A call made while the last in line is of the same kind shares its promise: two `connect()`s share one attempt, and its rejection; two `disconnect()`s share one `close()`. `disconnect(); connect(); disconnect()` ends disconnected.
+- **A `disconnect()` made during a `connect()` waits for it**, up to `serverSelectionTimeoutMS` on an unreachable server: 30 s by default. An app that needs a quick shutdown during startup lowers it in the URI (`mongodb://host/?serverSelectionTimeoutMS=2000`).
+- **A client closed by hand counts as closed.** After `await db.getClient().close()`, `isConnected()` is `false` and the next `connect()` reopens the client.
+- **`isConnected()` is `true` from the resolution of `connect()` until the client closes**, through `disconnect()` or `getClient().close()`. It never checks the server: with the server down it stays `true`, and an operation rejects with the driver's error.
+- **`connect()` rejects with the driver's error as it is**: `MongoParseError` for an unparseable URI, `MongoServerSelectionError` for an unreachable server, and the others the driver throws.
+- **Not connected** means never connected, a `connect()` in progress or rejected, or after the close. `getDb()` and `getClient()` throw a native `Error` then, and `syncSchema()` and `dropStaleIndexes()` reject with one, before any call to the server.
 
 ## The schema sync
 
@@ -32,7 +42,7 @@ Schema changes run once per deploy, as a step of their own outside the instances
 | `syncSchema(schemas)` | expand | Per schema, in order: creates the collection with its validator when missing, creates the missing indexes, replaces the validator of a collection that existed. Drops nothing. |
 | `dropStaleIndexes(schemas)` | contract | Per schema's collection, drops the indexes the schema does not name (`_id_` is kept). |
 
-Both reject with a `DatabaseError` (`NOT_CONNECTED`) before `connect()`, and leave the instance connected when they reject: the connection is the caller's to close.
+Both reject with a native `Error` when not connected, and leave the instance connected when they reject: the connection is the caller's to close.
 
 ### In a deploy
 
@@ -67,5 +77,6 @@ await db.dropStaleIndexes(schemas);
 
 - `connect()` no longer syncs: call `syncSchema(schemas)` and `dropStaleIndexes(schemas)`.
 - `Logger` and `LoggerMetadata` are no longer exported, and `IMongoDatabase` declares the two methods: a fake of it adds them.
+- `getDb()` and `getClient()` throw a native `Error` where they threw `DatabaseError` (`NOT_CONNECTED`), and `@enardo/database` `^2.0.0` is the peer.
 - `schemas` moves from the options to the two calls; `logger` goes, and the results take its place. Both are compile errors where the options are an object literal; from a variable they compile and sync nothing, so check the calls.
 - During the first rollout, the 1.x instances that start still sync at `connect()` with their schema and drop the indexes it does not name: the release that upgrades changes no schema, and schema changes start with the next one.

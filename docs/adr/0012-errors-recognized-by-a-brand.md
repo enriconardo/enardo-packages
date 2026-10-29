@@ -1,6 +1,6 @@
 # 0012. An error of the ecosystem is recognized by a brand and its `code`, never by `BaseError`'s identity
 
-- Status: accepted
+- Status: accepted; point 3's open question settled by 0013; point 5 settled by fix/database/error-contract-and-lifecycle (DatabaseError removed)
 - Date: 2026-10-23
 - Spec: `git show c337d77:docs/specs/2026-10-23-error-brand.md` (removed from the tree)
 
