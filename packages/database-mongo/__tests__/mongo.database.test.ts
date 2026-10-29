@@ -6,7 +6,6 @@ import {
   type Db,
   type IndexDescriptionInfo,
 } from "mongodb";
-import { DatabaseError } from "@enardo/database";
 import MongoDatabase from "~/mongo.database";
 import type {
   IMongoDatabaseOptions,
@@ -70,17 +69,53 @@ async function indexNamed(
   );
 }
 
-/** Asserts that a call rejects with `DatabaseError`, `code` `NOT_CONNECTED`. */
-async function expectNotConnected(call: () => Promise<unknown>): Promise<void> {
+/**
+ * Asserts that `error` is the not-connected error of `method`: a native
+ * `Error`, named `"Error"`, with no own `code`, whose message names
+ * `connect()` and `<method>()`.
+ */
+function expectNotConnectedError(error: unknown, method: string): void {
+  expect(error, `${method}() error`).toBeInstanceOf(Error);
+  const native = error as Error;
+  expect(native.name, "the error's name").toBe("Error");
+  expect(Object.hasOwn(native, "code"), "an own code").toBe(false);
+  expect(native.message).toContain("connect()");
+  expect(native.message).toContain(`${method}()`);
+}
+
+/** Asserts that a call throws the not-connected error of `method`. */
+function expectThrowsNotConnected(call: () => unknown, method: string): void {
+  let thrown: unknown;
+  try {
+    call();
+  } catch (error) {
+    thrown = error;
+  }
+
+  expectNotConnectedError(thrown, method);
+}
+
+/**
+ * Asserts that a call rejects, without throwing synchronously, with the
+ * not-connected error of `method`.
+ */
+async function expectNotConnected(
+  call: () => Promise<unknown>,
+  method: string,
+): Promise<void> {
+  let promise: Promise<unknown> | undefined;
+  expect(() => {
+    promise = call();
+  }, `${method}() throws synchronously`).not.toThrow();
+
   let rejection: unknown;
   try {
-    await call();
+    await promise;
   } catch (error) {
     rejection = error;
   }
 
-  expect(rejection).toBeInstanceOf(DatabaseError);
-  expect(rejection).toMatchObject({ code: "NOT_CONNECTED" });
+  expectNotConnectedError(rejection, method);
 }
 
 /**
@@ -225,6 +260,33 @@ describe("MongoDatabase", () => {
       expect(db.isConnected()).toBe(false);
     });
 
+    it("should reject an unparseable URI with the driver's error", async () => {
+      const db = createDatabase({ dbUri: "not-a-uri" });
+
+      let connecting: Promise<void> | undefined;
+      expect(() => {
+        connecting = db.connect();
+      }, "connect() throws synchronously").not.toThrow();
+
+      await expect(connecting).rejects.toMatchObject({
+        name: "MongoParseError",
+      });
+      expect(db.isConnected()).toBe(false);
+    });
+
+    it("should try again after a database name the driver refuses, creating no client", async () => {
+      const db = createDatabase({ dbName: "my.app" });
+
+      await expect(db.connect()).rejects.toMatchObject({
+        name: "MongoInvalidArgumentError",
+      });
+      await expect(db.connect()).rejects.toMatchObject({
+        name: "MongoInvalidArgumentError",
+      });
+      expect(db.isConnected()).toBe(false);
+      expectThrowsNotConnected(() => db.getClient(), "getClient");
+    });
+
     describe("a repeated connect", () => {
       it("should keep one client when called again once connected", async () => {
         const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
@@ -287,10 +349,12 @@ describe("MongoDatabase", () => {
   });
 
   describe("syncSchema", () => {
-    it("should reject with NOT_CONNECTED before connect", async () => {
+    it("should reject with the not-connected error on a new instance, creating nothing", async () => {
       const db = createDatabase();
 
-      await expectNotConnected(() => db.syncSchema([testSchema]));
+      await expectNotConnected(() => db.syncSchema([testSchema]), "syncSchema");
+
+      expect(await setupDb.listCollections().toArray()).toEqual([]);
     });
 
     it("should create a missing collection with its validator and indexes", async () => {
@@ -601,10 +665,13 @@ describe("MongoDatabase", () => {
   });
 
   describe("dropStaleIndexes", () => {
-    it("should reject with NOT_CONNECTED before connect", async () => {
+    it("should reject with the not-connected error on a new instance", async () => {
       const db = createDatabase();
 
-      await expectNotConnected(() => db.dropStaleIndexes([testSchema]));
+      await expectNotConnected(
+        () => db.dropStaleIndexes([testSchema]),
+        "dropStaleIndexes",
+      );
     });
 
     it("should drop an index the schema does not name, and report it", async () => {
@@ -866,21 +933,35 @@ describe("MongoDatabase", () => {
       expect(db.getDb().databaseName).toBe(dbName);
     });
 
-    it("should throw DatabaseError when not connected", () => {
+    it("should throw the not-connected error on a new instance", () => {
       const db = createDatabase();
-      expect(() => db.getDb()).toThrow(DatabaseError);
-      expect(() => db.getDb()).toThrow("Database not connected");
+      expectThrowsNotConnected(() => db.getDb(), "getDb");
     });
 
-    it("should throw with code NOT_CONNECTED", () => {
+    it("should throw the not-connected error after disconnect", async () => {
       const db = createDatabase();
-      expect.assertions(2);
-      try {
-        db.getDb();
-      } catch (error) {
-        expect(error).toBeInstanceOf(DatabaseError);
-        expect((error as DatabaseError).code).toBe("NOT_CONNECTED");
-      }
+      await db.connect();
+      await db.disconnect();
+
+      expectThrowsNotConnected(() => db.getDb(), "getDb");
+    });
+
+    it("should throw the not-connected error while connect is in progress", async () => {
+      const db = createDatabase();
+      const driverConnect = MongoClient.prototype.connect;
+      // The check runs inside the driver's connect(), which is pending: a call
+      // made right after db.connect() would run before the queue starts it.
+      const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+      connectSpy.mockImplementation(function (this: MongoClient) {
+        const pending = driverConnect.call(this);
+        expectThrowsNotConnected(() => db.getDb(), "getDb");
+        expect(db.isConnected(), "isConnected() while connecting").toBe(false);
+        return pending;
+      });
+
+      await expect(db.connect()).resolves.toBeUndefined();
+      expect(connectSpy).toHaveBeenCalledOnce();
+      expect(db.isConnected()).toBe(true);
     });
   });
 
@@ -893,21 +974,204 @@ describe("MongoDatabase", () => {
       ).resolves.toMatchObject({ ok: 1 });
     });
 
-    it("should throw DatabaseError when not connected", () => {
+    it("should throw the not-connected error on a new instance", () => {
       const db = createDatabase();
-      expect(() => db.getClient()).toThrow(DatabaseError);
-      expect(() => db.getClient()).toThrow("Database not connected");
+      expectThrowsNotConnected(() => db.getClient(), "getClient");
+    });
+  });
+
+  describe("the order of the calls", () => {
+    it("should end connected when connect is called during disconnect", async () => {
+      const db = await createConnectedDatabase();
+      const before = db.getClient();
+
+      const disconnecting = db.disconnect();
+      await db.connect();
+      await disconnecting;
+
+      expect(db.isConnected()).toBe(true);
+      await expect(db.getDb().command({ ping: 1 })).resolves.toMatchObject({
+        ok: 1,
+      });
+      expect(db.getClient() === before, "the client held before").toBe(true);
     });
 
-    it("should throw with code NOT_CONNECTED", () => {
+    it("should let a disconnect called during connect wait for it, then close", async () => {
+      const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
       const db = createDatabase();
-      expect.assertions(2);
-      try {
-        db.getClient();
-      } catch (error) {
-        expect(error).toBeInstanceOf(DatabaseError);
-        expect((error as DatabaseError).code).toBe("NOT_CONNECTED");
+      const settled: string[] = [];
+
+      const connecting = db.connect().then(() => settled.push("connect"));
+      const disconnecting = db
+        .disconnect()
+        .then(() => settled.push("disconnect"));
+      await Promise.all([connecting, disconnecting]);
+
+      expect(settled).toEqual(["connect", "disconnect"]);
+      expect(db.isConnected()).toBe(false);
+      expectThrowsNotConnected(() => db.getDb(), "getDb");
+      const opened = connectSpy.mock.contexts[0] as MongoClient | undefined;
+      expect(opened).toBeInstanceOf(MongoClient);
+      await expect(opened?.db(dbName).command({ ping: 1 })).rejects.toThrow();
+    });
+
+    it("should let a disconnect called during a failing connect resolve after it", async () => {
+      const db = createDatabase({
+        dbUri: "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=200",
+      });
+      const settled: string[] = [];
+
+      const connecting = db.connect().then(
+        () => settled.push("connect resolved"),
+        (error: unknown) => {
+          settled.push("connect rejected");
+          throw error;
+        },
+      );
+      const disconnecting = db
+        .disconnect()
+        .then(() => settled.push("disconnect"));
+
+      await expect(connecting).rejects.toMatchObject({
+        name: "MongoServerSelectionError",
+      });
+      await expect(disconnecting).resolves.toBeDefined();
+      expect(settled).toEqual(["connect rejected", "disconnect"]);
+      expect(db.isConnected()).toBe(false);
+    });
+
+    it("should end connected on one client after connect, disconnect, connect", async () => {
+      const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+      const db = createDatabase();
+
+      await Promise.all([db.connect(), db.disconnect(), db.connect()]);
+
+      expect(db.isConnected()).toBe(true);
+      await expect(db.getDb().command({ ping: 1 })).resolves.toMatchObject({
+        ok: 1,
+      });
+      const held = db.getClient();
+      expect(connectSpy.mock.contexts.length).toBeGreaterThan(0);
+      for (const context of connectSpy.mock.contexts) {
+        expect(context === held, "connect() called on the held client").toBe(
+          true,
+        );
       }
+    });
+
+    it("should end disconnected after disconnect, connect, disconnect", async () => {
+      const db = await createConnectedDatabase();
+      const held = db.getClient();
+
+      await Promise.all([db.disconnect(), db.connect(), db.disconnect()]);
+
+      expect(db.isConnected()).toBe(false);
+      expectThrowsNotConnected(() => db.getDb(), "getDb");
+      await expect(held.db(dbName).command({ ping: 1 })).rejects.toThrow();
+    });
+
+    it("should share one attempt between two connects to an unreachable server", async () => {
+      const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+      const db = createDatabase({
+        dbUri: "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=200",
+      });
+
+      const outcomes = await Promise.allSettled([db.connect(), db.connect()]);
+
+      for (const outcome of outcomes) {
+        expect(outcome.status).toBe("rejected");
+        expect(
+          outcome.status === "rejected" ? outcome.reason : undefined,
+        ).toMatchObject({ name: "MongoServerSelectionError" });
+      }
+      expect(connectSpy).toHaveBeenCalledOnce();
+    });
+
+    it("should share one close between two disconnects", async () => {
+      const db = await createConnectedDatabase();
+      const closeSpy = vi.spyOn(MongoClient.prototype, "close");
+
+      const outcomes = await Promise.allSettled([
+        db.disconnect(),
+        db.disconnect(),
+      ]);
+
+      expect(outcomes.map((outcome) => outcome.status)).toEqual([
+        "fulfilled",
+        "fulfilled",
+      ]);
+      expect(closeSpy).toHaveBeenCalledOnce();
+      expect(db.isConnected()).toBe(false);
+    });
+  });
+
+  describe("one client", () => {
+    it("should reopen the same client, and what was built on it, after a reconnect", async () => {
+      const db = await createConnectedDatabase();
+      const held = db.getClient();
+      const heldDb = db.getDb();
+
+      await db.disconnect();
+
+      await expect(held.db(dbName).command({ ping: 1 })).rejects.toMatchObject({
+        name: "MongoNotConnectedError",
+      });
+
+      await db.connect();
+
+      expect(db.getClient() === held, "the client held before").toBe(true);
+      await expect(held.db(dbName).command({ ping: 1 })).resolves.toMatchObject(
+        { ok: 1 },
+      );
+      await expect(
+        heldDb.collection("users").insertOne({ email: "a@example.com" }),
+      ).resolves.toMatchObject({ acknowledged: true });
+    });
+
+    it("should try again after an unparseable URI, having created no client", async () => {
+      const db = createDatabase({ dbUri: "not-a-uri" });
+
+      await expect(db.connect()).rejects.toMatchObject({
+        name: "MongoParseError",
+      });
+      await expect(db.connect()).rejects.toMatchObject({
+        name: "MongoParseError",
+      });
+    });
+  });
+
+  describe("a client closed by hand", () => {
+    it("should count the instance as not connected", async () => {
+      const db = await createConnectedDatabase();
+
+      await db.getClient().close();
+
+      expect(db.isConnected()).toBe(false);
+      expectThrowsNotConnected(() => db.getDb(), "getDb");
+    });
+
+    it("should reopen the same client on the next connect", async () => {
+      const db = await createConnectedDatabase();
+      const held = db.getClient();
+      await held.close();
+
+      await db.connect();
+
+      expect(db.isConnected()).toBe(true);
+      expect(db.getClient() === held, "the client held before").toBe(true);
+      await expect(db.getDb().command({ ping: 1 })).resolves.toMatchObject({
+        ok: 1,
+      });
+    });
+
+    it("should not close it again on disconnect", async () => {
+      const db = await createConnectedDatabase();
+      await db.getClient().close();
+      const closeSpy = vi.spyOn(MongoClient.prototype, "close");
+
+      await expect(db.disconnect()).resolves.toBeUndefined();
+
+      expect(closeSpy).not.toHaveBeenCalled();
     });
   });
 });

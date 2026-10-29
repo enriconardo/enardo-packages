@@ -1,6 +1,5 @@
 import type { Db, IndexDescriptionInfo } from "mongodb";
 import { MongoClient, MongoServerError } from "mongodb";
-import { DatabaseError } from "@enardo/database";
 import type {
   IMongoDatabase,
   IMongoDatabaseOptions,
@@ -19,6 +18,15 @@ const NAMESPACE_NOT_FOUND_CODE = 26;
 function isNamespaceNotFound(error: unknown): error is MongoServerError {
   return (
     error instanceof MongoServerError && error.code === NAMESPACE_NOT_FOUND_CODE
+  );
+}
+
+type CallKind = "connect" | "disconnect";
+
+/** Misuse of the lifecycle, so a native `Error` (ADR 0012 point 6), with no `code`. */
+function notConnected(method: string): Error {
+  return new Error(
+    `MongoDatabase is not connected: await connect() before ${method}().`,
   );
 }
 
@@ -61,7 +69,12 @@ export default class MongoDatabase implements IMongoDatabase {
 
   private client: MongoClient | undefined;
   private conn: Db | undefined;
-  private connecting: Promise<void> | undefined;
+  private open = false;
+
+  /** Settles, resolved or rejected, when the last call in line is done. */
+  private tail: Promise<void> = Promise.resolve();
+  /** The last call in line, for a call of the same kind to share. */
+  private last: { kind: CallKind; promise: Promise<void> } | undefined;
 
   constructor(options: IMongoDatabaseOptions) {
     const { dbUri, dbName } = options;
@@ -72,71 +85,105 @@ export default class MongoDatabase implements IMongoDatabase {
   /**
    * Establish a connection to MongoDB.
    *
-   * Creates a {@link MongoClient} and connects to the server; it touches no
-   * collection. See {@link MongoDatabase.syncSchema}.
+   * Creates a {@link MongoClient} on the first call and connects it; it touches
+   * no collection. See {@link MongoDatabase.syncSchema}. A later call after a
+   * {@link MongoDatabase.disconnect} (or a close by hand) reopens that same
+   * client: what an app built on {@link MongoDatabase.getClient} or
+   * {@link MongoDatabase.getDb} works again.
    *
-   * Idempotent: once connected it resolves without a new client, and
-   * concurrent calls share one attempt; after a rejection the next call tries
-   * again.
+   * The calls to `connect()` and `disconnect()` run one at a time, in the order
+   * made, and the last one wins. Once connected with nothing in line it
+   * resolves at once; a call made while the last in line is another `connect()`
+   * shares its attempt, and its rejection. After a rejection the next call
+   * tries again.
    *
-   * @throws {DatabaseError} If the connection fails.
+   * @throws The driver's error, as it is: `MongoParseError` for an unparseable
+   * URI, `MongoServerSelectionError` for an unreachable server, and the others
+   * the driver throws.
    */
   public connect(): Promise<void> {
-    if (this.isConnected()) return Promise.resolve();
-    this.connecting ??= this.openConnection().finally(() => {
-      this.connecting = undefined;
-    });
-    return this.connecting;
-  }
-
-  private async openConnection(): Promise<void> {
-    const client = new MongoClient(this.dbUri);
-
-    try {
-      await client.connect();
-      this.client = client;
-      this.conn = client.db(this.dbName);
-    } catch (error) {
-      await client.close().catch(() => undefined);
-      this.client = undefined;
-      this.conn = undefined;
-      throw error;
-    }
+    return this.enqueue("connect", () => this.openConnection());
   }
 
   /**
    * Gracefully close the MongoDB connection and release resources.
+   *
+   * Runs in line with {@link MongoDatabase.connect}: one made during a
+   * `connect()` waits for it, up to `serverSelectionTimeoutMS` (30 s by
+   * default, set in the URI) on an unreachable server. A call made while the
+   * last in line is another `disconnect()` shares its `close()`. It resolves
+   * at once when there is nothing to close.
    */
-  public async disconnect(): Promise<void> {
-    if (!this.client) return;
-
-    await this.client.close();
-    this.client = undefined;
-    this.conn = undefined;
+  public disconnect(): Promise<void> {
+    return this.enqueue("disconnect", () => this.closeConnection());
   }
 
   /**
-   * Check whether the database is currently connected.
+   * Check whether the database is connected: `true` from the resolution of
+   * {@link MongoDatabase.connect} until the client closes, through
+   * {@link MongoDatabase.disconnect} or `getClient().close()`.
    *
-   * @returns `true` if both client and database connection are available.
+   * It never checks the server: with the server down it stays `true`, and an
+   * operation rejects with the driver's error.
    */
   public isConnected(): boolean {
-    return this.client !== undefined && this.conn !== undefined;
+    return this.open;
+  }
+
+  private enqueue(kind: CallKind, run: () => Promise<void>): Promise<void> {
+    if (this.last?.kind === kind) return this.last.promise;
+
+    const entry = { kind, promise: this.tail.then(run) };
+    this.last = entry;
+    const done = () => {
+      if (this.last === entry) this.last = undefined;
+    };
+    this.tail = entry.promise.then(done, done);
+    return entry.promise;
+  }
+
+  private async openConnection(): Promise<void> {
+    if (this.open) return;
+
+    // A `new MongoClient` that throws creates nothing: the next call tries again.
+    const client = this.client ?? this.createClient();
+    // A failed connect closes the topology itself, and the next call reopens it.
+    await client.connect();
+    this.open = true;
+  }
+
+  private createClient(): MongoClient {
+    const client = new MongoClient(this.dbUri);
+    // Throws for a name the driver refuses: before any field is set, so nothing
+    // is created and the next call tries again.
+    const conn = client.db(this.dbName);
+    // The driver's one public signal of a closed client: emitted by `close()`
+    // and by a failed `connect()`, never for a server down.
+    client.on("topologyClosed", () => {
+      this.open = false;
+    });
+    this.client = client;
+    this.conn = conn;
+    return client;
+  }
+
+  private async closeConnection(): Promise<void> {
+    if (!this.open || !this.client) return;
+
+    await this.client.close();
+    this.open = false;
   }
 
   /**
    * Get the underlying MongoDB {@link Db} instance.
    *
-   * @returns The active database connection.
-   * @throws {DatabaseError} If the database is not connected.
+   * @returns The database connection: the same {@link Db} across reconnects, so
+   * what an app built on it works again after {@link MongoDatabase.connect}.
+   * @throws {Error} When not connected: await {@link MongoDatabase.connect}
+   * first.
    */
   public getDb(): Db {
-    if (!this.conn) {
-      throw new DatabaseError("Database not connected", {
-        code: "NOT_CONNECTED",
-      });
-    }
-    return this.conn;
+    return this.requireDb("getDb");
   }
 
   /**
@@ -145,16 +192,22 @@ export default class MongoDatabase implements IMongoDatabase {
    * Useful for operations that require the client directly,
    * such as transaction management.
    *
-   * @returns The active MongoDB client.
-   * @throws {DatabaseError} If the database is not connected.
+   * @returns The MongoDB client: the same one across reconnects, so what an app
+   * built on it works again after {@link MongoDatabase.connect}; between a
+   * `disconnect()` and the next `connect()` its operations reject with
+   * `MongoNotConnectedError`.
+   * @throws {Error} When not connected: await {@link MongoDatabase.connect}
+   * first.
    */
   public getClient(): MongoClient {
-    if (!this.client) {
-      throw new DatabaseError("Database not connected", {
-        code: "NOT_CONNECTED",
-      });
-    }
+    if (!this.open || !this.client) throw notConnected("getClient");
     return this.client;
+  }
+
+  /** The `Db`, or the not-connected error naming the `method` that needed it. */
+  private requireDb(method: string): Db {
+    if (!this.open || !this.conn) throw notConnected(method);
+    return this.conn;
   }
 
   /**
@@ -217,12 +270,12 @@ export default class MongoDatabase implements IMongoDatabase {
    *
    * @returns The collections it created, in the order of the schemas. A call
    * that rejects reports none of its changes.
-   * @throws {DatabaseError} `NOT_CONNECTED` before {@link MongoDatabase.connect}.
+   * @throws {Error} Rejects when not connected, before any call to the server.
    */
   public async syncSchema(
     schemas: readonly IMongoSchema[],
   ): Promise<SchemaSyncResult> {
-    const db = this.getDb();
+    const db = this.requireDb("syncSchema");
     const createdCollections: string[] = [];
 
     for (const schema of schemas) {
@@ -259,12 +312,12 @@ export default class MongoDatabase implements IMongoDatabase {
    * @returns Each index dropped, with the definition the server listed, in the
    * order of the schemas, then of the list. A call that rejects reports none of
    * its drops: a job that needs the definitions lists the indexes first.
-   * @throws {DatabaseError} `NOT_CONNECTED` before {@link MongoDatabase.connect}.
+   * @throws {Error} Rejects when not connected, before any call to the server.
    */
   public async dropStaleIndexes(
     schemas: readonly IMongoSchema[],
   ): Promise<StaleIndexDropResult> {
-    const db = this.getDb();
+    const db = this.requireDb("dropStaleIndexes");
     const listed: { name: string; existing: IndexDescriptionInfo[] }[] = [];
     const problems: string[] = [];
 

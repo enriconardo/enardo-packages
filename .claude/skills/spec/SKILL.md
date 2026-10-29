@@ -103,6 +103,7 @@ Each fact the plan relies on is probed in the dev container before the spec stat
 - **A removed dependency between two packages:** look for every doc line that names both, not only for the symbols that move.
 - **A value the code does not control.** When the code starts reading one where it used to pass it along (a rejection, an abort reason, a parsed body), the spec states what happens when a read throws, and when the value is cyclic or very deep. On an error path, a throw replaces the error being reported.
 - **A copy of a caller's value** changes what a library reads downstream: a spread keeps own enumerable properties only, and loses the prototype, its getters and the non-enumerable ones. Check what the library produced from the value.
+- **A value a method hands out.** When a change makes a method return a different object over an instance's life (a new one after a reconnect or a reset), find the code that keeps the old one: `git grep` the method's callers, and the constructors and fields that take the value's type across `packages/`.
 - **The version a change ships in** comes from the registry's published versions (the `publish` skill, *The registry*), not from the manifest: an unpublished version takes the change as it is.
 
 ## Designing the test cases
