@@ -178,7 +178,7 @@ export default class MongoDatabase implements IMongoDatabase {
    * Get the underlying MongoDB {@link Db} instance.
    *
    * @returns The database connection: the same {@link Db} across reconnects, so
-   * one an app built on it works again after {@link MongoDatabase.connect}.
+   * what an app built on it works again after {@link MongoDatabase.connect}.
    * @throws {Error} When not connected: await {@link MongoDatabase.connect}
    * first.
    */

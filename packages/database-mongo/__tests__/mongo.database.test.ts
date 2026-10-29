@@ -951,9 +951,8 @@ describe("MongoDatabase", () => {
       const driverConnect = MongoClient.prototype.connect;
       // The check runs inside the driver's connect(), which is pending: a call
       // made right after db.connect() would run before the queue starts it.
-      vi.spyOn(MongoClient.prototype, "connect").mockImplementation(function (
-        this: MongoClient,
-      ) {
+      const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+      connectSpy.mockImplementation(function (this: MongoClient) {
         const pending = driverConnect.call(this);
         expectThrowsNotConnected(() => db.getDb(), "getDb");
         expect(db.isConnected(), "isConnected() while connecting").toBe(false);
@@ -961,6 +960,7 @@ describe("MongoDatabase", () => {
       });
 
       await expect(db.connect()).resolves.toBeUndefined();
+      expect(connectSpy).toHaveBeenCalledOnce();
       expect(db.isConnected()).toBe(true);
     });
   });
