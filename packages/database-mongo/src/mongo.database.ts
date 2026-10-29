@@ -79,7 +79,7 @@ export default class MongoDatabase implements IMongoDatabase {
    * concurrent calls share one attempt; after a rejection the next call tries
    * again.
    *
-   * @throws {DatabaseError} If the connection or initialization fails.
+   * @throws {DatabaseError} If the connection fails.
    */
   public connect(): Promise<void> {
     if (this.isConnected()) return Promise.resolve();

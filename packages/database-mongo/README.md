@@ -15,9 +15,9 @@ const db = new MongoDatabase({ dbUri: "mongodb://localhost:27017", dbName: "app"
 
 await db.connect();
 const users = db.getDb().collection("users");
-
-await db.syncSchema([usersSchema]); // once per deploy: see below
 ```
+
+The schema is synced by a step of the deploy, not by the instances: see [The schema sync](#the-schema-sync).
 
 > `mongodb` `^7.5.0` and `@enardo/database` are peer dependencies: install them beside the package.
 
@@ -66,5 +66,6 @@ await db.dropStaleIndexes(schemas);
 ## Upgrading from 1.x
 
 - `connect()` no longer syncs: call `syncSchema(schemas)` and `dropStaleIndexes(schemas)`.
+- `Logger` and `LoggerMetadata` are no longer exported, and `IMongoDatabase` declares the two methods: a fake of it adds them.
 - `schemas` moves from the options to the two calls; `logger` goes, and the results take its place. Both are compile errors where the options are an object literal; from a variable they compile and sync nothing, so check the calls.
 - During the first rollout, the 1.x instances that start still sync at `connect()` with their schema and drop the indexes it does not name: the release that upgrades changes no schema, and schema changes start with the next one.
