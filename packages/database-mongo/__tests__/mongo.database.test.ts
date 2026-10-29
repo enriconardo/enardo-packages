@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   Collection,
+  MongoClient,
   MongoServerError,
   type Db,
   type IndexDescriptionInfo,
-  type MongoClient,
 } from "mongodb";
 import { DatabaseError } from "@enardo/database";
 import MongoDatabase from "~/mongo.database";
@@ -511,6 +511,66 @@ describe("MongoDatabase", () => {
       });
       expect(db.isConnected()).toBe(false);
       expectNoLogsBut();
+    });
+
+    describe("a repeated connect", () => {
+      it("should keep one client when called again once connected", async () => {
+        const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+        const db = createDatabase();
+        await db.connect();
+        const first = db.getClient();
+
+        await db.connect();
+
+        expect(connectSpy).toHaveBeenCalledOnce();
+        expect(db.getClient()).toBe(first);
+        await db.disconnect();
+        await expect(first.db("x").command({ ping: 1 })).rejects.toThrow();
+      });
+
+      it("should share one client between concurrent calls", async () => {
+        const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+        const db = createDatabase();
+
+        const outcomes = await Promise.allSettled([db.connect(), db.connect()]);
+
+        expect(outcomes.map((outcome) => outcome.status)).toEqual([
+          "fulfilled",
+          "fulfilled",
+        ]);
+        expect(connectSpy).toHaveBeenCalledOnce();
+        await db.disconnect();
+        expect(db.isConnected()).toBe(false);
+      });
+
+      it("should try again after a rejected connect", async () => {
+        const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
+        const db = createDatabase({
+          dbUri: "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=200",
+        });
+
+        await expect(db.connect()).rejects.toMatchObject({
+          name: "MongoServerSelectionError",
+        });
+        await expect(db.connect()).rejects.toMatchObject({
+          name: "MongoServerSelectionError",
+        });
+
+        expect(connectSpy).toHaveBeenCalledTimes(2);
+      });
+
+      it("should connect again after disconnect", async () => {
+        const db = createDatabase();
+        await db.connect();
+        await db.disconnect();
+
+        await db.connect();
+
+        expect(db.isConnected()).toBe(true);
+        await expect(
+          db.getClient().db(dbName).command({ ping: 1 }),
+        ).resolves.toMatchObject({ ok: 1 });
+      });
     });
 
     it("should log a created collection at debug, and nothing else", async () => {

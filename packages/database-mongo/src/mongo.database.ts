@@ -58,6 +58,7 @@ export default class MongoDatabase implements IMongoDatabase {
 
   private client: MongoClient | undefined;
   private conn: Db | undefined;
+  private connecting: Promise<void> | undefined;
 
   constructor(options: IMongoDatabaseOptions) {
     const { schemas, dbUri, dbName, logger } = options;
@@ -90,9 +91,21 @@ export default class MongoDatabase implements IMongoDatabase {
    * It drops the indexes the schema no longer names; one that another
    * instance dropped first does not reject `connect()`.
    *
+   * Idempotent: once connected it resolves without a new client, and
+   * concurrent calls share one attempt; after a rejection the next call tries
+   * again.
+   *
    * @throws {DatabaseError} If the connection or initialization fails.
    */
-  public async connect(): Promise<void> {
+  public connect(): Promise<void> {
+    if (this.isConnected()) return Promise.resolve();
+    this.connecting ??= this.openConnection().finally(() => {
+      this.connecting = undefined;
+    });
+    return this.connecting;
+  }
+
+  private async openConnection(): Promise<void> {
     const client = new MongoClient(this.dbUri);
 
     try {
