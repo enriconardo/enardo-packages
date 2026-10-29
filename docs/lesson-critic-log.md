@@ -12,3 +12,4 @@ The user reads it at the review that the backlog queues, once it holds 25 lesson
 
 | Date | Branch | Checkpoint | Lesson | Verdict | Form alone | Main agent | Outcome | Cost |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-10-29 | `fix/database/error-contract-and-lifecycle` | 1 | A value a method hands out (`spec` skill, *Probing*) | `revise` | no | applied | applied | 31 925 tokens, 49 s |
