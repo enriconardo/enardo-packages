@@ -6,7 +6,6 @@ import {
   type Db,
   type IndexDescriptionInfo,
 } from "mongodb";
-import { DatabaseError } from "@enardo/database";
 import MongoDatabase from "~/mongo.database";
 import type {
   IMongoDatabaseOptions,
@@ -70,17 +69,53 @@ async function indexNamed(
   );
 }
 
-/** Asserts that a call rejects with `DatabaseError`, `code` `NOT_CONNECTED`. */
-async function expectNotConnected(call: () => Promise<unknown>): Promise<void> {
+/**
+ * Asserts that `error` is the not-connected error of `method`: a native
+ * `Error`, named `"Error"`, with no own `code`, whose message names
+ * `connect()` and `<method>()`.
+ */
+function expectNotConnectedError(error: unknown, method: string): void {
+  expect(error, `${method}() error`).toBeInstanceOf(Error);
+  const native = error as Error;
+  expect(native.name, "the error's name").toBe("Error");
+  expect(Object.hasOwn(native, "code"), "an own code").toBe(false);
+  expect(native.message).toContain("connect()");
+  expect(native.message).toContain(`${method}()`);
+}
+
+/** Asserts that a call throws the not-connected error of `method`. */
+function expectThrowsNotConnected(call: () => unknown, method: string): void {
+  let thrown: unknown;
+  try {
+    call();
+  } catch (error) {
+    thrown = error;
+  }
+
+  expectNotConnectedError(thrown, method);
+}
+
+/**
+ * Asserts that a call rejects, without throwing synchronously, with the
+ * not-connected error of `method`.
+ */
+async function expectNotConnected(
+  call: () => Promise<unknown>,
+  method: string,
+): Promise<void> {
+  let promise: Promise<unknown> | undefined;
+  expect(() => {
+    promise = call();
+  }, `${method}() throws synchronously`).not.toThrow();
+
   let rejection: unknown;
   try {
-    await call();
+    await promise;
   } catch (error) {
     rejection = error;
   }
 
-  expect(rejection).toBeInstanceOf(DatabaseError);
-  expect(rejection).toMatchObject({ code: "NOT_CONNECTED" });
+  expectNotConnectedError(rejection, method);
 }
 
 /**
@@ -225,6 +260,20 @@ describe("MongoDatabase", () => {
       expect(db.isConnected()).toBe(false);
     });
 
+    it("should reject an unparseable URI with the driver's error", async () => {
+      const db = createDatabase({ dbUri: "not-a-uri" });
+
+      let connecting: Promise<void> | undefined;
+      expect(() => {
+        connecting = db.connect();
+      }, "connect() throws synchronously").not.toThrow();
+
+      await expect(connecting).rejects.toMatchObject({
+        name: "MongoParseError",
+      });
+      expect(db.isConnected()).toBe(false);
+    });
+
     describe("a repeated connect", () => {
       it("should keep one client when called again once connected", async () => {
         const connectSpy = vi.spyOn(MongoClient.prototype, "connect");
@@ -287,10 +336,12 @@ describe("MongoDatabase", () => {
   });
 
   describe("syncSchema", () => {
-    it("should reject with NOT_CONNECTED before connect", async () => {
+    it("should reject with the not-connected error on a new instance, creating nothing", async () => {
       const db = createDatabase();
 
-      await expectNotConnected(() => db.syncSchema([testSchema]));
+      await expectNotConnected(() => db.syncSchema([testSchema]), "syncSchema");
+
+      expect(await setupDb.listCollections().toArray()).toEqual([]);
     });
 
     it("should create a missing collection with its validator and indexes", async () => {
@@ -601,10 +652,13 @@ describe("MongoDatabase", () => {
   });
 
   describe("dropStaleIndexes", () => {
-    it("should reject with NOT_CONNECTED before connect", async () => {
+    it("should reject with the not-connected error on a new instance", async () => {
       const db = createDatabase();
 
-      await expectNotConnected(() => db.dropStaleIndexes([testSchema]));
+      await expectNotConnected(
+        () => db.dropStaleIndexes([testSchema]),
+        "dropStaleIndexes",
+      );
     });
 
     it("should drop an index the schema does not name, and report it", async () => {
@@ -866,21 +920,25 @@ describe("MongoDatabase", () => {
       expect(db.getDb().databaseName).toBe(dbName);
     });
 
-    it("should throw DatabaseError when not connected", () => {
+    it("should throw the not-connected error on a new instance", () => {
       const db = createDatabase();
-      expect(() => db.getDb()).toThrow(DatabaseError);
-      expect(() => db.getDb()).toThrow("Database not connected");
+      expectThrowsNotConnected(() => db.getDb(), "getDb");
     });
 
-    it("should throw with code NOT_CONNECTED", () => {
+    it("should throw the not-connected error after disconnect", async () => {
       const db = createDatabase();
-      expect.assertions(2);
-      try {
-        db.getDb();
-      } catch (error) {
-        expect(error).toBeInstanceOf(DatabaseError);
-        expect((error as DatabaseError).code).toBe("NOT_CONNECTED");
-      }
+      await db.connect();
+      await db.disconnect();
+
+      expectThrowsNotConnected(() => db.getDb(), "getDb");
+    });
+
+    it("should throw the not-connected error while connect is in progress", async () => {
+      const db = createDatabase();
+      const connecting = db.connect();
+
+      expectThrowsNotConnected(() => db.getDb(), "getDb");
+      await expect(connecting).resolves.toBeUndefined();
     });
   });
 
@@ -893,21 +951,9 @@ describe("MongoDatabase", () => {
       ).resolves.toMatchObject({ ok: 1 });
     });
 
-    it("should throw DatabaseError when not connected", () => {
+    it("should throw the not-connected error on a new instance", () => {
       const db = createDatabase();
-      expect(() => db.getClient()).toThrow(DatabaseError);
-      expect(() => db.getClient()).toThrow("Database not connected");
-    });
-
-    it("should throw with code NOT_CONNECTED", () => {
-      const db = createDatabase();
-      expect.assertions(2);
-      try {
-        db.getClient();
-      } catch (error) {
-        expect(error).toBeInstanceOf(DatabaseError);
-        expect((error as DatabaseError).code).toBe("NOT_CONNECTED");
-      }
+      expectThrowsNotConnected(() => db.getClient(), "getClient");
     });
   });
 });

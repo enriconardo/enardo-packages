@@ -1,6 +1,5 @@
 import type { Db, IndexDescriptionInfo } from "mongodb";
 import { MongoClient, MongoServerError } from "mongodb";
-import { DatabaseError } from "@enardo/database";
 import type {
   IMongoDatabase,
   IMongoDatabaseOptions,
@@ -19,6 +18,13 @@ const NAMESPACE_NOT_FOUND_CODE = 26;
 function isNamespaceNotFound(error: unknown): error is MongoServerError {
   return (
     error instanceof MongoServerError && error.code === NAMESPACE_NOT_FOUND_CODE
+  );
+}
+
+/** Misuse of the lifecycle, so a native `Error` (ADR 0012 point 6), with no `code`. */
+function notConnected(method: string): Error {
+  return new Error(
+    `MongoDatabase is not connected: await connect() before ${method}().`,
   );
 }
 
@@ -79,7 +85,7 @@ export default class MongoDatabase implements IMongoDatabase {
    * concurrent calls share one attempt; after a rejection the next call tries
    * again.
    *
-   * @throws {DatabaseError} If the connection fails.
+   * @throws The driver's error, as it is, if the connection fails.
    */
   public connect(): Promise<void> {
     if (this.isConnected()) return Promise.resolve();
@@ -128,15 +134,11 @@ export default class MongoDatabase implements IMongoDatabase {
    * Get the underlying MongoDB {@link Db} instance.
    *
    * @returns The active database connection.
-   * @throws {DatabaseError} If the database is not connected.
+   * @throws {Error} When not connected: await {@link MongoDatabase.connect}
+   * first.
    */
   public getDb(): Db {
-    if (!this.conn) {
-      throw new DatabaseError("Database not connected", {
-        code: "NOT_CONNECTED",
-      });
-    }
-    return this.conn;
+    return this.requireDb("getDb");
   }
 
   /**
@@ -146,15 +148,18 @@ export default class MongoDatabase implements IMongoDatabase {
    * such as transaction management.
    *
    * @returns The active MongoDB client.
-   * @throws {DatabaseError} If the database is not connected.
+   * @throws {Error} When not connected: await {@link MongoDatabase.connect}
+   * first.
    */
   public getClient(): MongoClient {
-    if (!this.client) {
-      throw new DatabaseError("Database not connected", {
-        code: "NOT_CONNECTED",
-      });
-    }
+    if (!this.client) throw notConnected("getClient");
     return this.client;
+  }
+
+  /** The `Db`, or the not-connected error naming the `method` that needed it. */
+  private requireDb(method: string): Db {
+    if (!this.conn) throw notConnected(method);
+    return this.conn;
   }
 
   /**
@@ -217,12 +222,12 @@ export default class MongoDatabase implements IMongoDatabase {
    *
    * @returns The collections it created, in the order of the schemas. A call
    * that rejects reports none of its changes.
-   * @throws {DatabaseError} `NOT_CONNECTED` before {@link MongoDatabase.connect}.
+   * @throws {Error} Rejects when not connected, before any call to the server.
    */
   public async syncSchema(
     schemas: readonly IMongoSchema[],
   ): Promise<SchemaSyncResult> {
-    const db = this.getDb();
+    const db = this.requireDb("syncSchema");
     const createdCollections: string[] = [];
 
     for (const schema of schemas) {
@@ -259,12 +264,12 @@ export default class MongoDatabase implements IMongoDatabase {
    * @returns Each index dropped, with the definition the server listed, in the
    * order of the schemas, then of the list. A call that rejects reports none of
    * its drops: a job that needs the definitions lists the indexes first.
-   * @throws {DatabaseError} `NOT_CONNECTED` before {@link MongoDatabase.connect}.
+   * @throws {Error} Rejects when not connected, before any call to the server.
    */
   public async dropStaleIndexes(
     schemas: readonly IMongoSchema[],
   ): Promise<StaleIndexDropResult> {
-    const db = this.getDb();
+    const db = this.requireDb("dropStaleIndexes");
     const listed: { name: string; existing: IndexDescriptionInfo[] }[] = [];
     const problems: string[] = [];
 

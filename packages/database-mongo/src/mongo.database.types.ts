@@ -23,8 +23,7 @@ export interface StaleIndexDropResult {
 
 /**
  * MongoDB-specific database interface: {@link IDatabase} plus the two steps
- * that bring the database to the schemas. Both reject with a `DatabaseError`
- * (`NOT_CONNECTED`) before `connect()`.
+ * that bring the database to the schemas. Both reject when not connected.
  */
 export interface IMongoDatabase extends IDatabase {
   /**
