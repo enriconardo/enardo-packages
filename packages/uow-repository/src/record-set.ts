@@ -72,7 +72,7 @@ type KeyFunction = (record: AnyRecord) => string;
  * records, the order of `previous` for deleted ones.
  *
  * @throws {TypeError} A side lacks a collection a key function
- *   describes. The error names the collection and the side at fault, which
+ *   describes, or holds something other than an array there. The error names the collection and the side at fault, which
  *   iterating the missing collection would not.
  * @throws {Error} Two records of one collection share a key.
  */

@@ -383,7 +383,7 @@ const products = new Repository(productStore, productMapper, (id) => id.value);
 
 ### Composite identities
 
-Identities that are a `string`, `number`, `bigint` or `boolean` work as they are. `"1"` and `1` count as different identities. For any other identity, which throws a `TypeError` without one, pass an `identityKey` function that never maps two ids to the same string:
+Identities that are a `string`, `number`, `bigint` or `boolean` work as they are. `"1"` and `1` count as different identities. For any other identity, which rejects with a `TypeError` without one, pass an `identityKey` function that never maps two ids to the same string:
 
 ```ts
 const orders = new Repository(orderStore, orderMapper, (id) =>
@@ -537,7 +537,7 @@ src/
   data-store.ts       DataStore, VersionedRecords and AggregateWrite contracts
   mapper.ts           Mapper contract
   errors/             one BaseError subclass per file
-__tests__/            one *.test.ts per module
+__tests__/            one *.test.ts per module; support/ holds shared helpers
 ```
 
 ### Conventions
