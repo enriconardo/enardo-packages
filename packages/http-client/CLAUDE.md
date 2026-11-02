@@ -23,7 +23,7 @@ __tests__/support/          the helpers both kinds of test file share, beyond a 
 
 ## URLs
 
-- **A string resource is joined after the origin and the path of `baseUrl` and a `/`**, one trailing `/` of that path and one leading `/` of the resource dropped first. It is never resolved as a relative reference (`new URL(resource, baseUrl)`): after the origin and a `/`, the parser reads a path, so nothing in the resource can change the origin. Dot segments can still climb above the base's path; whether to check them is in the backlog, to evaluate.
+- **A string resource is joined after the origin and the path of `baseUrl` and a `/`**, one trailing `/` of that path and one leading `/` of the resource dropped first. It is never resolved as a relative reference (`new URL(resource, baseUrl)`): after the origin and a `/`, the parser reads a path, so nothing in the resource can change the origin. Dot segments can still climb above the base's path; whether to check them is in the backlog, queued.
 - **The base keeps its origin and its path, and nothing else.** What the join would lose (credentials, a query string, a fragment) is refused by the constructor, and so is any scheme but `http` and `https`.
 
 ## Errors

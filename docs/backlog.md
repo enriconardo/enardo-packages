@@ -11,6 +11,18 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 In the order approved.
 
 - **Review the `lesson-critic`'s log once it holds 25 lessons.** Count the verdicts that changed a lesson, that the form alone would not have given and that the user did not take back, the user's overrides, and the cost (`docs/lesson-critic-log.md`). The user keeps, changes or drops the agent; fewer than 3 such verdicts in 25 lessons is only a suggestion to drop it. From the spec of `chore/repo/learn-rule-critic` (2026-10-28), decision 8.
+- **A path can climb above the path of `@enardo/http-client`'s `baseUrl`.**
+  - The URL parser resolves dot segments: `../admin` and `%2e%2e/admin` against `https://api.example.com/v2/` give `https://api.example.com/admin` (probed on 2026-10-06). `new URL(resource, baseUrl)`, which the client used before `fix/http-client/base-url`, resolves them the same way.
+  - A path built from untrusted input, such as `/users/${id}` with `id` set to `..`, reaches another endpoint of the same origin. `encodeURIComponent` leaves dots as they are.
+  - Options: reject a URL whose path ends above the base's path, or leave it to callers. A check would have its own questions, such as encoded slashes (`%2F`), which the client leaves as they are and the upstream may decode.
+  - From the spec of `fix/http-client/base-url` (2026-10-06).
+- **Review the `BaseError`s that report misuse or misconfiguration.** Against ADR 0012 point 6: `UOW_ALREADY_USED`, `MISSING_COLLECTION_CHANGES`, `UNSUPPORTED_IDENTITY`, `INVALID_DATA_STORE_OPTIONS`, `INVALID_EMAIL_SENDER_OPTIONS`, perhaps `ENV_MISSING` and `ENV_MALFORMED`. One branch per package, each a breaking change. The native throws of `src/` (`@enardo/logger`, `retryOnConflict`, `@enardo/http-client`) are consistent with the rule and need nothing.
+- **`BcryptPasswordHasher` reads only the first 72 bytes of a password.**
+  - bcrypt 6.0.0 ignores what follows them, counted in UTF-8: two passwords that share their first 72 bytes match the same hash. `@enardo/password-hasher-bcrypt`'s README documents it, and its tests pin it.
+  - An app that caps no password length, such as one whose routes take `z.string().min(1)`, passes it whatever the user types.
+  - It also encodes each lone surrogate as U+FFFD, so `"pw\uD800"`, `"pw\uDC00"` and `"pw�"` match the same hash (probed by the review of `refactor/repo/split-contracts-from-adapters`). The README documents it, and a test pins it.
+  - Options: the adapter rejects a longer password, and one that is not well-formed (`String.prototype.isWellFormed`): a behavior change, and a new major. Or each app caps the length and refuses such strings, in its own repo.
+  - From the `critic`'s run on the spec of `refactor/repo/split-contracts-from-adapters` (2026-10-20), and its review.
 
 ## To evaluate
 
@@ -21,7 +33,6 @@ In the order approved.
   - every fresh container downloads a 58 MB native binary, and each install runs a supply-chain check over the network (about 5 s);
   - `verify:all` and `pack` manifests match 11; turbo's key does not hold the pnpm version, so the checks run with `--force`.
   - From the intake of `chore/repo/upgrade-pnpm-11-28` and its `critic` run (2026-10-23).
-- **Review the `BaseError`s that report misuse or misconfiguration.** Against ADR 0012 point 6: `UOW_ALREADY_USED`, `MISSING_COLLECTION_CHANGES`, `UNSUPPORTED_IDENTITY`, `INVALID_DATA_STORE_OPTIONS`, `INVALID_EMAIL_SENDER_OPTIONS`, perhaps `ENV_MISSING` and `ENV_MALFORMED`. One branch per package, each a breaking change. The native throws of `src/` (`@enardo/logger`, `retryOnConflict`, `@enardo/http-client`) are consistent with the rule and need nothing.
 - **The M trigger of the `critic` is worded for the main agent to judge.** "A decision comes from a discussion with the user" covers, read as written, every M spec with a decision taken with the user, as the template defines *Decisions*; the main agent, whom ADR 0007 deems unable to tell when it has drifted, decides which qualify. Options: a condition it does not judge, such as the user saying at intake whether the spec gets a run, or every M spec with a decision marked as the user's. From the `critic`'s run on the spec of `chore/repo/evaluate-critic` (2026-10-22).
 - **`@types/node` is ahead of the runtime.**
   - The catalog has `@types/node: ^26.4.0`; the dev container runs Node 24 (`docker/dev/Dockerfile`).
@@ -31,21 +42,10 @@ In the order approved.
   - From the review of `fix/http/runtime-neutral-types`.
 - **A `/// <reference types="node" />` in a `src/` hides every Node global from the browser program** (`@enardo/http-client`'s `tsconfig.browser.json`, or any package's on `runtime-browser.json`), and no check reports it: `@types/node` is a devDependency, and `@typescript-eslint/triple-slash-reference` with its defaults lets the directive through. `"@typescript-eslint/triple-slash-reference": ["error", { types: "never" }]` on `src/**` would close it, in `runtimeNeutral`. From the review of `chore/http/package-hygiene`.
 - **`serializeError` of `@enardo/errors` never calls a nested cause's `toJSON()`.** It walks the `cause` chain with its own rules, so an error class that controls its serialized form through `toJSON()` loses that control once another error wraps it. `@enardo/logger` calls the `toJSON()` of every value it reaches, but under a wrapping `BaseError` it gets the chain that the wrapper's `toJSON()` already serialized, so the cause's `toJSON()` is never called there either (probed on 2026-10-06). Latent: no error class in the monorepo overrides `toJSON()` today, and `NetworkError` of `@enardo/http-client` reduces its `cause` in its constructor because of it. From the spec of `fix/http-client/redact-cause` (2026-10-06).
-- **A path can climb above the path of `@enardo/http-client`'s `baseUrl`.**
-  - The URL parser resolves dot segments: `../admin` and `%2e%2e/admin` against `https://api.example.com/v2/` give `https://api.example.com/admin` (probed on 2026-10-06). `new URL(resource, baseUrl)`, which the client used before `fix/http-client/base-url`, resolves them the same way.
-  - A path built from untrusted input, such as `/users/${id}` with `id` set to `..`, reaches another endpoint of the same origin. `encodeURIComponent` leaves dots as they are.
-  - Options: reject a URL whose path ends above the base's path, or leave it to callers. A check would have its own questions, such as encoded slashes (`%2F`), which the client leaves as they are and the upstream may decode.
-  - From the spec of `fix/http-client/base-url` (2026-10-06).
 - **No test runs a browser's own `fetch`.**
   - Every test of `@enardo/http-client` that runs in a browser stubs `fetchImpl`. What only a real `fetch` does in a browser stays untested there: CORS, a stream body and `duplex`, redirects, its rejections. Node's `fetch` is tested against local servers.
   - A page would need a server it can reach: Vitest's own, or one in the dev container exposed through Playwright's `exposeNetwork`.
   - From the spec of `chore/repo/browser-tests` (2026-10-07).
-- **`BcryptPasswordHasher` reads only the first 72 bytes of a password.**
-  - bcrypt 6.0.0 ignores what follows them, counted in UTF-8: two passwords that share their first 72 bytes match the same hash. `@enardo/password-hasher-bcrypt`'s README documents it, and its tests pin it.
-  - An app that caps no password length, such as one whose routes take `z.string().min(1)`, passes it whatever the user types.
-  - It also encodes each lone surrogate as U+FFFD, so `"pw\uD800"`, `"pw\uDC00"` and `"pw�"` match the same hash (probed by the review of `refactor/repo/split-contracts-from-adapters`). The README documents it, and a test pins it.
-  - Options: the adapter rejects a longer password, and one that is not well-formed (`String.prototype.isWellFormed`): a behavior change, and a new major. Or each app caps the length and refuses such strings, in its own repo.
-  - From the `critic`'s run on the spec of `refactor/repo/split-contracts-from-adapters` (2026-10-20), and its review.
 - **Some transient failures on the way to the relay come out `retryable: false`** in `@enardo/email-nodemailer`.
   - The rule of `feature/email/send-errors` counts as retryable, without a reply code, a connection that failed, timed out or was lost: to the relay, a proxy or an OAuth2 token endpoint. An answer that a retry may change is left out. A token endpoint that answers `503` gives `EAUTH`, `AUTH XOAUTH2`, with no `originalCode` for an HTML body (nodemailer's `JSON.parse` throws), and with `originalCode: "EOAUTH2"` for RFC 6749's `temporarily_unavailable`. A proxy that accepts the connection and closes it before the tunnel gives `EPROXY`.
   - Each of these codes also covers misconfigurations, a proxy that refuses its credentials or a token answer nodemailer cannot use, which is why the user kept them permanent. Telling the two apart needs what the sender keeps out of its identifiers: the HTTP status, or the proxy's answer.
