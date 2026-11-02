@@ -1,31 +1,17 @@
+import { isBaseErrorLike } from "@enardo/errors";
 import { describe, expect, expectTypeOf, it } from "vitest";
-import {
-  ConcurrencyConflictError,
-  DuplicateEntityError,
-  UnitOfWorkAlreadyUsedError,
-  UnsupportedIdentityError,
-} from "~/index";
+import * as api from "~/index";
+import { ConcurrencyConflictError } from "~/index";
 
 describe("the codes of the errors", () => {
-  it("DuplicateEntityError has the code DUPLICATE_ENTITY", () => {
-    const error = new DuplicateEntityError("a");
-
-    expectTypeOf(error.code).toEqualTypeOf<"DUPLICATE_ENTITY">();
-    expect(error.code).toBe("DUPLICATE_ENTITY");
-  });
-
-  it("UnsupportedIdentityError has the code UNSUPPORTED_IDENTITY", () => {
-    const error = new UnsupportedIdentityError("object");
-
-    expectTypeOf(error.code).toEqualTypeOf<"UNSUPPORTED_IDENTITY">();
-    expect(error.code).toBe("UNSUPPORTED_IDENTITY");
-  });
-
-  it("UnitOfWorkAlreadyUsedError has the code UOW_ALREADY_USED", () => {
-    const error = new UnitOfWorkAlreadyUsedError();
-
-    expectTypeOf(error.code).toEqualTypeOf<"UOW_ALREADY_USED">();
-    expect(error.code).toBe("UOW_ALREADY_USED");
+  it.each([
+    "UnitOfWorkAlreadyUsedError",
+    "UnsupportedIdentityError",
+    "InvalidRecordSetError",
+    "DuplicateRecordKeyError",
+    "DuplicateEntityError",
+  ])("%s, a misuse, is not exported", (name) => {
+    expect(api).not.toHaveProperty(name);
   });
 
   it("ConcurrencyConflictError has the code CONCURRENCY_CONFLICT", () => {
@@ -33,5 +19,12 @@ describe("the codes of the errors", () => {
 
     expectTypeOf(error.code).toEqualTypeOf<"CONCURRENCY_CONFLICT">();
     expect(error.code).toBe("CONCURRENCY_CONFLICT");
+  });
+
+  it("ConcurrencyConflictError passes isBaseErrorLike, with its code", () => {
+    const error: unknown = new ConcurrencyConflictError("a", 1);
+
+    expect(isBaseErrorLike(error)).toBe(true);
+    expect(isBaseErrorLike(error) && error.code).toBe("CONCURRENCY_CONFLICT");
   });
 });
