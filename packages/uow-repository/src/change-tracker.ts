@@ -1,5 +1,3 @@
-import { DuplicateEntityError } from "./errors";
-
 /** State of an entity tracked during one unit of work. */
 export type EntityState = "new" | "clean" | "removed" | "replaced";
 
@@ -55,6 +53,7 @@ export class ChangeTracker<TId, TEntity, TRecords, TVersion> {
     this.entities.delete(key);
   }
 
+  /** @throws {Error} The identity is already tracked as new, clean or replaced. */
   add(key: string, id: TId, entity: TEntity): void {
     const tracked = this.entities.get(key);
 
@@ -76,7 +75,7 @@ export class ChangeTracker<TId, TEntity, TRecords, TVersion> {
       return;
     }
 
-    throw new DuplicateEntityError(key);
+    throw new Error(`An entity with identity "${key}" is already tracked.`);
   }
 
   remove(key: string, id: TId, entity: TEntity): void {

@@ -37,7 +37,7 @@ export interface IRepository<TDomain, TId> {
    * Tracks `entity` as new, to be inserted on the next flush.
    *
    * @param entity - The entity to add. Its identity must not already be
-   * tracked as new, clean or replaced, or `DuplicateEntityError` is thrown.
+   * tracked as new, clean or replaced, or the returned promise rejects with an `Error`.
    */
   add(entity: TDomain): Promise<void>;
   /**

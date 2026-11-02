@@ -2,7 +2,6 @@ import type {
   ITransaction,
   ITransactionManager,
 } from "@enardo/transaction-manager";
-import { UnitOfWorkAlreadyUsedError } from "./errors";
 
 /** A persistence write, planned before its transaction starts. */
 export interface FlushUnit<TContext extends ITransaction = ITransaction> {
@@ -100,12 +99,14 @@ export class UnitOfWork<
    * Runs `work`, then writes the changes of every participant in one
    * transaction.
    *
-   * @throws {UnitOfWorkAlreadyUsedError} execute() was already called on this
+   * @throws {Error} execute() was already called on this
    *   instance, including a call that is still running.
    */
   async execute<TResult>(work: () => Promise<TResult>): Promise<TResult> {
     if (this.used) {
-      throw new UnitOfWorkAlreadyUsedError();
+      throw new Error(
+        "This unit of work has already been used; create a new one, with new repositories, for each execute call.",
+      );
     }
 
     this.used = true;

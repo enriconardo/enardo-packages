@@ -12,13 +12,14 @@ await unitOfWork.execute(async () => {
 // Committed in one transaction: an update of p-1 that sets only `price`, and an insert of p-2.
 ```
 
-> Published to the `@enardo` registry, version 0.1.2: the API can still change. The package ships no database adapters: install an adapter package for your database, or write a `DataStore` and an `ITransactionManager` for your driver.
+> Published to the `@enardo` registry, version 0.2.0: the API can still change. The package ships no database adapters: install an adapter package for your database, or write a `DataStore` and an `ITransactionManager` for your driver.
 
 ## Contents
 
 - [Why it exists](#why-it-exists)
 - [Quick start](#quick-start)
 - [Configuration and usage](#configuration-and-usage)
+- [Upgrading from 0.1](#upgrading-from-01)
 - [Contributing](#contributing)
 
 ## Why it exists
@@ -252,7 +253,7 @@ When `execute()` ends, whether it succeeded or failed, the unit of work clears e
   });
   ```
 
-- **A second `execute()` rejects** with `UnitOfWorkAlreadyUsedError`: after the first call has finished, and also while it is still running (a nested or concurrent call). The work of the rejected call doesn't run.
+- **A second `execute()` rejects** with a native `Error`: after the first call has finished, and also while it is still running (a nested or concurrent call). The work of the rejected call doesn't run.
 
 Register each repository on exactly one unit of work. Give application code the narrower interfaces: `IRepository<TDomain, TId>` for repositories, and `IUnitOfWork` for the unit of work, which hides the transaction context type.
 
@@ -274,11 +275,11 @@ const recordKeys: RecordKeys<GroupRecords> = {
 
 `recordKeys` belongs to the `DataStore`, and it tells the diff how to match records. Each record key must be:
 
-- **Unique within its collection.** Otherwise every commit fails with `DuplicateRecordKeyError`, even in use cases that only read.
+- **Unique within its collection.** Otherwise every commit fails with a native `Error`, even in use cases that only read.
 - **Stable.** A record whose key changes is written as a delete plus an insert.
 - **Known before the record is written.** Use ids your application assigns, or natural keys. An id the database generates on insert never reaches the snapshot.
 
-List every collection in `recordKeys`. A listed collection that a record set lacks fails with `InvalidRecordSetError`. A collection you don't list is never compared, so its changes are silently not written.
+List every collection in `recordKeys`. A listed collection that a record set lacks fails with a `TypeError`. A collection you don't list is never compared, so its changes are silently not written.
 
 Records hold data: primitives, plain objects, arrays, `Map`, `Set`, `Date`, `RegExp` and binary data, which the repository copies, plus instances of value classes such as a driver's `ObjectId` or `Decimal128`, which it keeps as they are, with their prototype. Treat those instances as immutable: one mutated in place changes the snapshot too, so the change is never written. Nested objects and arrays are compared and written as a whole. If array elements have their own identity, store them in a collection of their own, as `members` does above. For a full two-collection example, see the "entities stored across collections" tests in [`__tests__/repository.test.ts`](__tests__/repository.test.ts).
 
@@ -382,7 +383,7 @@ const products = new Repository(productStore, productMapper, (id) => id.value);
 
 ### Composite identities
 
-Identities that are a `string`, `number`, `bigint` or `boolean` work as they are. `"1"` and `1` count as different identities. For any other identity, pass an `identityKey` function that never maps two ids to the same string:
+Identities that are a `string`, `number`, `bigint` or `boolean` work as they are. `"1"` and `1` count as different identities. For any other identity, which throws a `TypeError` without one, pass an `identityKey` function that never maps two ids to the same string:
 
 ```ts
 const orders = new Repository(orderStore, orderMapper, (id) =>
@@ -402,7 +403,7 @@ Prefer a serialized tuple to string concatenation: `` `${accountId}:${orderNumbe
 | `remove(entity)` without loading it | `delete` | `undefined`: the delete is unconditional |
 | `remove` and then `add` the same identity | `delete`, then `apply` with every record in `inserted` | the version read (if loaded) for `delete`, `undefined` for `apply` |
 | `add` and then `remove` the same entity | no write | none |
-| `add` an identity that is already new or loaded | nothing: `add` rejects with `DuplicateEntityError` | none |
+| `add` an identity that is already new or loaded | nothing: `add` rejects with a native `Error` | none |
 
 - **Reads.** `findById` returns the tracked instance without querying the store when the identity is already tracked. `findAll` always queries the store, but returns the tracked instances for identities it already knows, drops removed entities, and appends added ones. A tracked identity keeps the version of its first read, because its in-memory state is based on that read.
 - **Change detection.** A snapshot is a deep copy with `undefined` fields dropped. Class instances, such as an `ObjectId`, are kept rather than copied, so they reach the store with their prototype. On commit, every loaded entity is mapped again and compared with its snapshot: records by key, and top-level fields with `isDeepStrictEqual`. Each check maps, copies and compares every loaded entity. `hasPendingChanges()` runs the same comparison and is useful for "unsaved changes" warnings.
@@ -473,18 +474,28 @@ If anything fails, whether your `work`, a write or the commit, `execute()` clear
 
 ### Errors
 
-All errors extend [`BaseError`](../errors/src/base/base-error.ts) from `@enardo/errors` and carry a `code` and `details`. Errors thrown by your adapters or mapper reach the caller unchanged.
+Errors a caller may handle by `code` extend [`BaseError`](../errors/src/base/base-error.ts) from `@enardo/errors` and carry a `code` and `details`. Errors thrown by your adapters or mapper reach the caller unchanged.
 
-| Class | `code` | `details` | Raised when |
-| --- | --- | --- | --- |
-| `DuplicateEntityError` | `DUPLICATE_ENTITY` | `{ key }`, e.g. `"string:p-1"` | `add()` targets an identity already tracked as new or loaded |
-| `UnsupportedIdentityError` | `UNSUPPORTED_IDENTITY` | `{ identityType }`, e.g. `"an object"` | An identity isn't a `string`, `number`, `bigint` or `boolean`, and no `identityKey` was given |
-| `UnitOfWorkAlreadyUsedError` | `UOW_ALREADY_USED` | none | `execute()` is called again on the same unit of work, including while the first call is running |
+| Class                      | `code`                 | `details`                                               | Raised when                                                                                                                      |
+| -------------------------- | ---------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `ConcurrencyConflictError` | `CONCURRENCY_CONFLICT` | `{ id, expectedVersion }`, with `id` in its stored form | Thrown by your `DataStore` when the stored version differs from the one read. See [Concurrent use cases](#concurrent-use-cases). |
-| `DuplicateRecordKeyError` | `DUPLICATE_RECORD_KEY` | `{ collection, key, recordSet }` | Two records of one collection share a key |
-| `InvalidRecordSetError` | `INVALID_RECORD_SET` | `{ collection, recordSet }` | A record set lacks a collection listed in `recordKeys` |
 
-In the last two errors, `recordSet` is `"previous"` when the problem is in the snapshot, and `"next"` when it is in the records the mapper produced.
+A misuse is a fault in the caller's code, which it fixes rather than handles: it throws a native error, with no `code`.
+
+| Type         | Raised when                                                                                     |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| `Error`      | `execute()` is called again on the same unit of work, including while the first call is running |
+| `TypeError`  | An identity isn't a `string`, `number`, `bigint` or `boolean`, and no `identityKey` was given   |
+| `TypeError`  | A record set lacks a collection listed in `recordKeys`, or the collection isn't an array        |
+| `Error`      | Two records of one collection share a key                                                       |
+| `Error`      | `add()` targets an identity already tracked as new, clean or replaced (the promise rejects)     |
+| `RangeError` | `retryOnConflict` gets a bad `attempts`                                                         |
+
+The messages of the record sets name the side at fault: `previous` is the snapshot, `next` the records the mapper produced.
+
+## Upgrading from 0.1
+
+`UnitOfWorkAlreadyUsedError`, `UnsupportedIdentityError`, `InvalidRecordSetError`, `DuplicateRecordKeyError` and `DuplicateEntityError` are removed, with their codes (`UOW_ALREADY_USED`, `UNSUPPORTED_IDENTITY`, `INVALID_RECORD_SET`, `DUPLICATE_RECORD_KEY`, `DUPLICATE_ENTITY`). Each misuse now throws a native error with the same message. A caller that read a `code` fixes the cause instead: the call, the mapper, the aggregate's invariant or the stored data.
 
 ## Contributing
 
@@ -532,7 +543,7 @@ __tests__/            one *.test.ts per module
 ### Conventions
 
 - Export public API from `src/index.ts`, and export types with `export type`.
-- Put each new error in `src/errors/<name>.error.ts`. It extends `BaseError` with a `name`, an upper-snake-case `code` declared with `declare readonly code: "<CODE>"` (a code belongs to one class across packages) and `details`, and is re-exported from `src/errors/index.ts`. Add it to the [Errors](#errors) table.
+- A new error extends `BaseError` when a caller may handle it by `code`; a misuse throws a native error. Put each `BaseError` in `src/errors/<name>.error.ts`. It extends `BaseError` with a `name`, an upper-snake-case `code` declared with `declare readonly code: "<CODE>"` (a code belongs to one class across packages) and `details`, and is re-exported from `src/errors/index.ts`. Add it to the [Errors](#errors) table.
 - In tests, import sources through the `~/` alias, e.g. `import { Repository } from "~/repository"`.
 - `hasPendingChanges()` must always agree with `planFlush()`, and a test checks it.
 - Doc comments explain why code behaves as it does, not only what it does. See [`src/snapshot.ts`](src/snapshot.ts).

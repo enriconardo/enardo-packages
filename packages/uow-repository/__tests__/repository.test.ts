@@ -3,12 +3,13 @@ import type {
   ITransaction,
   ITransactionManager,
 } from "@enardo/transaction-manager";
-import { ConcurrencyConflictError, DuplicateRecordKeyError } from "~/errors";
+import { ConcurrencyConflictError } from "~/errors";
 import { Repository } from "~/repository";
 import { UnitOfWork } from "~/unit-of-work";
 import type { DataStore, VersionedRecords } from "~/data-store";
 import type { Mapper } from "~/mapper";
 import type { RecordKeys, RecordSet } from "~/record-set";
+import { expectNativeError, reasonOf } from "./support/native-errors";
 
 interface Product {
   id: string;
@@ -465,17 +466,102 @@ describe("Repository", () => {
       ]);
     });
 
-    it("fails the unit of work when the store returns two records with one key, even if nothing changed", async () => {
+    it("fails the unit of work with a native Error when the store returns two records with one key, even if nothing changed", async () => {
       const stored = storedGroup();
-      stored.members.push(memberRecord("g-1", "u-2", "member"));
+      // A key without quotes, so the message holds it in one form only.
+      const duplicate = {
+        ...memberRecord("g-1", "u-2", "member"),
+        _id: "g-1:u-2",
+      };
+      stored.members.push(duplicate, { ...duplicate });
       const { unitOfWork, repository, apply } = createGroupSetup(stored);
 
-      await expect(
+      const error = await reasonOf(
         unitOfWork.execute(async () => {
           await repository.findById("g-1");
         }),
-      ).rejects.toThrow(DuplicateRecordKeyError);
+      );
+
+      expectNativeError(
+        error,
+        Error,
+        'Collection "members" of the previous record set holds more than one record with key "g-1:u-2".',
+      );
       expect(apply).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("identities tracked twice", () => {
+    it("rejects adding an identity already added with a native Error, keeping the first entity", async () => {
+      const apply = vi.fn<ProductStore["apply"]>(async () => undefined);
+      const { unitOfWork, repository, transaction } = createSetup(
+        productMapper,
+        productKeys,
+        { apply },
+      );
+      const first = { id: "p-1", name: "Keyboard" };
+      let error: unknown;
+      let tracked: Product | null = null;
+
+      await unitOfWork.execute(async () => {
+        await repository.add(first);
+        error = await reasonOf(repository.add({ id: "p-1", name: "Mouse" }));
+        tracked = await repository.findById("p-1");
+      });
+
+      expectNativeError(
+        error,
+        Error,
+        'An entity with identity "string:p-1" is already tracked.',
+      );
+      expect(tracked).toBe(first);
+      expect(apply).toHaveBeenCalledExactlyOnceWith(
+        {
+          id: "p-1",
+          expectedVersion: undefined,
+          changes: {
+            products: {
+              inserted: [{ productId: "p-1", productName: "Keyboard" }],
+              updated: [],
+              deleted: [],
+            },
+          },
+        },
+        transaction,
+      );
+    });
+
+    it("rejects adding an identity already loaded with a native Error, writing nothing for it", async () => {
+      const apply = vi.fn<ProductStore["apply"]>(async () => undefined);
+      const deleteRecords = vi.fn<ProductStore["delete"]>(
+        async () => undefined,
+      );
+      const { unitOfWork, repository } = createSetup(
+        productMapper,
+        productKeys,
+        {
+          findById: async () =>
+            versioned<ProductRecords>({
+              products: [{ productId: "p-1", productName: "Keyboard" }],
+            }),
+          apply,
+          delete: deleteRecords,
+        },
+      );
+      let error: unknown;
+
+      await unitOfWork.execute(async () => {
+        await repository.findById("p-1");
+        error = await reasonOf(repository.add({ id: "p-1", name: "Mouse" }));
+      });
+
+      expectNativeError(
+        error,
+        Error,
+        'An entity with identity "string:p-1" is already tracked.',
+      );
+      expect(apply).not.toHaveBeenCalled();
+      expect(deleteRecords).not.toHaveBeenCalled();
     });
   });
 

@@ -1,5 +1,4 @@
 import { isDeepStrictEqual } from "node:util";
-import { DuplicateRecordKeyError, InvalidRecordSetError } from "./errors";
 
 /**
  * Constrains `TRecords` to hold every record an aggregate owns, grouped by
@@ -72,10 +71,10 @@ type KeyFunction = (record: AnyRecord) => string;
  * Changes follow record order: the order of `next` for inserted and updated
  * records, the order of `previous` for deleted ones.
  *
- * @throws {InvalidRecordSetError} A side lacks a collection a key function
+ * @throws {TypeError} A side lacks a collection a key function
  *   describes. The error names the collection and the side at fault, which
  *   iterating the missing collection would not.
- * @throws {DuplicateRecordKeyError} Two records of one collection share a key.
+ * @throws {Error} Two records of one collection share a key.
  */
 export function diffRecordSets<TRecords extends RecordSet<TRecords>>(
   previous: TRecords | undefined,
@@ -120,7 +119,9 @@ function recordsOf(
   const records = (recordSet as AnyRecord)[collection];
 
   if (!Array.isArray(records)) {
-    throw new InvalidRecordSetError(collection, side);
+    throw new TypeError(
+      `Collection "${collection}" of the ${side} record set is not an array of records.`,
+    );
   }
 
   return records as readonly AnyRecord[];
@@ -176,7 +177,9 @@ function indexByKey(
 
     // Keeping either record would silently drop the writes of the other.
     if (byKey.has(key)) {
-      throw new DuplicateRecordKeyError(collection, key, side);
+      throw new Error(
+        `Collection "${collection}" of the ${side} record set holds more than one record with key "${key}".`,
+      );
     }
 
     byKey.set(key, record);

@@ -4,6 +4,7 @@ import {
   isEmptyChangeSet,
   type RecordKeys,
 } from "~/record-set";
+import { expectNativeError, thrownBy } from "./support/native-errors";
 
 interface GroupDoc {
   _id: string;
@@ -244,33 +245,81 @@ describe("diffRecordSets", () => {
   });
 
   describe("invalid record sets", () => {
-    it("rejects two records sharing a key instead of keeping one of them", () => {
-      const next = groupRecords();
-      next.members.push(member("u-2"));
-
-      expect(() => diffRecordSets(groupRecords(), next, groupKeys)).toThrow(
-        expect.objectContaining({
-          name: "DuplicateRecordKeyError",
-          code: "DUPLICATE_RECORD_KEY",
-          message:
-            'Collection "members" of the next record set holds more than one record with key "g-1:u-2".',
-          details: { collection: "members", key: "g-1:u-2", recordSet: "next" },
-        }),
-      );
-    });
-
-    it("rejects a missing collection, naming it and the side at fault", () => {
+    it("rejects a missing collection of next with a native TypeError naming it and the side", () => {
       // Only a cast gets past the types; a mapper written in plain JavaScript needs none.
       const next = { groups: groupRecords().groups } as unknown as GroupRecords;
 
-      expect(() => diffRecordSets(groupRecords(), next, groupKeys)).toThrow(
-        expect.objectContaining({
-          name: "InvalidRecordSetError",
-          code: "INVALID_RECORD_SET",
-          message:
-            'Collection "members" of the next record set is not an array of records.',
-          details: { collection: "members", recordSet: "next" },
-        }),
+      const error = thrownBy(() =>
+        diffRecordSets(groupRecords(), next, groupKeys),
+      );
+
+      expectNativeError(
+        error,
+        TypeError,
+        'Collection "members" of the next record set is not an array of records.',
+      );
+    });
+
+    it("rejects a missing collection of previous with a native TypeError naming it and the side", () => {
+      const previous = {
+        groups: groupRecords().groups,
+      } as unknown as GroupRecords;
+
+      const error = thrownBy(() =>
+        diffRecordSets(previous, groupRecords(), groupKeys),
+      );
+
+      expectNativeError(
+        error,
+        TypeError,
+        'Collection "members" of the previous record set is not an array of records.',
+      );
+    });
+
+    it("rejects a collection that is present but not an array with a native TypeError", () => {
+      const next = {
+        groups: groupRecords().groups,
+        members: "g-1:u-1",
+      } as unknown as GroupRecords;
+
+      const error = thrownBy(() =>
+        diffRecordSets(groupRecords(), next, groupKeys),
+      );
+
+      expectNativeError(
+        error,
+        TypeError,
+        'Collection "members" of the next record set is not an array of records.',
+      );
+    });
+
+    it("rejects two records of next sharing a key with a native Error, instead of keeping one of them", () => {
+      const next = groupRecords();
+      next.members.push(member("u-2"));
+
+      const error = thrownBy(() =>
+        diffRecordSets(groupRecords(), next, groupKeys),
+      );
+
+      expectNativeError(
+        error,
+        Error,
+        'Collection "members" of the next record set holds more than one record with key "g-1:u-2".',
+      );
+    });
+
+    it("rejects two records of previous sharing a key with a native Error", () => {
+      const previous = groupRecords();
+      previous.members.push(member("u-2"));
+
+      const error = thrownBy(() =>
+        diffRecordSets(previous, groupRecords(), groupKeys),
+      );
+
+      expectNativeError(
+        error,
+        Error,
+        'Collection "members" of the previous record set holds more than one record with key "g-1:u-2".',
       );
     });
   });

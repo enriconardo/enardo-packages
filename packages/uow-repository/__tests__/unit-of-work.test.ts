@@ -3,13 +3,16 @@ import type {
   ITransaction,
   ITransactionManager,
 } from "@enardo/transaction-manager";
-import { UnitOfWorkAlreadyUsedError } from "~/errors";
 import {
   UnitOfWork,
   type FlushUnit,
   type IUnitOfWork,
   type UnitOfWorkParticipant,
 } from "~/unit-of-work";
+import { expectNativeError, reasonOf } from "./support/native-errors";
+
+const USED_UNIT_MESSAGE =
+  "This unit of work has already been used; create a new one, with new repositories, for each execute call.";
 
 describe("UnitOfWork", () => {
   it("implements IUnitOfWork, the contract application code depends on", () => {
@@ -168,37 +171,39 @@ describe("UnitOfWork", () => {
   });
 
   describe("single use", () => {
-    it("rejects a second execute call after a successful one", async () => {
+    it("rejects a second execute call after a successful one with a native Error", async () => {
       const unitOfWork = new UnitOfWork(createManager(createTransaction()));
       await unitOfWork.execute(async () => undefined);
 
-      await expect(unitOfWork.execute(async () => undefined)).rejects.toThrow(
-        UnitOfWorkAlreadyUsedError,
-      );
+      const error = await reasonOf(unitOfWork.execute(async () => undefined));
+
+      expectNativeError(error, Error, USED_UNIT_MESSAGE);
     });
 
-    it("rejects a second execute call after a failed one", async () => {
+    it("rejects a second execute call after a failed one with a native Error", async () => {
       const unitOfWork = new UnitOfWork(createManager(createTransaction()));
       await expect(
         unitOfWork.execute(async () => Promise.reject(new Error("failed"))),
       ).rejects.toThrow("failed");
 
-      await expect(unitOfWork.execute(async () => undefined)).rejects.toThrow(
-        UnitOfWorkAlreadyUsedError,
-      );
+      const error = await reasonOf(unitOfWork.execute(async () => undefined));
+
+      expectNativeError(error, Error, USED_UNIT_MESSAGE);
     });
 
-    it("rejects a nested execute call", async () => {
+    it("rejects a nested execute call with a native Error", async () => {
       const unitOfWork = new UnitOfWork(createManager(createTransaction()));
 
-      await expect(
+      const error = await reasonOf(
         unitOfWork.execute(async () =>
           unitOfWork.execute(async () => undefined),
         ),
-      ).rejects.toThrow(UnitOfWorkAlreadyUsedError);
+      );
+
+      expectNativeError(error, Error, USED_UNIT_MESSAGE);
     });
 
-    it("rejects a concurrent execute call without disturbing the running one", async () => {
+    it("rejects a concurrent execute call with a native Error, without disturbing the running one", async () => {
       const unitOfWork = new UnitOfWork(createManager(createTransaction()));
       let releaseFirst!: () => void;
       const first = unitOfWork.execute(
@@ -208,22 +213,21 @@ describe("UnitOfWork", () => {
           ),
       );
 
-      await expect(unitOfWork.execute(async () => undefined)).rejects.toThrow(
-        UnitOfWorkAlreadyUsedError,
-      );
+      const error = await reasonOf(unitOfWork.execute(async () => undefined));
 
+      expectNativeError(error, Error, USED_UNIT_MESSAGE);
       releaseFirst();
       await expect(first).resolves.toBe("first");
     });
 
-    it("does not run the work of a rejected call", async () => {
+    it("rejects a call on a used unit with a native Error, without running its work", async () => {
       const unitOfWork = new UnitOfWork(createManager(createTransaction()));
       await unitOfWork.execute(async () => undefined);
       const work = vi.fn(async () => undefined);
 
-      await expect(unitOfWork.execute(work)).rejects.toThrow(
-        UnitOfWorkAlreadyUsedError,
-      );
+      const error = await reasonOf(unitOfWork.execute(work));
+
+      expectNativeError(error, Error, USED_UNIT_MESSAGE);
       expect(work).not.toHaveBeenCalled();
     });
   });
