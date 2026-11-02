@@ -13,7 +13,7 @@ branch: fix/uow-repository/native-misuse-errors
 
 From the backlog item *Review the `BaseError`s that report misuse or misconfiguration* (Queued), which applies ADR 0012 point 6 package by package, and from a discussion with the user at intake, which changed its list.
 
-ADR 0012 point 6 gives a `BaseError` to a condition a caller may handle by `code`, and a native error to a misuse or a misconfiguration, which a caller fixes in its code. Four errors of this package report a misuse and are `BaseError`s, written before the rule: they offer a public `code` for a case with no handling but fixing the code, and every `code` is public API (point 4). The package contradicts itself: `retryOnConflict` reports a bad argument with a `RangeError`.
+ADR 0012 point 6 gives a `BaseError` to a condition a caller may handle by `code`, and a native error to a misuse or a misconfiguration, which a caller fixes in its code. Five errors of this package report a misuse and are `BaseError`s, written before the rule: they offer a public `code` for a case with no handling but fixing the code, and every `code` is public API (point 4). The package contradicts itself: `retryOnConflict` reports a bad argument with a `RangeError`.
 
 Nothing is broken today: this is a matter of a coherent contract.
 
@@ -21,33 +21,35 @@ Nothing is broken today: this is a matter of a coherent contract.
 
 - `pnpm view <package> versions --registry https://npm.enriconardo.com` (host) → `@enardo/uow-repository`: `0.1.0`; `@enardo/uow-repository-mongo`: `0.1.0`. The manifests' `0.1.2` and `0.2.0` are unpublished. A breaking change over `0.1.0` is a new minor, so `@enardo/uow-repository` goes to `0.2.0`; `-mongo`, unpublished at `0.2.0`, needs no bump of its own.
 - `pnpm-lock.yaml:692` → the importer of `-mongo` holds `specifier: workspace:^`, `version: link:../uow-repository`: a version bump leaves the lockfile as it is.
-- `git grep` for the four classes and codes, outside `packages/uow-repository` and `docs/specs` → only `docs/backlog.md:14`, for two of them.
+- `git grep` for the five classes and codes, outside `packages/uow-repository` and `docs/specs` → `docs/backlog.md:14`, for two of them, and a local class named `DuplicateEntityError` in `packages/errors/__tests__/types.test.ts:24`, which is that test's own.
 - A store that returns two records with one key, through `UnitOfWork` and `Repository` from `dist/`, in a work that only reads → the error names `previous` and the key, and `apply` is not called: `previous` is indexed first (`src/record-set.ts:135`).
-- `grep -r` for the four classes and codes in `~/Projects/cambusa`, the one active project in `~/Projects` that depends on the package, on `^0.1.0` → no match. Projects elsewhere: none known to the user (2026-11-02).
-- The throw sites, every one → `UnitOfWorkAlreadyUsedError` `src/unit-of-work.ts:108`; `UnsupportedIdentityError` `src/identity-key.ts:14`; `InvalidRecordSetError` `src/record-set.ts:123`; `DuplicateRecordKeyError` `src/record-set.ts:179`.
+- `grep -r` for the five classes and codes in `~/Projects/cambusa`, the one active project in `~/Projects` that depends on the package, on `^0.1.0` → no match. Projects elsewhere: none known to the user (2026-11-02).
+- The throw sites, every one → `UnitOfWorkAlreadyUsedError` `src/unit-of-work.ts:108`; `UnsupportedIdentityError` `src/identity-key.ts:14`; `InvalidRecordSetError` `src/record-set.ts:123`; `DuplicateRecordKeyError` `src/record-set.ts:179`; `DuplicateEntityError` `src/change-tracker.ts:79`.
 - `git grep -n -E "catch|instanceof|isBaseErrorLike"` over the `src/` of the package and of `-mongo` → the one catch of an error is `retryOnConflict` (`src/retry-on-conflict.ts:32`), which retries on `CONCURRENCY_CONFLICT` alone: a native error passes through it as these errors do today.
 - `@enardo/cqrs`, `src/command-handler.ts:25` and `:36`, and `src/query-handler.ts:34` → an error that fails `isBaseErrorLike` is rethrown, as is one whose `code` is not expected.
 - Where `INVALID_RECORD_SET` comes from → `next`: `mapper.toRecords` (`src/repository.ts:260`). `previous`: the records the `DataStore` returned, through `toSnapshot(records)` (`src/repository.ts:271`), which the *DataStore contract* of the README requires to hold every collection, and `MongoDataStore` always fills with an array (`packages/uow-repository-mongo/src/mongo-data-store.ts:344`). Both sides are a fault in code.
 - Where `DUPLICATE_RECORD_KEY` comes from → `next`: what the mapper produces from the entity, whose data can come from a request: a stubbed store, from `dist/`, with a child pushed twice onto a loaded entity → the error names `next`, nothing is written, and the next commit passes. `previous`: the records the `DataStore` returned; `__tests__/repository.test.ts:467` shows it with a stubbed store. On `MongoDataStore` the key is `record[idField]`, by default `_id` (`packages/uow-repository-mongo/src/mongo-data-store.ts:168`), and this package indexes `next` before any write (`src/record-set.ts:136`), so a stored duplicate needs an `idField` with no unique index and a writer outside the package (not run on a replica set; it rests on `_id`'s unique index, and on a sharded cluster, from memory of MongoDB's docs, that index is not enforced across shards unless `_id` is the shard key: not probed). `grep -r idField` in `cambusa` → no match.
 - A repeated child in `cambusa` → the domain refuses it with a code of its own: `Meal.ensureUniqueMemberExceptions` (`packages/planning/src/domain/meal.entity.ts:40`) throws `DuplicateMemberMealExceptionError`, mapped to a 409.
 - The messages, on `main`, after `./dev.sh exec pnpm exec turbo run build --filter=@enardo/uow-repository... --filter=@enardo/logger... --force`, from `dist/` → `identityKeyOf` of `null`, `[]`, `{}`, `undefined`, a symbol and a function gives `Cannot derive an identity key from <null | an array | an object | a undefined | a symbol | a function>. Supply identityKey for composite identities.`; a second `execute()` gives `This unit of work has already been used; create a new one, with new repositories, for each execute call.` The messages of `InvalidRecordSetError` and `DuplicateRecordKeyError` are pinned in `__tests__/record-set.test.ts`, at `*invalid record sets*`.
-- Each `details` is already in its message: `identityType`; `collection` and `recordSet`; `collection`, `key` and `recordSet`; `UnitOfWorkAlreadyUsedError` has none.
+- Each `details` is already in its message: `identityType`; `collection` and `recordSet`; `collection`, `key` and `recordSet`; `key`; `UnitOfWorkAlreadyUsedError` has none.
 - What the errors expose, through `createLogger("console", { format: "json" })` of `@enardo/logger`, same build → a `TypeError` logs `name`, `message` and `stack`; the `BaseError` logs those plus `code` and `details`. No `cause` is ever set at the throw sites. `isBaseErrorLike(new TypeError(...))` → `false`.
 - `@enardo/database`'s README, *Upgrading from 1.x* → the form of the upgrade note.
-- Where `DUPLICATE_ENTITY` comes from → `ChangeTracker.add` (`src/change-tracker.ts:79`), for an identity tracked in this unit of work; "the repository never checks the store" (`README.md:315`).
+- Where `DUPLICATE_ENTITY` comes from → `ChangeTracker.add` (`src/change-tracker.ts:79`), for an identity tracked in this unit of work; "the repository never checks the store" (`README.md:315`). From `dist/`, a second `add()` of `p-1`, and an `add()` of an identity just loaded → `add()` returns a promise that rejects, with `An entity with identity "string:p-1" is already tracked.` A caller can check first: `findById` returns a tracked entity, a new one included (`src/repository.ts:97`). No test of the package pins this rejection today. `cambusa`'s `ERROR_CODES` do not hold the code.
 - `cambusa`'s error handler (`apps/api-server/src/middleware/error-handler.middleware.ts:44`) → a `BaseError` with a code it does not map and a native error get the same result: `logger.error` and a 500.
 
 ## Decisions
 
-The list and the native types were taken with the user at intake; decisions 6 and 8 changed with the user after the `critic`'s first run.
+The list and the native types were taken with the user at intake; decisions 6 and 8 changed with the user after the `critic`'s first run, and decision 7 after its second.
+
+The test for what stays a `BaseError`: can it happen in a correct program with validated input? In this package only `CONCURRENCY_CONFLICT` can.
 
 1. **`UOW_ALREADY_USED`: a native `Error`.** The call comes at the wrong moment, as with the "not connected" of `MongoDatabase`. Not a `RangeError` or a `TypeError`: no argument is wrong.
 2. **`UNSUPPORTED_IDENTITY`: a native `TypeError`.** The value has a type the function cannot take.
 3. **`INVALID_RECORD_SET`: a native `TypeError`.** A collection is not an array. It joins the list: the backlog item did not name it, and it is the same case as `MISSING_COLLECTION_CHANGES`, a contract broken by code.
-4. **The four classes go**, with their codes, from the public API. No class is kept over a native base: a class of the package's own would invite the `instanceof` that point 6 means to remove the need for.
+4. **The five classes go**, with their codes, from the public API. No class is kept over a native base: a class of the package's own would invite the `instanceof` that point 6 means to remove the need for.
 5. **The messages stay as they are.** They already hold what `details` held (probes). The `a undefined` of the identity's message is left: it is not this task's.
 6. **`DUPLICATE_RECORD_KEY`: a native `Error`.** A child repeated in an entity, found on `next` before any write, breaks an invariant of the aggregate: it is fixed in the aggregate's code, and the app answers it with a code of its own (probes). A duplicate on `previous` takes a key with no unique index and a writer outside the package: its remedy is a repair of the data and an index, with no handling by `code` either. Not a `TypeError`: every value has the right type, and two of them collide.
-7. **`DUPLICATE_ENTITY` stays a `BaseError`.** It fires for an identity already tracked in this unit of work, never for one the store holds: a use case that already loaded or added the id, or a batch that repeats one. A well-typed value repeated in a request's data is no fault in the code, and a caller may answer it by `code`; an ill-typed identity (decision 2) is fixed by validating at the boundary.
+7. **`DUPLICATE_ENTITY`: a native `Error`.** It fires for an identity already tracked in this unit of work, never for one the store holds: a use case that already loaded or added the id, a fault of its code, or a batch that repeats one, which validating the batch or `findById` avoids (probes). A `code` a caller may handle can be added in a later minor, if a project needs one.
 8. **`@enardo/env`'s `ENV_MISSING` and `ENV_MALFORMED` are not decided here.** They stay on the item, to evaluate in `@enardo/env`'s own branch, with its probes. A variable is a misconfiguration, yet it is not fixed in the caller's code, as point 6 says; the same reading would reach the `default-from` and `transport-options` reasons of `INVALID_EMAIL_SENDER_OPTIONS`, when an app reads them from its environment.
 9. **`@enardo/entities`' lifecycle errors are left to their own evaluation.** Its README shows a caller catching one with `instanceof`, so they are no plain case.
 10. **The backlog item stays open**, with its list updated, until the last package.
@@ -62,20 +64,22 @@ None.
 
 `@enardo/uow-repository`, `0.1.2` → `0.2.0`:
 
-- `src/errors/unit-of-work-already-used.error.ts`, `unsupported-identity.error.ts`, `invalid-record-set.error.ts`, `duplicate-record-key.error.ts`: deleted, and out of `src/errors/index.ts`.
+- `src/errors/unit-of-work-already-used.error.ts`, `unsupported-identity.error.ts`, `invalid-record-set.error.ts`, `duplicate-record-key.error.ts`, `duplicate-entity.error.ts`: deleted, and out of `src/errors/index.ts`.
 - `src/unit-of-work.ts:108`: throws `new Error(<the message>)`; the JSDoc's `@throws {Error}`.
 - `src/identity-key.ts:14`: throws `new TypeError(<the message>)`; a `@throws {TypeError}` on `identityKeyOf`.
 - `src/record-set.ts:123`: throws `new TypeError(<the message>)`; `src/record-set.ts:179`: throws `new Error(<the message>)`; the JSDoc, where it names a class.
+- `src/change-tracker.ts:79`: throws `new Error(<the message>)`; the JSDoc of `add` at `src/repository.ts:40`.
 - `package.json`: `version` `0.2.0`.
 - `README.md`:
   - `:15`: version 0.2.0.
   - `:255`: *A second `execute()` rejects* with a native `Error`.
+  - `:405`: `add` rejects with a native `Error`.
   - `:277`: a key that is not unique fails with a native `Error`.
   - `:281`: a listed collection that a record set lacks fails with a `TypeError`.
   - *Composite identities* (`:385`): any other identity without an `identityKey` throws a `TypeError`.
-  - *Errors* (`:474`): the table drops the four rows; the sentence above it says that these errors extend `BaseError`, and that a misuse throws a native error, with no `code`: the four cases and `retryOnConflict`'s `RangeError` on a bad `attempts`, each with its type, and that the messages of the record sets name the side: `previous`, the snapshot, or `next`, what the mapper produced, in place of `:487`.
+  - *Errors* (`:474`): the table drops the five rows, and keeps `ConcurrencyConflictError`; the sentence above it says that these errors extend `BaseError`, and that a misuse throws a native error, with no `code`: the five cases and `retryOnConflict`'s `RangeError` on a bad `attempts`, each with its type, and that the messages of the record sets name the side: `previous`, the snapshot, or `next`, what the mapper produced, in place of `:487`.
   - *Contributing › Conventions* (`:535`): a new error extends `BaseError` when a caller may handle it by `code`; a misuse throws a native error.
-  - A section *Upgrading from 0.1*, before *Contributing*, and in *Contents*: the four classes and codes are removed, a misuse throws a native error, and a caller that read them fixes the cause instead: the call, the mapper, the aggregate's invariant or the stored data.
+  - A section *Upgrading from 0.1*, before *Contributing*, and in *Contents*: the five classes and codes are removed, a misuse throws a native error, and a caller that read them fixes the cause instead: the call, the mapper, the aggregate's invariant or the stored data.
 
 Repo:
 
@@ -116,13 +120,15 @@ In `__tests__/record-set.test.ts`, *invalid record sets*:
 In `__tests__/repository.test.ts`:
 
 12. A store that returns two records with one key, in a unit of work that only reads → `execute()` rejects with the native `Error`, naming `previous` and the key; `apply` is not called.
+13. `add()` of an identity already added → returns a promise that rejects with the native `Error`, `An entity with identity "string:<id>" is already tracked.`; the first entity stays tracked, and the flush inserts it once.
+14. `add()` of an identity already loaded → the same; the flush writes nothing for it.
 
 In `__tests__/error-codes.test.ts`:
 
-13. `~/index` exports none of `UnitOfWorkAlreadyUsedError`, `UnsupportedIdentityError`, `InvalidRecordSetError`, `DuplicateRecordKeyError`.
-14. `DuplicateEntityError` and `ConcurrencyConflictError` pass `isBaseErrorLike`, each with its `code`.
+15. `~/index` exports none of `UnitOfWorkAlreadyUsedError`, `UnsupportedIdentityError`, `InvalidRecordSetError`, `DuplicateRecordKeyError`, `DuplicateEntityError`.
+16. `ConcurrencyConflictError` passes `isBaseErrorLike`, with its `code`.
 
-The old usage: an import of a removed class fails to compile; `error.code === "UOW_ALREADY_USED"` behind `isBaseErrorLike` compiles and is never reached, as `isBaseErrorLike` is `false` (cases 1 to 12).
+The old usage: an import of a removed class fails to compile; `error.code === "UOW_ALREADY_USED"` behind `isBaseErrorLike` compiles and is never reached, as `isBaseErrorLike` is `false` (cases 1 to 14).
 
 No case at `Repository` level for the identity: `identityKeyOf` has one throw site, and nothing catches between it and the caller (*Probes*).
 
@@ -132,7 +138,7 @@ Existing tests that change:
 - `__tests__/identity-key.test.ts:14`: becomes case 6.
 - `__tests__/record-set.test.ts:266`: becomes case 7; `:251`: becomes case 10.
 - `__tests__/repository.test.ts:6` (the import of `DuplicateRecordKeyError`) and `:477`: become case 12.
-- `__tests__/error-codes.test.ts:5`, `:6`, and the tests at `:17` and `:24`: removed; the file gains cases 13 and 14.
+- `__tests__/error-codes.test.ts:4`, `:5`, `:6`, and the tests at `:10`, `:17` and `:24`: removed; the file gains cases 15 and 16.
 
 ## Out of scope
 
@@ -143,5 +149,5 @@ Existing tests that change:
 ## Plan
 
 1. This spec, commit `[repo] docs: spec the native misuse errors of uow-repository`; the `critic`'s run.
-2. Test-first (`test-author`): cases 1 to 14, the existing tests changed as listed. Then decisions 1 to 6, the JSDoc, the manifest and the README; the suite and `typecheck` green. Commit `[@enardo/uow-repository] fix: throw native errors on misuse` (body: the breaking change).
+2. Test-first (`test-author`): cases 1 to 16, the existing tests changed as listed. Then decisions 1 to 7, the JSDoc, the manifest and the README; the suite and `typecheck` green. Commit `[@enardo/uow-repository] fix: throw native errors on misuse` (body: the breaking change).
 3. `pnpm verify`; the backlog changes, commit `[repo] docs: narrow the misuse errors item`.
