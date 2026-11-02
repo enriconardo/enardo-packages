@@ -66,7 +66,7 @@ Packages are published through the `publish` skill, each publish approved by the
 - Each folder re-exports its public surface through an `index.ts`. JSDoc on the public API; comments explain *why*.
 - A README names only packages its package depends on: a contract's README describes its implementations without naming them.
 - A type guard narrows only to what its runtime check proves ([ADR 0003](docs/adr/0003-type-guards-claim-only-what-they-check.md)).
-- Find every use of a symbol with `git grep`, not `grep --include`, which skips the extensions you didn't list.
+- Find every use of a symbol with `git grep`, not `grep --include`, which skips the extensions you didn't list. A glob in its pathspec matches the whole path: `'packages/*/src'` matches nothing, with no error; a folder is `'packages/*/src/*'`.
 - Match the surrounding code; no new libraries without asking.
 
 ## Testing

@@ -1,4 +1,4 @@
-export { default as MongoDatabase } from "./mongo.database";
+export { MongoDatabase } from "./mongo.database";
 export type {
   IMongoDatabase,
   IMongoSchema,

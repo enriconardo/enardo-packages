@@ -6,7 +6,7 @@ import {
   type Db,
   type IndexDescriptionInfo,
 } from "mongodb";
-import MongoDatabase from "~/mongo.database";
+import { MongoDatabase } from "~/mongo.database";
 import type {
   IMongoDatabaseOptions,
   IMongoSchema,
