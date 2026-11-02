@@ -63,7 +63,7 @@ function isIndexConflict(error: unknown): error is MongoServerError {
  * await db.disconnect();
  * ```
  */
-export default class MongoDatabase implements IMongoDatabase {
+export class MongoDatabase implements IMongoDatabase {
   private readonly dbUri: string;
   private readonly dbName: string;
 
