@@ -32,6 +32,8 @@ Nothing is broken today: this is a matter of a coherent contract.
 - Each `details` is already in its message: `identityType`; `collection` and `recordSet`; `UnitOfWorkAlreadyUsedError` has none.
 - What the errors expose, through `createLogger("console", { format: "json" })` of `@enardo/logger`, same build → a `TypeError` logs `name`, `message` and `stack`; the `BaseError` logs those plus `code` and `details`. No `cause` is ever set at the throw sites. `isBaseErrorLike(new TypeError(...))` → `false`.
 - `@enardo/database`'s README, *Upgrading from 1.x* → the form of the upgrade note.
+- Where `DUPLICATE_ENTITY` comes from → `ChangeTracker.add` (`src/change-tracker.ts:79`), for an identity tracked in this unit of work; "the repository never checks the store" (`README.md:315`).
+- `cambusa`'s error handler (`apps/api-server/src/middleware/error-handler.middleware.ts:44`) → a `BaseError` with a code it does not map and a native error get the same result: `logger.error` and a 500.
 
 ## Decisions
 
@@ -43,7 +45,7 @@ The list and the native types were taken with the user at intake.
 4. **The three classes go**, with their codes, from the public API. No class is kept over a native base: a class of the package's own would invite the `instanceof` that point 6 means to remove the need for.
 5. **The messages stay as they are.** They already hold what `details` held (probes). The `a undefined` of the identity's message is left: it is not this task's.
 6. **`DUPLICATE_RECORD_KEY` stays a `BaseError`.** One class covers both sides, and on `previous` it can come from stored data, which code does not fix (probes).
-7. **`DUPLICATE_ENTITY` stays a `BaseError`.** An identity can come from a request, so a caller may handle it.
+7. **`DUPLICATE_ENTITY` stays a `BaseError`.** It fires for an identity already tracked in this unit of work, never for one the store holds: a use case that already loaded or added the id, or a batch that repeats one. A well-typed value repeated in a request's data is no fault in the code, and a caller may answer it by `code`; an ill-typed identity (decision 2) is fixed by validating at the boundary.
 8. **`@enardo/env`'s `ENV_MISSING` and `ENV_MALFORMED` leave the item.** A variable is fixed in the deployment's environment, not in the caller's code, which is what point 6 asks; and `details.key` lets a startup report every variable that is missing.
 9. **`@enardo/entities`' lifecycle errors are left to their own evaluation.** Its README shows a caller catching one with `instanceof`, so they are no plain case.
 10. **The backlog item stays open**, with its list updated, until the last package.
@@ -64,10 +66,11 @@ None.
 - `src/record-set.ts:123`: throws `new TypeError(<the message>)`; its JSDoc, where it names the class.
 - `package.json`: `version` `0.2.0`.
 - `README.md`:
+  - `:15`: version 0.2.0.
   - `:255`: *A second `execute()` rejects* with a native `Error`.
   - `:281`: a listed collection that a record set lacks fails with a `TypeError`.
   - *Composite identities* (`:385`): any other identity without an `identityKey` throws a `TypeError`.
-  - *Errors* (`:474`): the table drops the three rows; the sentence above it says that these errors extend `BaseError`, and that a misuse throws a native error, with no `code`: the three cases, each with its type.
+  - *Errors* (`:474`): the table drops the three rows; the sentence above it says that these errors extend `BaseError`, and that a misuse throws a native error, with no `code`: the three cases and `retryOnConflict`'s `RangeError` on a bad `attempts`, each with its type. `:487` names `DuplicateRecordKeyError`, in place of "the last two errors".
   - *Contributing › Conventions* (`:535`): a new error extends `BaseError` when a caller may handle it by `code`; a misuse throws a native error.
   - A section *Upgrading from 0.1*, before *Contributing*, and in *Contents*: the three classes and codes are removed, a misuse throws a native error, and a caller that read them fixes the call instead.
 
@@ -78,7 +81,7 @@ Repo:
   - its list of native throws that need nothing gains `@enardo/database-mongo`;
   - *Dropped* gains `ENV_MISSING` and `ENV_MALFORMED`, with the reason of decision 8.
 
-`@enardo/uow-repository-mongo` has no change of code: its peer is `workspace:^`, which `pack` turns into `^0.2.0`, so it is published after this package.
+`@enardo/uow-repository-mongo` has no change of code: its peer is `workspace:^`, which `pack` turns into `^0.2.0`.
 
 ## Test cases
 
@@ -126,7 +129,7 @@ The tests of `DuplicateRecordKeyError` (`__tests__/record-set.test.ts:253`, `__t
 
 - `@enardo/uow-repository-mongo`, `@enardo/email-nodemailer`, `@enardo/entities`: their own branches.
 - `ADR 0012`: point 6 already decides the case, and an accepted ADR is not edited.
-- Publishing: a session of its own, this package before `-mongo`. `cambusa` moves when it wants to, from `^0.1.0`.
+- Publishing: a session of its own, after the branch of `@enardo/uow-repository-mongo`, this package first. `-mongo`'s review is also breaking: published in between, it would cost a `0.3.0` and a second change of range in `cambusa`, which moves when it wants to, from `^0.1.0`.
 
 ## Plan
 
