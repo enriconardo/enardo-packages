@@ -21,7 +21,8 @@ Nothing is broken today: this is a matter of a coherent contract.
 
 - `pnpm view <package> versions --registry https://npm.enriconardo.com` (host) → `@enardo/uow-repository`: `0.1.0`; `@enardo/uow-repository-mongo`: `0.1.0`. The manifests' `0.1.2` and `0.2.0` are unpublished. A breaking change over `0.1.0` is a new minor, so `@enardo/uow-repository` goes to `0.2.0`; `-mongo`, unpublished at `0.2.0`, needs no bump of its own.
 - `pnpm-lock.yaml:692` → the importer of `-mongo` holds `specifier: workspace:^`, `version: link:../uow-repository`: a version bump leaves the lockfile as it is.
-- `git grep` for the four classes and codes, outside `packages/uow-repository` and `docs/specs` → only `docs/backlog.md:14`, for three of them.
+- `git grep` for the four classes and codes, outside `packages/uow-repository` and `docs/specs` → only `docs/backlog.md:14`, for two of them.
+- A store that returns two records with one key, through `UnitOfWork` and `Repository` from `dist/`, in a work that only reads → the error names `previous` and the key, and `apply` is not called: `previous` is indexed first (`src/record-set.ts:135`).
 - `grep -r` for the four classes and codes in `~/Projects/cambusa`, the one active project in `~/Projects` that depends on the package, on `^0.1.0` → no match. Projects elsewhere: none known to the user (2026-11-02).
 - The throw sites, every one → `UnitOfWorkAlreadyUsedError` `src/unit-of-work.ts:108`; `UnsupportedIdentityError` `src/identity-key.ts:14`; `InvalidRecordSetError` `src/record-set.ts:123`; `DuplicateRecordKeyError` `src/record-set.ts:179`.
 - `git grep -n -E "catch|instanceof|isBaseErrorLike"` over the `src/` of the package and of `-mongo` → the one catch of an error is `retryOnConflict` (`src/retry-on-conflict.ts:32`), which retries on `CONCURRENCY_CONFLICT` alone: a native error passes through it as these errors do today.
