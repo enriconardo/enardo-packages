@@ -88,6 +88,8 @@ Repo:
   - its list of native throws that need nothing gains `@enardo/database-mongo`;
   - the item says to publish `@enardo/uow-repository` 0.2.0 only after the branch of `-mongo`, for the reason under *Out of scope*: this spec is not read after the merge;
   - the item names point 6's test, as *Decisions* words it, for the later branches: this spec is not read after the merge;
+  - the item says that the branches of `-mongo` and `@enardo/email-nodemailer` also drop the dependency on `@enardo/errors`, when no use of it is left;
+  - *To evaluate* gains: does `isBaseErrorLike` still earn its place, when apps compare `code` with an allowlist (ADR 0012 point 7)? A `code` such as Node's `ENOENT` does not pass an allowlist, and `cambusa`'s handler already has a branch on a string `code`, so the brand may add little. From the discussion at checkpoint 1 of this branch;
   - *To evaluate* gains: `-mongo`'s README does not ask for a unique index on a custom `idField`, and no test of its sets one. Two `add()`s of one key in two units of work then write a duplicate, and every later commit on the aggregate fails; duplicate roots stay silent (`findOne` takes `limit: 1`; read from the code, not run).
 
 `@enardo/uow-repository-mongo` has no change of code: its peer is `workspace:^`, which `pack` turns into `^0.2.0`.
