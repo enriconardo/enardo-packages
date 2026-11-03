@@ -62,7 +62,7 @@ Derives with the `m`, `t`, `p`, salt and tag length that the stored string holds
 - Every byte of a password counts, up to the maximum, and a NUL is a byte like any other.
 - A password is normalized to NFC before hashing and comparing: `café` matches however a device composes it. A password holding a code point unassigned in the runtime's ICU may normalize differently after a Node upgrade, and then stop matching.
 - An empty password hashes: a minimum length, and any other policy, is the caller's.
-- `hash` and `compare` take strings: on input that is not yet validated, the caller checks the type, since any other value rejects with an incidental `TypeError`.
+- `hash` and `compare` take strings: on input that is not yet validated, the caller checks the type. Other values are unsupported, and most reject with an incidental `TypeError`.
 
 `hash` refuses two kinds of password, which a client can send, with an `InvalidPasswordError`. Its `code` says which; it has no `details`, and never holds the password.
 
