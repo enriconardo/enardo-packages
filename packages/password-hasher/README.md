@@ -41,6 +41,8 @@ async function register(passwordHasher: PasswordHasher, password: string) {
 
 **Peak memory** is `memoryKiB` times `UV_THREADPOOL_SIZE` (4 by default), so about 256 MiB plus the process at the defaults. An overrun gets the process killed, which no `catch` sees. The 1 GiB cap stops a corrupt value, and is no sizing advice: a smaller machine can still be killed below it.
 
+Hashes run on libuv's pool, which `fs` and `dns.lookup` share: a burst of logins delays them.
+
 ## Behavior
 
 ### `hash`
@@ -60,6 +62,7 @@ Derives with the `m`, `t`, `p`, salt and tag length that the stored string holds
 - Every byte of a password counts, up to the maximum, and a NUL is a byte like any other.
 - A password is normalized to NFC before hashing and comparing: `café` matches however a device composes it. A password holding a code point unassigned in the runtime's ICU may normalize differently after a Node upgrade, and then stop matching.
 - An empty password hashes: a minimum length, and any other policy, is the caller's.
+- `hash` and `compare` take strings: on input that is not yet validated, the caller checks the type, since any other value rejects with an incidental `TypeError`.
 
 `hash` refuses two kinds of password, which a client can send, with an `InvalidPasswordError`. Its `code` says which; it has no `details`, and never holds the password.
 
