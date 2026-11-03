@@ -10,7 +10,7 @@ import {
   MIN_PASSES,
   parseArgon2idHash,
 } from "~/argon2id-hash";
-import { InvalidPasswordError } from "~/errors/invalid-password.error";
+import { InvalidPasswordError } from "~/errors";
 import type { PasswordHasher } from "~/password-hasher.interface";
 
 const DEFAULT_MEMORY_KIB = 65_536;
