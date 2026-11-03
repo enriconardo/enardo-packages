@@ -31,7 +31,7 @@ Every command that touches `node_modules` runs in the `dev` container. The host 
 ./dev.sh clean               # remove every node_modules and dist
 ```
 
-- **Never run `pnpm` on the host.** `mongodb-memory-server` is a native module: installs from two environments into one `node_modules` break them. Recovery: `./dev.sh clean`, then `./dev.sh exec pnpm install`. The one exception is the registry, from outside the repo (the `publish` skill).
+- **Never run `pnpm` on the host.** `mongodb-memory-server` is a native module: installs from two environments into one `node_modules` break it. Recovery: `./dev.sh clean`, then `./dev.sh exec pnpm install`. The one exception is the registry, from outside the repo (the `publish` skill).
 - **Never `npm i` in the dev container**, which can move files of `node_modules`: a probe that needs a package outside the lockfile runs in a throwaway container (the `spec` skill, *Probing*).
 - The repo is mounted at `/workspaces/enardo-packages` in the container. Browser tests run in the `playwright` service: see [docker/README.md](docker/README.md), which also says what the containers never mount.
 
