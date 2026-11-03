@@ -54,15 +54,16 @@ Taken with the user:
 1. **`node:crypto`, not the `argon2` package.** No driver, native binary or install script; `engines` asks for Node `>=24.7`. The cost is the PHC encoding and parsing, about 40 lines of ours. Not taken: `argon2` as a dependency of one package, or as a driver in an adapter.
 2. **`needsRehash(hashedPassword)` joins the interface.** Without it, a raised cost never reaches the stored hashes.
 3. **`compare` throws a native error on a hash it cannot read**, rather than resolving `false`. A leftover bcrypt hash or a corrupt row is a fault to fix, and `false` would report it as a wrong password. `needsRehash` does the same.
-4. **`hash` refuses a password that is not well-formed**, and whether a maximum length is needed was left to the probes: with NFC it is (decision 17).
-5. **`@enardo/password-hasher-bcrypt` leaves the repo, and the registry** after the merge (*Out of scope*). The backlog item moves to *Dropped*.
+4. **`hash` refuses a password that is not well-formed**, kept after the `critic` objected that no harm is shown: with decision 17's error class it adds one code and one check. Whether a maximum length is needed was left to the probes: with NFC it is (decision 17).
+5. **`@enardo/password-hasher-bcrypt` leaves the repo, and the registry** after the merge (*Out of scope*), for tidiness: `@enardo/password-hasher` 1.0.0 stays there, with `bcrypt` as a peer. The backlog item moves to *Dropped*.
 6. **Defaults `m=64 MiB, t=3, p=1`**, above OWASP's minimums, about 150 ms here.
 7. **`IPasswordHasher` becomes `PasswordHasher`** in this major.
+18. **Passwords are normalized to NFC before hashing and comparing**, as NIST SP 800-63B-4 asks (`SHOULD`): `café` matches however a device composes it, and with no stored hashes it costs nothing now, while later it would invalidate hashes of non-NFC passwords. With plain `normalize("NFC")`, not NIST's process for stabilized strings, which refuses unassigned code points (*Risks*).
 
 Taken here, following from those and the repo's rules:
 
 8. **`createPasswordHasher(options?)`**, returning a `PasswordHasher`, as `createLogger` does. The name hides the technology; the interface stays, so that domain code imports it with `import type` and tests can fake it. Options: `memoryKiB`, `passes`. New hashes always use `p=1`; a stored hash's `p` is read.
-9. **`InvalidPasswordError`, codes `PASSWORD_NOT_WELL_FORMED` and `PASSWORD_TOO_LONG`, extends `BaseError`**: a client can send either (a JSON `"\ud800"`, a long body), so the caller handles them by `code` (ADR 0012, point 6). It carries no `details`, and never the password. The package gains `@enardo/errors` as a dependency.
+9. **`InvalidPasswordError`, codes `PASSWORD_MALFORMED` and `PASSWORD_TOO_LONG`, extends `BaseError`**: a client can send either (a JSON `"\ud800"`, a long body), so the caller handles them by `code` (ADR 0012, point 6). It carries no `details`, and never the password. The package gains `@enardo/errors` as a dependency.
 10. **`compare` resolves `false` for a password `hash` would refuse**, without throwing: `hash` could not have made a hash from it, and otherwise `compare("pw\uD800", hash("pw�"))` is `true`. The hash is read first, so an unreadable one throws whatever the password.
 11. **Caps on what a hash may ask for**: `m` at most 1 GiB, `t` at most 16, `p` at most 16, salt 8 to 64 bytes, tag 4 to 64 bytes. An `m` read from a stored string can kill the process with no error (*Probes*). The options take the same caps on `memoryKiB` and `passes`, with Node's minimums (8, 1). A smaller machine can still be killed at 1 GiB: the cap stops a corrupt value, it is no sizing advice.
 12. **The parser is strict**: the exact shape `$argon2id$v=19$m=<int>,t=<int>,p=<int>$<salt>$<tag>`, integers without a leading zero, unpadded standard base64 that re-encodes to the same text. No `keyid`, no `data`.
@@ -70,11 +71,11 @@ Taken here, following from those and the repo's rules:
 14. **Options are checked when the hasher is created**, with a `RangeError`, so a bad value stops the app at startup and not at its first login.
 15. **`lib: ["ES2024"]` in the package's `tsconfig.json`**, with a comment, for `isWellFormed`: one package needs it, so no preset changes (ADR 0011).
 16. **An ADR** records the choice of `node:crypto` and the single package: `docs/adr/0016-*.md`, in this spec's commit.
-17. **A maximum of 1024 UTF-16 code units, checked on `password.length` before `normalize`**, so that no request can stall the event loop (*Probes*: under 1 ms at the maximum). It stays above NIST's 64 characters even at two units each. It comes with NFC: with the open question answered no, the maximum, its code and cases 20 and 21 go.
+17. **A maximum of 1024 UTF-16 code units, checked on `password.length` before `normalize`**, so that no request can stall the event loop (*Probes*: under 1 ms at the maximum). It stays above NIST's 64 characters even at two units each. NFC (decision 18) is what calls for it.
 
 ## Open questions
 
-1. **Normalize to NFC before hashing and comparing?** NIST SP 800-63B-4 asks for it (`SHOULD`). It makes `café` match however a device composes it, and with no stored hashes it costs nothing now; later it would invalidate hashes of non-NFC passwords. It brings the maximum of decision 17. Plain `normalize("NFC")` is not NIST's process for stabilized strings, which refuses unassigned code points: a password holding one may stop matching after a Node upgrade moves ICU (*Risks*). Recommended: yes, with the plain form. Cases 11 and 12, and the step in *Changes*, go if the answer is no.
+None.
 
 ## Changes
 
@@ -110,7 +111,7 @@ In `packages/password-hasher/__tests__/`, with `{ memoryKiB: 8, passes: 1 }` unl
 5. Every byte counts: `"a".repeat(72) + "X"` against `… + "Y"`, and `"a".repeat(999) + "X"` against `… + "Y"`, `false`; `"a\0b"` against `"a\0c"` and against `"a"`, `false`.
 6. An empty password hashes and compares `true`: the policy is the caller's.
 7. Each fixture compares `true` with its password and `false` with `"P@ssword124"`, on a hasher with default options: `p=2`, `t=2` and the 16-byte tag fail on an implementation that uses its own parameters.
-8. `hash("pw\uD800")` and `hash("pw\uDC00")` reject with `InvalidPasswordError`, `code` `PASSWORD_NOT_WELL_FORMED`, recognized by `isBaseErrorLike`; its `toJSON()` holds no `pw`.
+8. `hash("pw\uD800")` and `hash("pw\uDC00")` reject with `InvalidPasswordError`, `code` `PASSWORD_MALFORMED`, recognized by `isBaseErrorLike`; its `toJSON()` holds no `pw`.
 9. A valid pair is accepted: `hash("pw😀")` compares `true`, and `hash("pw�")` compares `true`.
 10. `compare("pw\uD800", hash("pw�"))` and `compare("pw\uDC00", …)` resolve `false`, with no throw.
 11. `compare("café", <the café fixture>)` is `true`: NFD against a hash of NFC.
@@ -144,7 +145,7 @@ No existing test sends these inputs: the only tests are the adapter's, which lea
 
 ## Out of scope
 
-- **The registry**, in a session of its own after the merge (root `CLAUDE.md`, *Workflow*, step 5), each step approved by the user: publishing `@enardo/password-hasher` 3.0.0, and unpublishing `@enardo/password-hasher-bcrypt`, with a check first that no project installs it. `unpublish` is not probed.
+- **The registry**, in a session of its own after the merge (root `CLAUDE.md`, *Workflow*, step 5), each step approved by the user: publishing `@enardo/password-hasher` 3.0.0, and unpublishing `@enardo/password-hasher-bcrypt`, once `unpublish` is probed on a local Verdaccio.
 - A pepper (`secret` of `crypto.argon2`), and a helper that migrates from bcrypt.
 - `@enardo/id-generator`'s split: its adapter has a driver.
 - Any password policy other than the refusals above: a minimum length is the caller's.
