@@ -14,7 +14,7 @@ Node has had `crypto.argon2` since 24.7. It returns raw bytes: the string to sto
 
 1. **Passwords are hashed with Argon2id, through `node:crypto`.** The package has no driver, and declares `engines` on Node `>=24.7`.
 2. **One package, named for its role.** `@enardo/password-hasher` exports `createPasswordHasher` and the `PasswordHasher` interface: domain code still depends on the interface alone, with `import type`. The rule of the root `CLAUDE.md` applies: no second implementation, and no driver the app must provide.
-3. **Hashes are stored in the PHC string format**, which other Argon2 libraries read, and parsed strictly, with caps on the costs a string may ask for.
+3. **Hashes are stored in the PHC string format**, which other Argon2 libraries read, given a password normalized the same way, and parsed strictly, with caps on the costs a string may ask for.
 
 ## Consequences
 
