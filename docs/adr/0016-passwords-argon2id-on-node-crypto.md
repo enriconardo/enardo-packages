@@ -1,6 +1,6 @@
 # 0016. Passwords are hashed with Argon2id on `node:crypto`, in one package
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-03
 - Spec: `docs/specs/2026-11-03-argon2id-single-package.md`
 
