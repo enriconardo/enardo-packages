@@ -329,6 +329,7 @@ src/
   mongo-data-store.ts           MongoDataStore and its option types
 __tests__/
   support/fixtures.ts           client, per-test database, the `mongoUri` declaration, record types and stores
+  support/native-errors.ts      asserts a thrown value is a native error, with no `code`
   public-api.test.ts            the exports of the entry point
   mongo-data-store.test.ts      the DataStore contract, called directly
   repository-with-mongo.test.ts Repository and UnitOfWork end to end
