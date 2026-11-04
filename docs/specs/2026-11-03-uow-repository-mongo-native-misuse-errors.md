@@ -15,7 +15,7 @@ From the backlog item *Review the `BaseError`s that report misuse or misconfigur
 
 ADR 0012 point 6 gives a `BaseError` to a condition a caller may handle by `code`, and a native error to a misuse or a misconfiguration, which a caller fixes in its code. The two errors of this package report such a fault and are `BaseError`s, written before the rule: they offer a public `code` for a case with no handling but fixing the code, and every `code` is public API (point 4). `@enardo/uow-repository`, the contract this package implements, already throws native errors for the same kind of fault.
 
-Nothing is broken today: this is a matter of a coherent contract.
+Nothing is broken today: this is a matter of a coherent contract. The moment is what counts: with `0.2.0` unpublished the change costs no version, while after the publish it would cost a `0.3.0` and a change of range in six packages of `cambusa`.
 
 ## Probes
 
@@ -35,8 +35,10 @@ Nothing is broken today: this is a matter of a coherent contract.
   - `retryOnConflict` (`packages/uow-repository/src/retry-on-conflict.ts:32`) retries on `CONCURRENCY_CONFLICT` alone, and rethrows the rest;
   - `@enardo/cqrs` (`src/command-handler.ts:36`, `src/query-handler.ts:34`) treats what fails `isBaseErrorLike` as a code it does not expect, as it treats these errors' codes unless a handler lists them.
 - The driver's `withTransaction`, `mongodb` 7.6.0, `lib/sessions.js:578` → aborts and rethrows anything that is not a `MongoError`: a `BaseError` and a native error take one path, so the rollback stays as it is.
-- Removing `@enardo/errors` from the manifest, with the two classes, in a throwaway clone, in a throwaway container of the dev image → the lockfile loses three lines, the importer's entry; `turbo run build --filter=@enardo/uow-repository-mongo...` passes; `dist/index.mjs` and `dist/index.d.mts` import no `@enardo/errors`; `import("./dist/index.mjs")` loads and exports `MongoDataStore` alone. `@enardo/uow-repository` keeps its own dependency for `ConcurrencyConflictError`.
+- Removing `@enardo/errors` from the manifest, with the two classes, in a throwaway clone, in a throwaway container of the dev image, after `pnpm install --no-frozen-lockfile --ignore-scripts` → the lockfile loses three lines, the importer's entry; `turbo run build --filter=@enardo/uow-repository-mongo...` passes; `dist/index.mjs` and `dist/index.d.mts` import no `@enardo/errors`; `import("./dist/index.mjs")` loads and exports `MongoDataStore` alone. `@enardo/uow-repository` keeps its own dependency for `ConcurrencyConflictError`. The tests were not run there.
 - Doc lines that name this package and `@enardo/errors` → `README.md:289` alone, outside the source and the tests.
+- `git show d0ea672 -- packages/uow-repository-mongo/package.json` → `@enardo/uow-repository` moved from `dependencies` to a peer on the way to `0.2.0`, so an upgrade from `0.1.0` also meets that. `packages/database-mongo/README.md:80` → an adapter's upgrade note names its peer.
+- The rethrows, by their tests' titles → `packages/uow-repository/__tests__/retry-on-conflict.test.ts:57` and `:82`; `packages/cqrs/__tests__/command-handler.test.ts:141`; `packages/cqrs/__tests__/query-handler.test.ts:138`.
 
 ## Decisions
 
@@ -63,14 +65,15 @@ None.
 - `src/errors/`: deleted; `export * from "./errors"` leaves `src/index.ts`.
 - `src/mongo-data-store.ts`:
   - `:145`: throws `new Error(<the message>)`; `:107`: throws `new TypeError(<the message>)`.
-  - The JSDoc takes over the *why* of the deleted classes. On the constructor, `@throws {Error}`: the root holds the version, so without one no write could be checked, and with two the aggregate would have two versions. On `changesOf`, `@throws {TypeError}`: a change set carries every collection of its record set, even those with nothing to write, so a missing entry is a bug in the caller, not an empty set of changes.
+  - The JSDoc takes over the *why* of the deleted classes, on the public API, as `dist/index.d.mts` holds it. On the constructor, `@throws {Error}`: the root holds the version, so without one no write could be checked, and with two the aggregate would have two versions. On `apply`, `@throws {TypeError}`: a change set carries every collection of its record set, even those with nothing to write, so a missing entry is a bug in the caller, not an empty set of changes. The `@throws` of `changesOf`, which is not exported, names `TypeError`.
 - `package.json`: `@enardo/errors` leaves `dependencies`; `pnpm-lock.yaml` follows, through `./dev.sh exec pnpm install`.
 - `README.md`:
   - `:31`: the row of `InvalidDataStoreOptionsError` leaves the table.
   - `:179`: the constructor throws a native `Error`.
   - *Errors* (`:287`): the two-row table and the sentence on `BaseError` go. The package adds no error class. A misuse throws a native error, with no `code`: the constructor an `Error` when the collections name no root, or more than one; `apply` a `TypeError` when a change set has no entry for a mapped collection, since a `ChangeSet` must carry every collection, even those with nothing to write. The link to the core errors stays.
-  - *Layout* (`:323`): the lines of `errors/` and `error-codes.test.ts` go.
-  - A section *Upgrading from 0.1*, before *Contributing*, and in *Contents*: the two classes and codes are removed, each misuse throws a native error with the same message, and a caller that read them fixes the cause instead: the mappings or the change set. As `@enardo/uow-repository`'s section does. It does not name `@enardo/errors`: a README names only the packages its package depends on.
+  - *Layout* (`:323`): the lines of `errors/` and `error-codes.test.ts` go, and `public-api.test.ts` joins the tests.
+  - *Conventions* (`:339`): "one error per file" goes, and the line says that a misuse throws a native error.
+  - A section *Upgrading from 0.1*, before *Contributing*, and in *Contents*: the two classes and codes are removed, each misuse throws a native error with the same message, and a caller that read them fixes the cause instead: the mappings or the change set. As `@enardo/uow-repository`'s section does. It also says that `@enardo/uow-repository` `^0.2.0` is now a peer, with a link to that package's own upgrade note. It does not name `@enardo/errors`: a README names only the packages its package depends on.
 
 Repo:
 
@@ -103,7 +106,7 @@ In a new `__tests__/public-api.test.ts`:
 
 The old usage: an import of a removed class fails to compile; `error.code === "MISSING_COLLECTION_CHANGES"` behind `isBaseErrorLike` compiles and is never reached, as cases 1 to 8 show no `code`, and a native error has no brand.
 
-No case for `retryOnConflict` or `@enardo/cqrs` with these errors: both rethrow on a test that a native error fails, and their own suites pin it (`@enardo/uow-repository`'s `RangeError` and native misuse errors, `@enardo/cqrs`'s handlers). No test for the dependency's removal: `pnpm verify` builds and typechecks without it, and the clone's probe loaded the package.
+No case for `retryOnConflict` or `@enardo/cqrs` with these errors: both rethrow on a test that a native error fails, and their own suites pin it (*Probes*). No test for the dependency's removal: `pnpm verify` builds and typechecks without it, and the clone's probe loaded the package.
 
 Existing tests that change:
 
