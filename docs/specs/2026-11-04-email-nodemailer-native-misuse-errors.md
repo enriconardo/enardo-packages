@@ -55,7 +55,7 @@ The test is point 6's: can a caller handle the condition by `code`, or does it f
 4. **`transport-options`: a native `Error`, with the same `cause`.** nodemailer threw while reading the options, from any field, and no value of one type says why. There is no sender without a transport, so a caller can only stop. The `cause` stays `{ name, code }`, with nothing else: only identifiers, never the thrown value, whose message and fields can hold the URL, password included. An absent `cause` is no own property.
 5. **The messages stay as they are.** With `details.reason` gone, they tell the reasons apart (probes).
 6. **`@enardo/errors` stays in `dependencies`**, for the one class, and the README keeps naming it.
-7. **The backlog item closes.** `ENV_MISSING`, `ENV_MALFORMED` and the two errors of `@enardo/entities` move to *To evaluate*, undecided, each with point 6's test and decision 1's reading, since this spec is not read after the merge.
+7. **The backlog item closes.** `ENV_MISSING`, `ENV_MALFORMED` and the two lifecycle errors of `@enardo/entities` move to *To evaluate*, undecided, with the errors the review never listed, each with point 6's test and decision 1's reading, since this spec is not read after the merge.
 
 Not taken:
 
@@ -86,13 +86,15 @@ None.
 - `CLAUDE.md`:
   - `:3`: this spec joins the reasons, in the tree.
   - `:10`: `src/errors/` holds the error of a refused `defaultFrom`.
+  - `:47`: "it gets `pool` instead" names a reason that goes: it gets the pool's refusal.
   - `:49`: the constructor throws a native `Error` with the thrown value's `name` and `code` as `cause`.
   - `:63`: 78 to 84 in `2026-10-21-nodemailer-non-string-content.md`, 85 on in this spec.
 
 Repo, `docs/backlog.md`:
 
 - The item leaves *Queued*.
-- *To evaluate* gains two items, each from this spec:
+- *To evaluate* gains three items, each from this spec:
+  - `INVALID_ENTITY_ID` of `@enardo/entities`, and the `type` and `missing` reasons of `InvalidEmailMessageError` of `@enardo/email`, against the same point: the review never listed them, so closing it leaves them without a verdict.
   - `ENV_MISSING` and `ENV_MALFORMED` of `@enardo/env`, against ADR 0012 point 6: can a caller handle the condition by `code`, or does it fix its code? A variable is a misconfiguration, yet it is not fixed in the caller's code. `@enardo/email-nodemailer` settled the same reading on whether a caller has anything to do but stop: `INVALID_DEFAULT_FROM` stays a `BaseError`, and an option without which no sender exists became native.
   - `ENTITY_NOT_MUTABLE` and `ENTITY_ALREADY_MARKED_FOR_REMOVAL` of `@enardo/entities`, against the same point: its README shows a caller catching one with `instanceof`, so they are no plain case.
 
