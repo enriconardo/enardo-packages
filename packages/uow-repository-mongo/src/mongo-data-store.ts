@@ -21,10 +21,6 @@ import {
   type RecordUpdate,
   type VersionedRecords,
 } from "@enardo/uow-repository";
-import {
-  InvalidDataStoreOptionsError,
-  MissingCollectionChangesError,
-} from "./errors";
 
 /** A top-level field of a record. */
 type FieldOf<TRecord> = keyof TRecord & string;
@@ -97,14 +93,16 @@ interface StoredChildCollection extends StoredCollection {
 
 type AnyChanges = CollectionChanges<Document>;
 
-/** @throws {MissingCollectionChangesError} The change set breaks its contract. */
+/** @throws {TypeError} The change set has no entry for the collection. */
 function changesOf(
   changeSet: Readonly<Record<string, AnyChanges>>,
   collection: string,
 ): AnyChanges {
   const collectionChanges = changeSet[collection];
   if (collectionChanges === undefined) {
-    throw new MissingCollectionChangesError(collection);
+    throw new TypeError(
+      `The change set has no entry for collection "${collection}".`,
+    );
   }
   return collectionChanges;
 }
@@ -131,8 +129,9 @@ export class MongoDataStore<
   readonly #children: readonly StoredChildCollection[];
 
   /**
-   * @throws {InvalidDataStoreOptionsError} The collections name no root, or
-   *   more than one.
+   * @throws {Error} The collections name no root, or more than one: the root
+   *   holds the version, so without one no write could be checked, and with
+   *   two the aggregate would have two versions.
    */
   constructor(options: MongoDataStoreOptions<TRecords>) {
     const mappings = Object.entries<MongoCollectionMapping<Document>>(
@@ -142,7 +141,9 @@ export class MongoDataStore<
 
     const [root, ...otherRoots] = roots;
     if (root === undefined || otherRoots.length > 0) {
-      throw new InvalidDataStoreOptionsError(roots.map(([name]) => name));
+      throw new Error(
+        `Exactly one collection must be the root, but ${roots.length === 0 ? "none is" : `${roots.length} are: ${roots.map(([name]) => name).join(", ")}`}.`,
+      );
     }
 
     const [rootName, rootMapping] = root;
@@ -255,6 +256,11 @@ export class MongoDataStore<
    * record whose key changed doesn't collide with itself on a unique index.
    *
    * The root record must keep its id: only its field changes are written.
+   *
+   * @throws {TypeError} The change set has no entry for a mapped collection.
+   *   A change set carries every collection of its record set, even those
+   *   with nothing to write, so a missing entry is a bug in the caller, not
+   *   an empty set of changes.
    */
   async apply(
     { id, expectedVersion, changes }: AggregateWrite<TRecords, TId, number>,

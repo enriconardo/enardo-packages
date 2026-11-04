@@ -8,7 +8,6 @@ import {
   it,
 } from "vitest";
 import { Decimal128, ObjectId, type Db, type MongoClient } from "mongodb";
-import { BaseError } from "@enardo/errors";
 import {
   MongoTransactionManager,
   type IMongoTransaction,
@@ -20,11 +19,7 @@ import {
   type CollectionChanges,
   type RecordSet,
 } from "@enardo/uow-repository";
-import {
-  InvalidDataStoreOptionsError,
-  MissingCollectionChangesError,
-} from "~/errors";
-import { MongoDataStore } from "~/mongo-data-store";
+import { MongoDataStore, type MongoDataStoreOptions } from "~/mongo-data-store";
 import {
   connect,
   createDatabase,
@@ -36,6 +31,7 @@ import {
   type ProductRecord,
   type ProductRecords,
 } from "./support/fixtures";
+import { expectNativeError, reasonOf, thrownBy } from "./support/native-errors";
 
 describe("MongoDataStore", () => {
   let client: MongoClient;
@@ -75,8 +71,8 @@ describe("MongoDataStore", () => {
   }
 
   describe("options", () => {
-    it("rejects collections that name no root", () => {
-      expect(
+    it("rejects collections that name no root with a native Error", () => {
+      const error = thrownBy(
         () =>
           new MongoDataStore<GroupRecords, ObjectId>({
             client,
@@ -91,11 +87,36 @@ describe("MongoDataStore", () => {
               },
             },
           }),
-      ).toThrow(InvalidDataStoreOptionsError);
+      );
+
+      expectNativeError(
+        error,
+        Error,
+        "Exactly one collection must be the root, but none is.",
+      );
     });
 
-    it("rejects collections that name more than one root", () => {
-      expect(
+    it("rejects an empty collections map with a native Error, as naming no root", () => {
+      const error = thrownBy(
+        () =>
+          new MongoDataStore<GroupRecords, ObjectId>({
+            client,
+            // The compiler requires every collection: the cast reaches the
+            // runtime check, which a caller without types can hit.
+            collections:
+              {} as MongoDataStoreOptions<GroupRecords>["collections"],
+          }),
+      );
+
+      expectNativeError(
+        error,
+        Error,
+        "Exactly one collection must be the root, but none is.",
+      );
+    });
+
+    it("rejects collections that name more than one root with a native Error", () => {
+      const error = thrownBy(
         () =>
           new MongoDataStore<GroupRecords, ObjectId>({
             client,
@@ -104,7 +125,30 @@ describe("MongoDataStore", () => {
               members: { collection: db.collection("members"), root: true },
             },
           }),
-      ).toThrow(InvalidDataStoreOptionsError);
+      );
+
+      expectNativeError(
+        error,
+        Error,
+        "Exactly one collection must be the root, but 2 are: groups, members.",
+      );
+    });
+
+    it("counts a child with root: false as no root", () => {
+      expect(
+        () =>
+          new MongoDataStore<GroupRecords, ObjectId>({
+            client,
+            collections: {
+              groups: { collection: db.collection("groups"), root: true },
+              members: {
+                collection: db.collection("members"),
+                root: false,
+                aggregateIdField: "groupId",
+              },
+            },
+          }),
+      ).not.toThrow();
     });
 
     it("keys every record by its id field, giving equal ObjectIds one key", () => {
@@ -545,56 +589,56 @@ describe("MongoDataStore", () => {
       expect(await documentsOf("products")).toEqual([]);
     });
 
-    it("fails with MissingCollectionChangesError when the change set has no entry for a child collection", async () => {
+    it("rejects a change set with no entry for a child collection with a native TypeError", async () => {
       const store = createGroupStore(client, db);
       const climbers = group("Climbers");
       await seed("groups", { ...climbers, _version: 1 });
 
-      const rejection = inTransaction((transaction) =>
-        store.apply(
-          write<GroupRecords>(climbers._id, 1, {
-            groups: changes(),
-          } as ChangeSet<GroupRecords>),
-          transaction,
+      const error = await reasonOf(
+        inTransaction((transaction) =>
+          store.apply(
+            write<GroupRecords>(climbers._id, 1, {
+              groups: changes(),
+            } as ChangeSet<GroupRecords>),
+            transaction,
+          ),
         ),
       );
 
-      await expect(rejection).rejects.toBeInstanceOf(
-        MissingCollectionChangesError,
+      expectNativeError(
+        error,
+        TypeError,
+        'The change set has no entry for collection "members".',
       );
-      await expect(rejection).rejects.toMatchObject({
-        code: "MISSING_COLLECTION_CHANGES",
-        details: { collection: "members" },
-      });
     });
 
-    it("fails with MissingCollectionChangesError when the change set has no entry for the root collection", async () => {
+    it("rejects a change set with no entry for the root collection with a native TypeError", async () => {
       const store = createGroupStore(client, db);
       const climbers = group("Climbers");
 
-      const rejection = inTransaction((transaction) =>
-        store.apply(
-          write<GroupRecords>(climbers._id, undefined, {
-            members: changes({ inserted: [member(climbers._id, "owner")] }),
-          } as ChangeSet<GroupRecords>),
-          transaction,
+      const error = await reasonOf(
+        inTransaction((transaction) =>
+          store.apply(
+            write<GroupRecords>(climbers._id, undefined, {
+              members: changes({ inserted: [member(climbers._id, "owner")] }),
+            } as ChangeSet<GroupRecords>),
+            transaction,
+          ),
         ),
       );
 
-      await expect(rejection).rejects.toBeInstanceOf(
-        MissingCollectionChangesError,
+      expectNativeError(
+        error,
+        TypeError,
+        'The change set has no entry for collection "groups".',
       );
-      await expect(rejection).rejects.toMatchObject({
-        code: "MISSING_COLLECTION_CHANGES",
-        details: { collection: "groups" },
-      });
     });
 
-    it("writes nothing when a change set without an entry for a collection is rejected", async () => {
+    it("writes nothing when a change set without an entry for a child collection is rejected after the root was written", async () => {
       const store = createGroupStore(client, db);
       const climbers = group("Climbers");
 
-      await expect(
+      const error = await reasonOf(
         inTransaction((transaction) =>
           store.apply(
             write<GroupRecords>(climbers._id, undefined, {
@@ -603,17 +647,22 @@ describe("MongoDataStore", () => {
             transaction,
           ),
         ),
-      ).rejects.toBeInstanceOf(MissingCollectionChangesError);
+      );
 
+      expectNativeError(
+        error,
+        TypeError,
+        'The change set has no entry for collection "members".',
+      );
       expect(await documentsOf("groups")).toEqual([]);
       expect(await documentsOf("members")).toEqual([]);
     });
 
-    it("rejects a change set without an entry with a BaseError named MissingCollectionChangesError", async () => {
+    it("rejects an empty change set of a one-collection store with a native TypeError", async () => {
       const store = createProductStore(client, db);
       const record = product();
 
-      const error = await rejectionOf(
+      const error = await reasonOf(
         inTransaction((transaction) =>
           store.apply(
             write<ProductRecords>(
@@ -626,13 +675,11 @@ describe("MongoDataStore", () => {
         ),
       );
 
-      expect(error).toBeInstanceOf(MissingCollectionChangesError);
-      expect(error).toBeInstanceOf(BaseError);
-      expect(error).toMatchObject({
-        name: "MissingCollectionChangesError",
-        code: "MISSING_COLLECTION_CHANGES",
-        details: { collection: "products" },
-      });
+      expectNativeError(
+        error,
+        TypeError,
+        'The change set has no entry for collection "products".',
+      );
     });
   });
 
@@ -728,16 +775,6 @@ function write<TRecords extends RecordSet<TRecords>>(
   changeSet: ChangeSet<TRecords>,
 ): AggregateWrite<TRecords, ObjectId, number> {
   return { id, expectedVersion, changes: changeSet };
-}
-
-/** Returns what a promise rejects with, failing the test if it resolves. */
-async function rejectionOf(promise: Promise<unknown>): Promise<unknown> {
-  try {
-    await promise;
-  } catch (error) {
-    return error;
-  }
-  throw new Error("expected the promise to reject, but it resolved");
 }
 
 function sortById<TRecord extends { _id: ObjectId }>(

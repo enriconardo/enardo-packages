@@ -11,11 +11,11 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 In the order approved.
 
 - **Review the `lesson-critic`'s log once it holds 25 lessons.** Count the verdicts that changed a lesson, that the form alone would not have given and that the user did not take back, the user's overrides, and the cost (`docs/lesson-critic-log.md`). The user keeps, changes or drops the agent; fewer than 3 such verdicts in 25 lessons is only a suggestion to drop it. From the spec of `chore/repo/learn-rule-critic` (2026-10-28), decision 8.
-- **Review the `BaseError`s that report misuse or misconfiguration.** Against ADR 0012 point 6, one branch per package, each a breaking change. The test is point 6's: can a caller handle the condition by `code`, or does it fix its code? `@enardo/uow-repository` is done. Left: `MISSING_COLLECTION_CHANGES`, `INVALID_DATA_STORE_OPTIONS`, `INVALID_EMAIL_SENDER_OPTIONS`.
+- **Review the `BaseError`s that report misuse or misconfiguration.** Against ADR 0012 point 6, one branch per package, each a breaking change. The test is point 6's: can a caller handle the condition by `code`, or does it fix its code? `@enardo/uow-repository` and `@enardo/uow-repository-mongo` are done. Left: `INVALID_EMAIL_SENDER_OPTIONS`.
   - To evaluate in their own branches: `ENV_MISSING` and `ENV_MALFORMED` of `@enardo/env` (a variable is a misconfiguration, yet it is not fixed in the caller's code; the same reading would reach the `default-from` and `transport-options` reasons of `INVALID_EMAIL_SENDER_OPTIONS`, when an app reads them from its environment); `ENTITY_NOT_MUTABLE` and `ENTITY_ALREADY_MARKED_FOR_REMOVAL` of `@enardo/entities` (its README shows a caller catching one with `instanceof`, so they are no plain case).
   - The native throws of `src/` (`@enardo/logger`, `retryOnConflict`, `@enardo/http-client`, `@enardo/database-mongo`) are consistent with the rule and need nothing.
-  - Publish `@enardo/uow-repository` 0.2.0 only after the branch of `@enardo/uow-repository-mongo` and the rename of the `I` prefix (below): that review is also breaking, and published in between it would cost a `0.3.0` and a second change of range in `cambusa`.
-  - The branches of `-mongo` and `@enardo/email-nodemailer` also drop the dependency on `@enardo/errors`, when no use of it is left.
+  - Publish `@enardo/uow-repository` 0.2.0 only after the rename of the `I` prefix (below): that review is also breaking, and published in between it would cost a `0.3.0` and a second change of range in `cambusa`.
+  - The branch of `@enardo/email-nodemailer` also drops the dependency on `@enardo/errors`, when no use of it is left.
   - From the spec of `fix/uow-repository/native-misuse-errors` (2026-11-02).
 - **`@types/node` is ahead of the runtime.**
   - The catalog has `@types/node: ^26.4.0`; the dev container runs Node 24 (`docker/dev/Dockerfile`).

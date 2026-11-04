@@ -1,5 +1,4 @@
 export { MongoDataStore } from "./mongo-data-store";
-export * from "./errors";
 export type {
   ChildCollectionMapping,
   MongoCollectionMapping,
