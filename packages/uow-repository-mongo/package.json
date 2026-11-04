@@ -33,7 +33,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@enardo/errors": "workspace:^",
     "@enardo/transaction-manager-mongo": "workspace:^"
   },
   "devDependencies": {

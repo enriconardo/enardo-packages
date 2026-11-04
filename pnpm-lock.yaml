@@ -650,9 +650,6 @@ importers:
 
   packages/uow-repository-mongo:
     dependencies:
-      '@enardo/errors':
-        specifier: workspace:^
-        version: link:../errors
       '@enardo/transaction-manager-mongo':
         specifier: workspace:^
         version: link:../transaction-manager-mongo

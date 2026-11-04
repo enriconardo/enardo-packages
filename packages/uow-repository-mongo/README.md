@@ -19,6 +19,7 @@ const transactionManager = new MongoTransactionManager(client);
 - [What it provides](#what-it-provides)
 - [Quick start](#quick-start)
 - [Configuration and usage](#configuration-and-usage)
+- [Upgrading from 0.1](#upgrading-from-01)
 - [Contributing](#contributing)
 
 ## What it provides
@@ -28,7 +29,6 @@ const transactionManager = new MongoTransactionManager(client);
 | Export | Implements | Job |
 | --- | --- | --- |
 | `MongoDataStore` | `DataStore<TRecords, TId, IMongoTransaction, number>` | Reads an aggregate from a root collection and any child collections, and applies change sets after checking the version on the root document |
-| `InvalidDataStoreOptionsError` | | Thrown when the collections name no root, or more than one |
 
 You still write the `Mapper`, and you create the `Repository` and `UnitOfWork` from the core package.
 
@@ -176,7 +176,7 @@ Each entry of `collections` is one of:
 | Root | `collection`, `root: true`, `idField?` | Holds exactly one record per aggregate, found by `idField` (default `_id`) equal to the aggregate's identity. It carries the version. |
 | Child | `collection`, `aggregateIdField`, `idField?` | Holds any number of records per aggregate, found by `aggregateIdField` equal to the aggregate's identity. `idField` (default `_id`) identifies a record within the collection. |
 
-Exactly one entry must be the root, or the constructor throws `InvalidDataStoreOptionsError`. The store keys records by their `idField` value in extended JSON, so two equal `ObjectId` instances match. The store holds no state: create it once and share it.
+Exactly one entry must be the root, or the constructor throws a native `Error`. The store keys records by their `idField` value in extended JSON, so two equal `ObjectId` instances match. The store holds no state: create it once and share it.
 
 ### Aggregates in one collection
 
@@ -286,12 +286,13 @@ Run the unit of work with `MongoTransactionManager` from [`@enardo/transaction-m
 
 ### Errors
 
-The package adds two errors. Both extend [`BaseError`](../errors/src/base/base-error.ts) from `@enardo/errors`. The core errors, such as `ConcurrencyConflictError`, are described in the [core README](../uow-repository/README.md#errors).
+The package adds no error class. A misuse throws a native error, with no `code`: the constructor throws an `Error` when the collections name no root, or more than one; `apply` throws a `TypeError` when a change set has no entry for a mapped collection, since a `ChangeSet` must carry every collection, even those with nothing to write. The core errors, such as `ConcurrencyConflictError`, are described in the [core README](../uow-repository/README.md#errors).
 
-| Class | `code` | `details` | Raised when |
-| --- | --- | --- | --- |
-| `InvalidDataStoreOptionsError` | `INVALID_DATA_STORE_OPTIONS` | `{ roots }`: the names of the collections marked as root | The `MongoDataStore` constructor finds no root collection, or more than one |
-| `MissingCollectionChangesError` | `MISSING_COLLECTION_CHANGES` | `{ collection }`: the collection with no entry | `apply` gets a change set without an entry for a mapped collection; a `ChangeSet` must carry every collection, even those with nothing to write |
+## Upgrading from 0.1
+
+`InvalidDataStoreOptionsError` and `MissingCollectionChangesError` are removed, with their codes (`INVALID_DATA_STORE_OPTIONS`, `MISSING_COLLECTION_CHANGES`). Each misuse now throws a native error with the same message. A caller that read a `code` fixes the cause instead: the mappings or the change set.
+
+`@enardo/uow-repository` `^0.2.0` is now a peer dependency, not a dependency: install it beside this package. Its own changes are in its [upgrade note](../uow-repository/README.md#upgrading-from-01).
 
 ## Contributing
 
@@ -326,17 +327,16 @@ Run these inside `packages/uow-repository-mongo`.
 src/
   index.ts                      public API: anything not exported here is internal
   mongo-data-store.ts           MongoDataStore and its option types
-  errors/                       one BaseError subclass per file
 __tests__/
   support/fixtures.ts           client, per-test database, the `mongoUri` declaration, record types and stores
-  error-codes.test.ts           the error classes' codes
+  public-api.test.ts            the exports of the entry point
   mongo-data-store.test.ts      the DataStore contract, called directly
   repository-with-mongo.test.ts Repository and UnitOfWork end to end
 ```
 
 ### Conventions
 
-- The conventions of the [core package](../uow-repository/README.md#conventions) apply: public API through `src/index.ts`, one error per file, doc comments that explain why.
+- The conventions of the [core package](../uow-repository/README.md#conventions) apply: public API through `src/index.ts`, doc comments that explain why. A misuse throws a native error.
 - Write the test first, against the replica set. Don't mock the driver: filters, `$inc`, sessions and rollbacks are what these tests check.
 - Commit messages follow `[@enardo/uow-repository-mongo] <summary>`.
 - When a change alters behavior described here, update this README in the same commit.
