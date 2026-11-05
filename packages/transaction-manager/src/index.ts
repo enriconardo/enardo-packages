@@ -1,2 +1,2 @@
-export type { ITransaction } from "./transaction";
-export type { ITransactionManager } from "./transaction-manager";
+export type { Transaction } from "./transaction";
+export type { TransactionManager } from "./transaction-manager";

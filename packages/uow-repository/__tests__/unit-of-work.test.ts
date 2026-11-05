@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type {
-  ITransaction,
-  ITransactionManager,
+  Transaction,
+  TransactionManager,
 } from "@enardo/transaction-manager";
 import {
   UnitOfWork,
@@ -59,9 +59,9 @@ describe("UnitOfWork", () => {
   it("runs every flush unit inside one transaction, then clears the participants", async () => {
     const events: string[] = [];
     const transaction = createTransaction();
-    const transactionManager: ITransactionManager = {
+    const transactionManager: TransactionManager = {
       async runInTransaction<TResult>(
-        work: (context: ITransaction) => Promise<TResult>,
+        work: (context: Transaction) => Promise<TResult>,
       ): Promise<TResult> {
         events.push("begin");
         const result = await work(transaction);
@@ -149,7 +149,7 @@ describe("UnitOfWork", () => {
     const events: string[] = [];
     const transaction = createTransaction();
     const transactionFailure = new Error("commit unavailable");
-    const manager: ITransactionManager = {
+    const manager: TransactionManager = {
       async runInTransaction(work) {
         await work(transaction);
         events.push("rollback");
@@ -286,25 +286,25 @@ function createParticipant(pending: boolean): UnitOfWorkParticipant {
   };
 }
 
-interface SessionTransaction extends ITransaction {
+interface SessionTransaction extends Transaction {
   readonly sessionId: string;
 }
 
-function createTransaction(): ITransaction {
+function createTransaction(): Transaction {
   return {
     id: "transaction-1",
   };
 }
 
-function createManager<TContext extends ITransaction>(
+function createManager<TContext extends Transaction>(
   transaction: TContext,
 ): TestTransactionManager<TContext> {
   return new TestTransactionManager(transaction);
 }
 
 class TestTransactionManager<
-  TContext extends ITransaction,
-> implements ITransactionManager<TContext> {
+  TContext extends Transaction,
+> implements TransactionManager<TContext> {
   callCount = 0;
 
   constructor(private readonly transaction: TContext) {}

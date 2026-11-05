@@ -17,8 +17,8 @@ await transactionManager.runInTransaction(async ({ session }) => {
 
 | Export | Meaning |
 | --- | --- |
-| `MongoTransactionManager` | Implements `ITransactionManager<IMongoTransaction>` |
-| `IMongoTransaction` | Extends `ITransaction` with the `session: ClientSession` every write in the transaction must pass |
+| `MongoTransactionManager` | Implements `TransactionManager<IMongoTransaction>` |
+| `IMongoTransaction` | Extends `Transaction` with the `session: ClientSession` every write in the transaction must pass |
 | `MongoTransactionManagerOptions` | The constructor options |
 
 ## Usage

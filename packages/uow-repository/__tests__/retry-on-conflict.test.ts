@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { BaseError } from "@enardo/errors";
-import type { ITransaction } from "@enardo/transaction-manager";
+import type { Transaction } from "@enardo/transaction-manager";
 import { ConcurrencyConflictError } from "~/errors";
 import { Repository } from "~/repository";
 import { retryOnConflict } from "~/retry-on-conflict";
@@ -115,7 +115,7 @@ describe("retryOnConflict", () => {
   it("retries a use case that lost a race, from a fresh read", async () => {
     const store = new CounterStore();
     const transactionManager = {
-      async runInTransaction<T>(work: (tx: ITransaction) => Promise<T>) {
+      async runInTransaction<T>(work: (tx: Transaction) => Promise<T>) {
         return work({ id: "tx" });
       },
     };
@@ -174,7 +174,7 @@ const counterMapper: Mapper<Counter, CounterRecords, string> = {
 };
 
 /** Holds one counter and checks versions like a real store. */
-class CounterStore implements DataStore<CounterRecords, string, ITransaction> {
+class CounterStore implements DataStore<CounterRecords, string, Transaction> {
   readonly recordKeys: RecordKeys<CounterRecords> = {
     counters: (record) => record._id,
   };

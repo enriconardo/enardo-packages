@@ -24,7 +24,7 @@ const transactionManager = new MongoTransactionManager(client);
 
 ## What it provides
 
-`@enardo/uow-repository` leaves two pieces to you: a `DataStore` and an `ITransactionManager`. This package implements the `DataStore` for MongoDB. The transaction manager is `MongoTransactionManager` from `@enardo/transaction-manager-mongo`, whose `IMongoTransaction` context carries the session the store writes with.
+`@enardo/uow-repository` leaves two pieces to you: a `DataStore` and an `TransactionManager`. This package implements the `DataStore` for MongoDB. The transaction manager is `MongoTransactionManager` from `@enardo/transaction-manager-mongo`, whose `IMongoTransaction` context carries the session the store writes with.
 
 | Export | Implements | Job |
 | --- | --- | --- |

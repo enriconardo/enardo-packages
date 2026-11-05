@@ -1,17 +1,17 @@
 import type {
-  ITransaction,
-  ITransactionManager,
+  Transaction,
+  TransactionManager,
 } from "@enardo/transaction-manager";
 
 /** A persistence write, planned before its transaction starts. */
-export interface FlushUnit<TContext extends ITransaction = ITransaction> {
+export interface FlushUnit<TContext extends Transaction = Transaction> {
   readonly kind: "insert" | "update" | "replace" | "delete";
   run(context: TContext): Promise<void>;
 }
 
 /** Buffers persistence changes for the lifetime of a unit of work. */
 export interface UnitOfWorkParticipant<
-  TContext extends ITransaction = ITransaction,
+  TContext extends Transaction = Transaction,
 > {
   planFlush(): readonly FlushUnit<TContext>[];
   /** Reports whether planFlush would yield anything, without building it. */
@@ -40,13 +40,13 @@ export interface IUnitOfWork {
  * entities, so a second call throws instead.
  */
 export class UnitOfWork<
-  TContext extends ITransaction = ITransaction,
+  TContext extends Transaction = Transaction,
 > implements IUnitOfWork {
   private used = false;
   private readonly participants = new Set<UnitOfWorkParticipant<TContext>>();
 
   constructor(
-    private readonly transactionManager: ITransactionManager<TContext>,
+    private readonly transactionManager: TransactionManager<TContext>,
   ) {}
 
   #clearParticipants(): void {

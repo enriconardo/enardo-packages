@@ -12,7 +12,7 @@ await unitOfWork.execute(async () => {
 // Committed in one transaction: an update of p-1 that sets only `price`, and an insert of p-2.
 ```
 
-> Published to the `@enardo` registry, version 0.2.0: the API can still change. The package ships no database adapters: install an adapter package for your database, or write a `DataStore` and an `ITransactionManager` for your driver.
+> Published to the `@enardo` registry, version 0.2.0: the API can still change. The package ships no database adapters: install an adapter package for your database, or write a `DataStore` and an `TransactionManager` for your driver.
 
 ## Contents
 
@@ -40,7 +40,7 @@ The work is split between the package and your code:
 | `UnitOfWork` | this package | Runs your use case, collects the planned writes of every registered repository, and runs them in one transaction |
 | `Mapper` | you | Converts an entity to and from its records, and reads its identity |
 | `DataStore` | you | Reads records with their version, and applies changes after checking the version, with your database driver |
-| `ITransactionManager` | you, or an adapter package | Opens, commits and rolls back a transaction with your driver. The contract comes from [`@enardo/transaction-manager`](../transaction-manager/README.md). |
+| `TransactionManager` | you, or an adapter package | Opens, commits and rolls back a transaction with your driver. The contract comes from [`@enardo/transaction-manager`](../transaction-manager/README.md). |
 
 ## Quick start
 
@@ -56,8 +56,8 @@ pnpm add @enardo/transaction-manager @enardo/uow-repository
 
 ```ts
 import type {
-  ITransaction,
-  ITransactionManager,
+  Transaction,
+  TransactionManager,
 } from "@enardo/transaction-manager";
 import {
   ConcurrencyConflictError,
@@ -114,7 +114,7 @@ const toVersionedRecords = (row: Row): VersionedRecords<ProductRecords, number> 
   version: row.version,
 });
 
-const productStore: DataStore<ProductRecords, string, ITransaction> = {
+const productStore: DataStore<ProductRecords, string, Transaction> = {
   recordKeys: { products: (record) => record._id },
   async findById(id) {
     const row = table.get(id);
@@ -149,9 +149,9 @@ const productStore: DataStore<ProductRecords, string, ITransaction> = {
   },
 };
 
-// 4. ITransactionManager: runs the writes in a transaction. This one only hands out an id.
+// 4. TransactionManager: runs the writes in a transaction. This one only hands out an id.
 let transactions = 0;
-const transactionManager: ITransactionManager = {
+const transactionManager: TransactionManager = {
   async runInTransaction(work) {
     return work({ id: `tx-${++transactions}` });
   },
@@ -209,7 +209,7 @@ unitOfWork.register(repository);
 | `dataStore` | `DataStore<TRecords, TId, TContext, TVersion>`. `TVersion` defaults to `number`. | yes |
 | `mapper` | `Mapper<TDomain, TRecords, TId, TStoredId>`. `TStoredId` defaults to `TId` (see [Stored identities](#stored-identities)). | yes |
 | `identityKey` | `(id: TId) => string` | only when `TId` isn't a `string`, `number`, `bigint` or `boolean` (see [Composite identities](#composite-identities)) |
-| `transactionManager` | `ITransactionManager<TContext>` from `@enardo/transaction-manager` | yes |
+| `transactionManager` | `TransactionManager<TContext>` from `@enardo/transaction-manager` | yes |
 
 The contracts, with doc comments, are defined in [`src/data-store.ts`](src/data-store.ts), [`src/mapper.ts`](src/mapper.ts), [`src/record-set.ts`](src/record-set.ts) and [`src/repository.ts`](src/repository.ts). The transaction contracts are in [`@enardo/transaction-manager`](../transaction-manager/README.md).
 
@@ -317,7 +317,7 @@ The repository relies on these rules, and the compiler can't check them:
 
 ### Transaction manager contract
 
-The contract is `ITransactionManager` from `@enardo/transaction-manager`. The unit of work relies on these rules:
+The contract is `TransactionManager` from `@enardo/transaction-manager`. The unit of work relies on these rules:
 
 - Commit when `work` resolves. Roll back and rethrow when it rejects.
 - Resolve only after the commit succeeded, because `execute()` reports success as soon as `runInTransaction` resolves.
@@ -333,7 +333,7 @@ interface UserRepository extends IRepository<User, string> {
 }
 
 class UserStoreRepository
-  extends Repository<User, UserRecords, string, ITransaction>
+  extends Repository<User, UserRecords, string, Transaction>
   implements UserRepository
 {
   constructor(private readonly store: UserStore) {

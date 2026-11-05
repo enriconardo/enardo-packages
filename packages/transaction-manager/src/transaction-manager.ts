@@ -1,4 +1,4 @@
-import type { ITransaction } from "./transaction";
+import type { Transaction } from "./transaction";
 
 /**
  * Orchestrates transactional boundaries.
@@ -10,8 +10,8 @@ import type { ITransaction } from "./transaction";
  * code writing inside the transaction receives what its driver needs, such as
  * a session, without a cast.
  */
-export interface ITransactionManager<
-  TContext extends ITransaction = ITransaction,
+export interface TransactionManager<
+  TContext extends Transaction = Transaction,
 > {
   /**
    * Executes `work` inside a transaction and returns its result.

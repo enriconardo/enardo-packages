@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { ClientSession, MongoClient, TransactionOptions } from "mongodb";
 import type {
-  ITransaction,
-  ITransactionManager,
+  Transaction,
+  TransactionManager,
 } from "@enardo/transaction-manager";
 
 /** A transaction carrying the session that every write must pass to the driver. */
-export interface IMongoTransaction extends ITransaction {
+export interface IMongoTransaction extends Transaction {
   readonly session: ClientSession;
 }
 
@@ -24,7 +24,7 @@ export interface MongoTransactionManagerOptions {
  * write conflict with another transaction. Every call gets the same id, so the
  * attempts of one transaction can be told apart from other transactions.
  */
-export class MongoTransactionManager implements ITransactionManager<IMongoTransaction> {
+export class MongoTransactionManager implements TransactionManager<IMongoTransaction> {
   constructor(
     private readonly client: MongoClient,
     private readonly options: MongoTransactionManagerOptions = {},

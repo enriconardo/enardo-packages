@@ -1,4 +1,4 @@
-import type { ITransaction } from "@enardo/transaction-manager";
+import type { Transaction } from "@enardo/transaction-manager";
 import { ChangeTracker, type TrackedEntity } from "./change-tracker";
 import type { AggregateWrite, DataStore, VersionedRecords } from "./data-store";
 import { identityKeyOf } from "./identity-key";
@@ -62,7 +62,7 @@ export class Repository<
   TDomain,
   TRecords extends RecordSet<TRecords>,
   TId,
-  TContext extends ITransaction,
+  TContext extends Transaction,
   TVersion extends NonNullable<unknown> = number,
   TStoredId = TId,
 >

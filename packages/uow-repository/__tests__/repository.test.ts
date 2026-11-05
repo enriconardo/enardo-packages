@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type {
-  ITransaction,
-  ITransactionManager,
+  Transaction,
+  TransactionManager,
 } from "@enardo/transaction-manager";
 import { ConcurrencyConflictError } from "~/errors";
 import { Repository } from "~/repository";
@@ -125,10 +125,10 @@ interface TicketRecords {
   tickets: [TicketRecord];
 }
 
-type GroupStore = DataStore<GroupRecords, string, ITransaction>;
-type ProductStore = DataStore<ProductRecords, string, ITransaction>;
-type OrderStore = DataStore<OrderRecords, OrderId, ITransaction>;
-type TicketStore = DataStore<TicketRecords, string, ITransaction>;
+type GroupStore = DataStore<GroupRecords, string, Transaction>;
+type ProductStore = DataStore<ProductRecords, string, Transaction>;
+type OrderStore = DataStore<OrderRecords, OrderId, Transaction>;
+type TicketStore = DataStore<TicketRecords, string, Transaction>;
 
 describe("Repository", () => {
   it("tracks an entity without an id property through a custom composite identity key", async () => {
@@ -949,17 +949,17 @@ function createSetup<TDomain, TRecords extends RecordSet<TRecords>, TId>(
   mapper: Mapper<TDomain, TRecords, TId>,
   recordKeys: RecordKeys<TRecords>,
   store: Partial<
-    Omit<DataStore<TRecords, TId, ITransaction>, "recordKeys">
+    Omit<DataStore<TRecords, TId, Transaction>, "recordKeys">
   > = {},
   identityKey?: (id: TId) => string,
 ) {
-  const transaction: ITransaction = { id: "transaction-1" };
-  const transactionManager: ITransactionManager = {
+  const transaction: Transaction = { id: "transaction-1" };
+  const transactionManager: TransactionManager = {
     async runInTransaction(work) {
       return work(transaction);
     },
   };
-  const dataStore: DataStore<TRecords, TId, ITransaction> = {
+  const dataStore: DataStore<TRecords, TId, Transaction> = {
     recordKeys,
     findById: async () => null,
     findAll: async () => [],
@@ -999,7 +999,7 @@ class ProductsByName extends Repository<
   Product,
   ProductRecords,
   string,
-  ITransaction
+  Transaction
 > {
   constructor(
     dataStore: ProductStore,
@@ -1023,7 +1023,7 @@ class ProductsByName extends Repository<
 /** Wires a repository with a custom finder over an in-memory record list. */
 function createFinderSetup(records: readonly ProductRecord[] = []) {
   const apply = vi.fn<ProductStore["apply"]>(async () => undefined);
-  const transaction: ITransaction = { id: "transaction-1" };
+  const transaction: Transaction = { id: "transaction-1" };
   const dataStore: ProductStore = {
     recordKeys: productKeys,
     findById: async (id) => {
