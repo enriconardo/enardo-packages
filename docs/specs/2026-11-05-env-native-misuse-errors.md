@@ -36,18 +36,18 @@ Nothing is broken today, and no failure asks for this: it is a matter of a coher
 
 ## Decisions
 
-Taken with the user at intake.
+Taken with the user at intake; decision 1 changed with the user after the `critic`'s first run.
 
-1. **Unset: a native `Error`.** No value is wrong: one is absent. Nothing here is an argument of the wrong type.
-2. **Malformed: a native `TypeError`.** The value is not of the type the reader expects, as with `UNSUPPORTED_IDENTITY` of `@enardo/uow-repository`.
+1. **Unset and malformed: a native `Error`, both.** No caller branches on the difference (ADR 0018), and the message already tells one from the other. On Node every value is a string, so the common malformed case is a string failing a grammar, which `default-from` of `@enardo/email-nodemailer` answers with an `Error`.
+2. **The message is what tells them apart**, and the tests pin it (case 3).
 3. **The two classes go**, with their codes, `details` and `src/errors/`. No class is kept over a native base: a class of the package's own would invite the `instanceof` that the rule means to remove the need for, as in the three earlier misuse tasks.
 4. **`@enardo/errors` leaves the manifest.** Nothing else in `src/` uses it, and the package then has no dependency.
 5. **The messages stay word for word.** They hold the key, and the expected type where one applies, which is what `details` gave; never the value.
-6. **No `code` on the native errors** (ADR 0018 point 4). One can be added later in a minor.
+6. **No `code` on the native errors** (ADR 0018 point 4). Adding one later is a minor, and so is becoming a `BaseError`, which extends `Error` (probes).
 
 Not taken:
 
-- **`Error` for both**, as t3-env: simpler, and `default-from` of `@enardo/email-nodemailer` gives an `Error` on a string that fails a grammar. A `TypeError` says more about a value, and `requireNumber` on a number is the textbook case for it, at no cost.
+- **`TypeError` for a malformed value**, first confirmed at intake, as `@enardo/http-client` and `@enardo/password-hasher` do on a bad string: a distinction with no reader, and a later `BaseError` would cost a major, since a `BaseError` is no `TypeError`.
 - **`RangeError` for a malformed value:** every `RangeError` in `packages/*/src` is a numeric bound.
 - **No change at all:** nothing is broken, but the migration costs least before `cambusa` moves, and ADR 0018 queued it.
 
@@ -59,12 +59,12 @@ None.
 
 `packages/env`:
 
-- `src/create-env.ts`: throws `new TypeError(<the message>)` and `new Error(<the message>)`; the import goes; the JSDoc names the native types.
+- `src/create-env.ts`: both throws are `new Error(<the message>)`; the import goes; the JSDoc names the native types.
 - `src/env.types.ts`: the JSDoc names the native types.
 - `src/index.ts`: the classes' export goes.
 - `src/errors/`: removed.
 - `package.json`: `version` `3.0.0`; `dependencies` goes. `pnpm-lock.yaml` follows, with `./dev.sh exec pnpm install`.
-- `README.md`: the classes' rows and the *Both errors extend…* line go; the *Usage* bullets, and a line under *Exports*, say which native error each case throws and that it has no `code`; *Rules* (`:42`) says an error never holds the value, in its message or its serialized form, without `details` or `toJSON()`; a new *Upgrading from 2.x*, as the earlier tasks have: the classes are gone and an import of them fails to compile, a comparison with the old `code` still compiles and is never reached, and `JSON.stringify` of an error gives `{}`.
+- `README.md`: the classes' rows and the *Both errors extend…* line go; the *Usage* bullets, and a line under *Exports*, say that both cases throw a native `Error` with no `code`, told apart by the message; *Rules* (`:42`) says an error never holds the value, in its message or its serialized form, without `details` or `toJSON()`; a new *Upgrading from 2.x*, as the earlier tasks have: the classes are gone and an import of them fails to compile, a comparison with the old `code` still compiles and is never reached, and `JSON.stringify` of an error gives `{}`.
 - `CLAUDE.md`: the `src/errors/` row of *Layout* goes; *Errors* says native errors, why (ADR 0018), and that the messages hold the key and the expected type, never the value.
 - `__tests__/errors/`: removed. What it checks that still applies moves to `__tests__/create-env.test.ts`, with the cases below. Its helpers `expectMalformed` and `expectMissing` assert the new outcome.
 - `__tests__/index.test.ts`: the entry point exports exactly `createEnv`.
@@ -73,9 +73,9 @@ None.
 
 ## Test cases
 
-1. Each of `requireString`, `requireNumber` and `requireBool`, on `{}`, `{ A: "" }` and `{ A: undefined }` → an error whose `constructor` is `Error` and whose `name` is `"Error"`, so a `TypeError` for both fails it. Message: `Environment variable "A" is required but not set`.
-2. Every input the existing tests call malformed, on the reader they use → an error whose `constructor` is `TypeError`, `name` `"TypeError"`. Message: `Environment variable "A" is not a valid <string | number | boolean>`, with the type of the reader, so a message fixed to one type fails it.
-3. `requireString` on `1`, `requireNumber` and `requireBool` on `"x"` → the `TypeError` of case 2, not the `Error` of case 1.
+1. Each of `requireString`, `requireNumber` and `requireBool`, on `{}`, `{ A: "" }` and `{ A: undefined }` → an error whose `constructor` is `Error` and whose `name` is `"Error"`, so a subclass or a `TypeError` fails it. Message: `Environment variable "A" is required but not set`.
+2. Every input the existing tests call malformed, on the reader they use → an error whose `constructor` is `Error`, `name` `"Error"`. Message: `Environment variable "A" is not a valid <string | number | boolean>`, with the type of the reader, so a message fixed to one type fails it.
+3. `requireString` on `1`, `requireNumber` and `requireBool` on `"x"` → the message of case 2, not that of case 1, so a `require*` that reports a malformed value as unset fails it.
 4. An unset and a malformed variable, one read each → the error has no own `code`, `details` or `cause` (`Object.hasOwn`), and `"code" in error` is false, so a subclass carrying a `code`, or a `{ cause: undefined }`, fails it.
 5. Each of the six readers on a value holding a secret: the string `s3cr3t-value` for `number` and `bool` and their `require*`, and for `string` and `requireString` an object whose `toString()` returns it → `message`, `stack` and `JSON.stringify(error)` do not hold it. `stack` is new, since a log prints it: Node and Chromium hold the message there and exercise the assertion, Firefox and WebKit do not (probes), and it passes on them either way.
 6. A getter of the source that throws a `RangeError` → that very object: the existing test stays, with no change.
