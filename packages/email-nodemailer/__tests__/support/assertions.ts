@@ -37,6 +37,26 @@ export const OPTIONS_MESSAGES = {
     "The address of defaultFrom is not one NodemailerEmailSender accepts",
 } as const;
 
+/** The messages of `send`'s native refusals: no sender, content not a string. */
+export const SEND_MESSAGES = {
+  noSender: "The email has no sender: no from, and no default sender",
+  notString: (field: "subject" | "text" | "html"): string =>
+    `The email sender refuses ${field}: not a string`,
+} as const;
+
+/**
+ * Asserts that the own properties of `error` are exactly `message` and
+ * `stack`: a `cause`, or any field added to a native error, fails it.
+ */
+export function expectOnlyMessageAndStack(error: unknown): void {
+  expect(
+    Reflect.ownKeys(error as object)
+      .map(String)
+      .sort(),
+    "the error's own properties",
+  ).toEqual(["message", "stack"]);
+}
+
 /** What `promise` rejects with. Fails when `promise` resolves. */
 export async function reasonOf(promise: Promise<unknown>): Promise<unknown> {
   return promise.then(
