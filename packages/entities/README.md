@@ -120,7 +120,7 @@ Abstract base class for aggregate roots. Extends `Entity` with:
 
 - protected `setAttribute` for immutable attribute mutation
 - protected `setAttributes` for batch immutable attribute mutation
-- domain-event queue (`addDomainEvent` / `pullDomainEvents`)
+- domain-event queue (`addEvent` / `pullEvents`)
 - soft-delete lifecycle (`markForRemoval`)
 - optional `createdAt` / `updatedAt` timestamp management
 
@@ -167,12 +167,12 @@ Use `create` for brand-new aggregates. It queues a `user.created` lifecycle even
 
 ```ts
 const user = User.create({
-  id: new EntityId("user-1"),
+  id: EntityId.create("user-1"),
   name: "Ada",
   email: "ada@example.com",
 });
 
-user.pullDomainEvents();
+user.pullEvents();
 // [{ eventName: "user.created", occurredAt: Date, payload: { entityType: "user", entityId: EntityId } }]
 ```
 
@@ -182,7 +182,7 @@ Use `rehydrate` when reconstructing an aggregate from a database record. No even
 
 ```ts
 const user = User.rehydrate({
-  id: new EntityId("user-1"),
+  id: EntityId.create("user-1"),
   name: "Ada",
   email: "ada@example.com",
   createdAt: new Date("2026-01-01"),
@@ -217,7 +217,7 @@ user.markForRemoval("merged into another account");
 
 user.isMarkedForRemoval();  // true
 
-user.pullDomainEvents();
+user.pullEvents();
 // [{ eventName: "user.deleted", payload: { ..., reason: "merged into another account" } }]
 
 user.rename("X");  // throws EntityNotMutableError
@@ -227,11 +227,11 @@ user.rename("X");  // throws EntityNotMutableError
 
 ```ts
 // After persisting the aggregate:
-const events = user.pullDomainEvents();  // returns and clears the queue
+const events = user.pullEvents();  // returns and clears the queue
 dispatchAll(events);
 
 // On failure, discard without dispatching:
-user.clearDomainEvents();
+user.clearEvents();
 ```
 
 ---
@@ -273,7 +273,7 @@ Called after the attribute snapshot is replaced. The default is a no-op. Overrid
 ```ts
 protected override onAttributeMutation(changedKey: string): void {
   if (this.hasCreatedEventQueued()) return; // not yet persisted
-  this.addDomainEvent(this.createUpdatedEvent(changedKey));
+  this.addEvent(this.createUpdatedEvent(changedKey));
 }
 ```
 
