@@ -1,6 +1,6 @@
-import { BaseError } from "@enardo/errors";
+import { BaseError, isBaseErrorLike } from "@enardo/errors";
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { InvalidEntityIdError } from "~/index";
+import { EntityId, InvalidEntityIdError } from "~/index";
 import type { InvalidEntityIdDetails } from "~/index";
 
 describe("InvalidEntityIdError", () => {
@@ -31,5 +31,20 @@ describe("InvalidEntityIdError code", () => {
 
     expectTypeOf(error.code).toEqualTypeOf<"INVALID_ENTITY_ID">();
     expect(error.code).toBe("INVALID_ENTITY_ID");
+  });
+});
+
+describe("EntityId.create on a blank value", () => {
+  it("throws an InvalidEntityIdError with the code INVALID_ENTITY_ID, recognized by isBaseErrorLike", () => {
+    let error: unknown;
+    try {
+      EntityId.create(" ");
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(InvalidEntityIdError);
+    expect((error as InvalidEntityIdError).code).toBe("INVALID_ENTITY_ID");
+    expect(isBaseErrorLike(error)).toBe(true);
   });
 });

@@ -1,10 +1,6 @@
 import type { Event, MergeableEvent } from "@enardo/events";
 import type { EntityCommonAttributes } from "./entity.js";
 import { Entity } from "./entity.js";
-import {
-  EntityAlreadyMarkedForRemovalError,
-  EntityNotMutableError,
-} from "./errors/index.js";
 import { deepFreeze } from "./utils";
 
 export interface AggregateRootCommonAttributes extends EntityCommonAttributes {
@@ -139,7 +135,7 @@ export abstract class AggregateRoot<
    *
    * @param key   Attribute key to update.
    * @param value New value. The value is deeply frozen before storage.
-   * @throws {EntityNotMutableError} When the aggregate is marked for removal.
+   * @throws {Error} When the aggregate is marked for removal.
    */
   protected setAttribute<K extends keyof Attributes>(
     key: K,
@@ -159,7 +155,7 @@ export abstract class AggregateRoot<
    * 4. Calls {@link onAttributeMutation} once per changed key.
    *
    * @param values Partial attribute map to update.
-   * @throws {EntityNotMutableError} When the aggregate is marked for removal.
+   * @throws {Error} When the aggregate is marked for removal.
    */
   protected setAttributes<K extends keyof Attributes>(
     values: Pick<Attributes, K>,
@@ -217,22 +213,6 @@ export abstract class AggregateRoot<
   }
 
   /**
-   * Builds the context object attached to lifecycle errors.
-   *
-   * @returns An object containing `entityType` and `entityId` for structured
-   *   error logging or reporting.
-   */
-  protected buildLifecycleErrorContext(): {
-    entityType: string;
-    entityId: unknown;
-  } {
-    return {
-      entityType: this.modelName,
-      entityId: this.id,
-    };
-  }
-
-  /**
    * Hook called by {@link setAttribute} **before** the attribute snapshot is
    * replaced.
    *
@@ -272,12 +252,14 @@ export abstract class AggregateRoot<
   /**
    * Asserts that the aggregate is still mutable.
    *
-   * @throws {EntityNotMutableError} When the aggregate has been marked for
+   * @throws {Error} When the aggregate has been marked for
    *   removal.
    */
   protected assertMutable(): void {
     if (this._isMarkedForRemoval) {
-      throw new EntityNotMutableError(this.buildLifecycleErrorContext());
+      throw new Error(
+        `Cannot mutate ${this.modelName} ${this.id.toString()}: it is marked for removal`,
+      );
     }
   }
 
@@ -357,16 +339,16 @@ export abstract class AggregateRoot<
    * queuing a `<model>.deleted` lifecycle event.
    *
    * Once marked, the aggregate becomes immutable: any subsequent call to
-   * {@link setAttribute} will throw {@link EntityNotMutableError}.
+   * {@link setAttribute} will throw an `Error`.
    *
    * @param reason Optional human-readable reason propagated into the event
    *   payload and the {@link onMarkedForRemoval} hook.
-   * @throws {EntityAlreadyMarkedForRemovalError} When called more than once.
+   * @throws {Error} When called more than once.
    */
   markForRemoval(reason?: string): void {
     if (this._isMarkedForRemoval) {
-      throw new EntityAlreadyMarkedForRemovalError(
-        this.buildLifecycleErrorContext(),
+      throw new Error(
+        `Cannot mark ${this.modelName} ${this.id.toString()} for removal: it already is`,
       );
     }
 
