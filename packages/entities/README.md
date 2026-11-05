@@ -12,7 +12,8 @@ Domain-model building blocks for DDD-style applications: `Entity`, `AggregateRoo
   - [AggregateRoot](#aggregateroot)
 - [Lifecycle events](#lifecycle-events)
 - [Mutation hooks](#mutation-hooks)
-- [Error classes](#error-classes)
+- [Errors](#errors)
+- [Upgrading from 1.x](#upgrading-from-1x)
 - [Scripts](#scripts)
 
 ---
@@ -220,7 +221,7 @@ user.isMarkedForRemoval();  // true
 user.pullEvents();
 // [{ eventName: "user.deleted", payload: { ..., reason: "merged into another account" } }]
 
-user.rename("X");  // throws EntityNotMutableError
+user.rename("X");  // throws an Error
 ```
 
 #### Draining the event queue
@@ -283,31 +284,23 @@ Called after `_isMarkedForRemoval` is set but before the `deleted` event is queu
 
 ---
 
-## Error classes
+## Errors
 
 | Class | Code | Thrown when |
 |---|---|---|
-| `EntityNotMutableError` | `ENTITY_NOT_MUTABLE` | `setAttribute` is called on a removed aggregate |
-| `EntityAlreadyMarkedForRemovalError` | `ENTITY_ALREADY_MARKED_FOR_REMOVAL` | `markForRemoval` is called more than once |
+| `InvalidEntityIdError` | `INVALID_ENTITY_ID` | `EntityId.create` gets an empty or blank value |
 
-Both extend the abstract `EntityLifecycleError`, a `BaseError` (`@enardo/errors`) whose `code` is typed `EntityLifecycleErrorCode`, narrowed by each subclass to its own literal and whose `details` is the `{ entityType, entityId }` object, also exposed as `context`, for structured logging.
+`InvalidEntityIdError` is a `BaseError` (`@enardo/errors`): recognize it with `isBaseErrorLike` and its `code`.
 
-```ts
-import {
-  EntityNotMutableError,
-  EntityAlreadyMarkedForRemovalError,
-} from "@enardo/entities";
+Misusing the lifecycle of an aggregate throws a native `Error`, with no `code`: a second `markForRemoval` (`Cannot mark user user-1 for removal: it already is`) and any mutation of a removed aggregate (`Cannot mutate user user-1: it is marked for removal`). Only a bug reaches them, so there is nothing to branch on; check `isMarkedForRemoval()` first. The message names the entity for a person to read: don't parse it.
 
-try {
-  user.markForRemoval();
-  user.markForRemoval(); // throws
-} catch (err) {
-  if (err instanceof EntityAlreadyMarkedForRemovalError) {
-    console.error(err.code, err.context);
-    // "ENTITY_ALREADY_MARKED_FOR_REMOVAL" { entityType: "user", entityId: EntityId }
-  }
-}
-```
+---
+
+## Upgrading from 1.x
+
+- `EntityNotMutableError`, `EntityAlreadyMarkedForRemovalError`, `EntityLifecycleError`, `EntityLifecycleErrorCode` and `EntityLifecycleErrorContext` are gone, and so is the protected `buildLifecycleErrorContext()`: a use of them fails to compile. A subclass reads `modelName` and `id` itself.
+- Both errors are now a native `Error`. A comparison with the old `code` (`ENTITY_NOT_MUTABLE`, `ENTITY_ALREADY_MARKED_FOR_REMOVAL`) still compiles and is never true, and `JSON.stringify` of the error gives `{}`.
+- `2.0.0` depends on `@enardo/errors` `^1.2.0`. If another package of the app allows `1.0.0`, the app gets two copies of it, and an `instanceof BaseError` of one misses an `InvalidEntityIdError` of the other: keep one copy.
 
 ---
 
