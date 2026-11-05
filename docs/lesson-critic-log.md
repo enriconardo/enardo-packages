@@ -16,3 +16,4 @@ The user reads it at the review that the backlog queues, once it holds 25 lesson
 | 2026-11-02 | `refactor/database-mongo/named-export` | 2 | A glob in a `git grep` pathspec (root `CLAUDE.md`, *Code conventions*) | `revise` | no | applied | applied | 38 789 tokens, 115 s (one run, both lessons) |
 | 2026-11-02 | `refactor/database-mongo/named-export` | 2 | A check paired with a fix is an open decision (`spec` skill, *Intake*) | `keep` | no | applied | dropped | same run |
 | 2026-11-02 | `fix/uow-repository/native-misuse-errors` | 1 | A stub is not a probe of what it stands for (`spec` skill, *Probing*) | `revise` | no | applied | dropped | 32 180 tokens, 70 s |
+| 2026-11-05 | `fix/email-nodemailer/native-misuse-errors` | 1 | A fact of the `critic`'s report is probed before it enters the spec (`spec` skill, *The critic*) | `drop` | no | applied | dropped | 33 450 tokens, 63 s |

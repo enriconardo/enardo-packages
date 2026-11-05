@@ -177,10 +177,6 @@ importers:
         version: 4.1.12(@types/node@26.4.0)(@vitest/browser-playwright@4.1.12)(vite@8.2.4(@types/node@26.4.0))
 
   packages/email-nodemailer:
-    dependencies:
-      '@enardo/errors':
-        specifier: workspace:^
-        version: link:../errors
     devDependencies:
       '@enardo/email':
         specifier: workspace:^

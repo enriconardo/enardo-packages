@@ -16,7 +16,6 @@ import type {
   SendEmailOptions,
 } from "@enardo/email";
 import { envelopeFormOf, isAcceptedAddress } from "./address";
-import { InvalidEmailSenderOptionsError } from "./errors";
 
 /**
  * nodemailer's SMTP options, from which the sender creates its transporter.
@@ -52,11 +51,14 @@ export class NodemailerEmailSender implements EmailSender {
   private readonly defaultFrom?: Mailbox;
 
   /**
-   * @throws {InvalidEmailSenderOptionsError} when there is no `transport`,
-   * when nodemailer would build from it a pool, anything but an SMTP
-   * transport, or one that speaks LMTP, or when the address of `defaultFrom`
-   * is refused, or when nodemailer throws while it reads `transport` (the
-   * `cause` holds its `name` and `code` only).
+   * @throws {TypeError} when there is no `transport`, or when nodemailer would
+   * build from it a pool, anything but an SMTP transport, or one that speaks
+   * LMTP.
+   * @throws {Error} when the address of `defaultFrom` is refused (the message
+   * holds no address), or when nodemailer throws while it reads `transport`:
+   * the `cause` then holds its `name` and `code` only, each when a string,
+   * never its message, which can hold the URL, password included. These
+   * errors carry no `code`: the options are fixed in the caller's code.
    */
   constructor(options: NodemailerEmailSenderOptions) {
     this.transporter = transporterOf(options.transport);
@@ -64,7 +66,7 @@ export class NodemailerEmailSender implements EmailSender {
     if (options.defaultFrom) {
       this.defaultFrom = toMailbox(
         options.defaultFrom,
-        () => new InvalidEmailSenderOptionsError("default-from"),
+        () => new Error(DEFAULT_FROM_MESSAGE),
       );
     }
   }
@@ -400,20 +402,26 @@ function addressRefused(field: "from" | "replyTo"): InvalidEmailMessageError {
   return new InvalidEmailMessageError({ field, reason: "address" });
 }
 
+const DEFAULT_FROM_MESSAGE =
+  "The address of defaultFrom is not one NodemailerEmailSender accepts";
+
+const NOT_SMTP_MESSAGE =
+  "NodemailerEmailSender creates SMTP transporters only: transport must hold SMTP options";
+
 // The types refuse what this refuses, but a caller the types do not reach
 // can pass anything: `transport` counts as present when it is truthy.
 function transporterOf(
   transport: NodemailerSmtpOptions,
 ): Transporter<SMTPTransport.SentMessageInfo> {
   if (!transport) {
-    throw new InvalidEmailSenderOptionsError("no-transport");
+    throw new TypeError("NodemailerEmailSender needs transport options");
   }
 
   // Before nodemailer sees it: `Mail` writes `mailer` into a transport object
   // it takes, and listens to its `error`, so a refusal after createTransport
   // would leave the caller's object changed, and wired to an orphan `Mail`.
   if (!isTransportOptions(transport)) {
-    throw new InvalidEmailSenderOptionsError("not-smtp");
+    throw new TypeError(NOT_SMTP_MESSAGE);
   }
 
   // `transport` goes to nodemailer as it is: createTransport reads `url`,
@@ -446,20 +454,25 @@ function transporterOf(
       ...(typeof name === "string" && { name }),
       ...(typeof code === "string" && { code }),
     });
-    throw new InvalidEmailSenderOptionsError(
-      "transport-options",
+    // `cause && { cause }`, not `{ cause }`: `{ cause: undefined }` makes
+    // `cause` an own property, and the README promises none when there is
+    // nothing to say.
+    throw new Error(
+      "nodemailer could not build a transporter from the transport options",
       cause && { cause },
     );
   }
   if (created.transporter instanceof SMTPPool) {
-    throw new InvalidEmailSenderOptionsError("pool");
+    throw new TypeError(
+      "NodemailerEmailSender does not create a pooled transporter",
+    );
   }
   if (
     !(created.transporter instanceof SMTPTransport) ||
     created.transporter === transport ||
     created.transporter.options.lmtp
   ) {
-    throw new InvalidEmailSenderOptionsError("not-smtp");
+    throw new TypeError(NOT_SMTP_MESSAGE);
   }
   return created;
 }

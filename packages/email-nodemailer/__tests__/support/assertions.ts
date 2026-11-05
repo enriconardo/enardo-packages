@@ -1,5 +1,42 @@
 import { expect } from "vitest";
 
+type NativeErrorClass = ErrorConstructor | TypeErrorConstructor;
+
+/**
+ * Asserts that `error` is the native `type`: its `constructor` is exactly
+ * `type`, so a subclass named like a removed class fails, its `name` is
+ * `type`'s, its message is `message`, and it has no `code` and no `details`.
+ * The instance check prints nothing: see `unprintedRejectionOf`.
+ */
+export function expectNativeError(
+  error: unknown,
+  type: NativeErrorClass,
+  message: string,
+): void {
+  expect(
+    error instanceof type,
+    `the error is an instance of ${type.name}`,
+  ).toBe(true);
+  const native = error as Error;
+  expect(native.constructor, "the error's constructor").toBe(type);
+  expect(native.name, "the error's name").toBe(type.name);
+  expect(native.message, "the error's message").toBe(message);
+  expect("code" in native, "a code property").toBe(false);
+  expect("details" in native, "a details property").toBe(false);
+}
+
+/** The messages of the constructor's refusals, as they stand. */
+export const OPTIONS_MESSAGES = {
+  noTransport: "NodemailerEmailSender needs transport options",
+  pool: "NodemailerEmailSender does not create a pooled transporter",
+  notSmtp:
+    "NodemailerEmailSender creates SMTP transporters only: transport must hold SMTP options",
+  transportOptions:
+    "nodemailer could not build a transporter from the transport options",
+  defaultFrom:
+    "The address of defaultFrom is not one NodemailerEmailSender accepts",
+} as const;
+
 /** What `promise` rejects with. Fails when `promise` resolves. */
 export async function reasonOf(promise: Promise<unknown>): Promise<unknown> {
   return promise.then(
