@@ -24,9 +24,10 @@ Nothing is broken today: this is a matter of a coherent contract. The moment is 
 - The throw sites, every one, in `src/nodemailer-email-sender.ts` → `default-from` `:67`; `no-transport` `:409`; `not-smtp` `:416` and `:462`; `transport-options` `:449`; `pool` `:455`.
 - `git grep` for the class, the code and `InvalidEmailSenderOptionsReason`, outside this package and `docs/specs` → `docs/backlog.md:14` and `:15` alone.
 - `grep -r` for the class and the code in `~/Projects/cambusa`, without `node_modules` and `dist` → no match. It depends on `^1.0.0`, which predates the class (`bb114e4`, 3.0.0), and builds the sender at `apps/api-server/src/composition-root.ts:159`. Its bootstrap (`apps/api-server/src/main.ts:105`) logs any error and exits: a `BaseError` and a native error take one path.
-- `~/Projects/*/package.json` and their workspaces → `cambusa`, and `en-monorepo`, the repo these packages were imported from.
+- `~/Projects/*/package.json` and their workspaces → `cambusa`, and `en-monorepo`, the repo these packages were imported from. Projects elsewhere: none, says the user (2026-11-05).
 - Handling a refused `defaultFrom`, in `cambusa` → `SMTP_SENDER_ADDRESS` feeds both `defaultFrom` (`composition-root.ts:167`) and the `from` of every message (`:230`, `:284`). A sender built without `defaultFrom` then refuses the same address on each send, and `send-verification-email.ts:41` hands that to `onError`, which logs it: the app runs and sends no verification mail. A caller with a second valid address can pass it as `defaultFrom`.
-- The neighbours → an option out of range: `RangeError`, `packages/password-hasher/src/create-password-hasher.ts:48`. An optional option with a per-call alternative, `baseUrl`: `TypeError`, `packages/http-client/src/utils.ts:23`.
+- The neighbours → every `new RangeError` in `packages/*/src` is a numeric bound: `packages/password-hasher/src/create-password-hasher.ts:48`, `packages/uow-repository/src/retry-on-conflict.ts:24`. A refused string is a `TypeError`: `baseUrl`, an optional option with a per-call alternative, `packages/http-client/src/utils.ts:23`, `:26`, `:29`; a request URL, `packages/http-client/src/http-client.ts:71`.
+- `packages/errors/src/base/base-error.ts:32` → `BaseError extends Error`, so an `Error` could become a `BaseError` and stay what it was, and a `TypeError` could not.
 - The messages and outcomes, on `main`, after `./dev.sh exec pnpm exec turbo run build --filter=@enardo/email-nodemailer... --filter=@enardo/logger... --force`, from `dist/`:
   - `{}` → `NodemailerEmailSender needs transport options`;
   - `pool: true`, and a `url` with `?pool=true` → `NodemailerEmailSender does not create a pooled transporter`;
@@ -38,7 +39,7 @@ Nothing is broken today: this is a matter of a coherent contract. The moment is 
   - a `defaultFrom` whose `address` getter throws a `RangeError` → that `RangeError` passes through, today and after this change.
 - A `cause` absent or present, same build, in Node 24.21.0 → `Object.hasOwn(new Error("m", { cause: undefined }), "cause")` is `true`; `new Error("m", undefined)` has none.
 - What the errors expose, through `createLogger("console", { format: "json" })` of `@enardo/logger`, same build, with a plain `Error` built as `transport-options` will be → `{ cause: { code, name }, message, name, stack }`, so the identifiers reach the log. With `{ cause: undefined }`, the log has no `cause`. `isBaseErrorLike` of it → `false`.
-- Removing `@enardo/errors` from the manifest, with `src/errors/` and the throws of *Changes* (with placeholder messages), in a throwaway clone, in a throwaway container of the dev image, after `pnpm install --no-frozen-lockfile --ignore-scripts` → the lockfile loses four lines, the importer's `dependencies`; `turbo run build --filter=@enardo/email-nodemailer...` passes; `tsc --noEmit` reports nothing in `src/`; `dist/index.mjs` and `dist/index.d.mts` import no `@enardo/errors`; `import("./dist/index.mjs")` exports `NodemailerEmailSender` alone. The constructor throws `TypeError` for `{}`, `RangeError` for a refused `defaultFrom`, and `Error` for the unparsable `url`, with the `cause` above; the own properties are `stack`, `message`, and `cause` when there is one, and none without identifiers. The tests were not run there.
+- Removing `@enardo/errors` from the manifest, with `src/errors/` and the throws of *Changes* (with placeholder messages), in a throwaway clone, in a throwaway container of the dev image, after `pnpm install --no-frozen-lockfile --ignore-scripts` → the lockfile loses four lines, the importer's `dependencies`; `turbo run build --filter=@enardo/email-nodemailer...` passes; `tsc --noEmit` reports nothing in `src/`; `dist/index.mjs` and `dist/index.d.mts` import no `@enardo/errors`; `import("./dist/index.mjs")` exports `NodemailerEmailSender` alone. The constructor throws `TypeError` for `{}` and `Error` for the unparsable `url`, with the `cause` above; the own properties are `stack`, `message`, and `cause` when there is one, and none without identifiers. A refused `defaultFrom` threw the placeholder `RangeError` there, the class before decision 1 settled: which native class it is has no bearing on the dependency. The tests were not run there.
 - Doc lines that name this package and `@enardo/errors` → `README.md:101` alone, outside the source and the tests.
 - `packages/errors/src/index.ts` exports no `serializeError`.
 - The highest case number in `__tests__/` → 84.
@@ -47,11 +48,11 @@ Nothing is broken today: this is a matter of a coherent contract. The moment is 
 
 ## Decisions
 
-Taken with the user: the list at intake, decision 1 after the `critic`'s first run.
+Taken with the user: the list at intake, decision 1 after the `critic`'s first and second runs.
 
 The test is point 6's: can a caller handle the condition by `code`, or does it fix its code? An option read from the environment answers no to both: it is not fixed in the code, and nothing handles it. Point 6 and the root `CLAUDE.md` name misconfiguration outright, so it is native here: the calling code can only stop, or try another value, and a `try`/`catch` around the constructor does either with no `code`. This reading is for options a constructor takes. It does not bind `ENV_*`, whose package exists to read the environment: its own branch weighs them.
 
-1. **`default-from`: a native `RangeError`.** One value, outside the addresses the sender accepts, as an option of `@enardo/password-hasher`. A string that fails the grammar is the case that matters; a value that is not a mailbox at all takes the same throw site, past the types.
+1. **`default-from`: a native `TypeError`.** As a string that `baseUrl` of `@enardo/http-client` refuses, the neighbour with its shape, and as a value that is not a mailbox at all, which takes the same throw site, past the types. The constructor's own checks throw one class.
 2. **`no-transport`, `pool` and `not-smtp`: a native `TypeError`.** `transport` is not SMTP options of the kind accepted, and the types already refuse `pool: true` and `lmtp: true`.
 3. **`transport-options`: a native `Error`, with the same `cause`.** nodemailer threw while reading the options, from any field, and no value of one type says why. The `cause` stays `{ name, code }`, with nothing else: only identifiers, never the thrown value, whose message and fields can hold the URL, password included. An absent `cause` is no own property.
 4. **The class goes**, with its code, `InvalidEmailSenderOptionsReason` and `src/errors/`. No class is kept over a native base: a class of the package's own would invite the `instanceof` that point 6 means to remove the need for.
@@ -62,11 +63,13 @@ The test is point 6's: can a caller handle the condition by `code`, or does it f
 Not taken:
 
 - **`default-from` as a `BaseError`, `InvalidDefaultFromError`**, which the user first chose, as a caller could handle it by building the sender without `defaultFrom` and giving each message its `from`. That way on needs a second valid address, which could be passed as `defaultFrom` in the first place, and `cambusa` has one value for both (probes). It would also narrow point 6, as a misconfiguration kept as a `BaseError`, in an ADR that would have to answer for `baseUrl`, which has the same shape and throws a `TypeError`. If a project later needs a `code`, it costs a major: a `BaseError` is no longer the native class this version promises. That cost is accepted, as no project has asked for one.
+- **`RangeError` for `default-from`**, first proposed: every `RangeError` in the repo is a numeric bound (probes), and a third class in the constructor would tell nothing a caller needs.
+- **`Error` for `default-from`**, which alone would let a `code` come in a later minor (probes). The user took the `TypeError`, as the neighbours do.
 - A native error with a `code`: ADR 0012 keeps a `code` for what a caller may handle, TypeScript would not declare it, and the two earlier branches set it aside.
 
 ## Open questions
 
-- Does a project other than `cambusa` use this package? The probes looked in `~/Projects` alone.
+None.
 
 ## Changes
 
@@ -74,15 +77,14 @@ Not taken:
 
 - `src/errors/`: deleted; `export * from "./errors"` leaves `src/index.ts`.
 - `src/nodemailer-email-sender.ts`:
-  - `:67`: `new RangeError(<the message>)`.
-  - `:409`, `:416`, `:455`, `:462`: `new TypeError(<the message>)`, the `not-smtp` message in one constant for its two sites.
+  - `:67`, `:409`, `:416`, `:455`, `:462`: `new TypeError(<the message>)`, the `not-smtp` message in one constant for its two sites.
   - `:449`: `new Error(<the message>, cause && { cause })`, with a comment on why `{ cause }` alone would not do (probes).
-  - The constructor's JSDoc, which takes over the *why* of the deleted class: `@throws {TypeError}`; `@throws {RangeError}`, with no address in its message; `@throws {Error}`, with what its `cause` holds and why never the message of what nodemailer threw.
+  - The constructor's JSDoc, which takes over the *why* of the deleted class: `@throws {TypeError}`, with no address in its message; `@throws {Error}`, with what its `cause` holds and why never the message of what nodemailer threw.
 - `package.json`: `@enardo/errors` leaves `dependencies`; `pnpm-lock.yaml` follows, through `./dev.sh exec pnpm install`.
 - `README.md`:
   - *Exports* (`:29`, `:30`): the two rows go.
-  - *Options*: `:36` the constructor throws a `TypeError`; `:42` a native `Error` with the same `cause`; `:43` `defaultFrom` throws a `RangeError`.
-  - *Errors* (`:93`): the table and the sentence on `BaseError` go. The package adds no error class. `send` rejects as before. The constructor throws native errors, with no `code`: a `TypeError` for `transport`, a `RangeError` for `defaultFrom`, whose message holds no address, and an `Error` for what nodemailer threw, with `{ name, code }` as `cause`, each left out when missing or not a string, and absent when both are.
+  - *Options*: `:36` the constructor throws a `TypeError`; `:42` a native `Error` with the same `cause`; `:43` `defaultFrom` throws a `TypeError`.
+  - *Errors* (`:93`): the table and the sentence on `BaseError` go. The package adds no error class. `send` rejects as before. The constructor throws native errors, with no `code`: a `TypeError` for `transport` and for `defaultFrom`, whose message holds no address, and an `Error` for what nodemailer threw, with `{ name, code }` as `cause`, each left out when missing or not a string, and absent when both are.
   - A section *Upgrading from 4.x*, before *Contributing*: `@enardo/email` `^3.0.0` is now a peer; the `logger` option is gone; `InvalidEmailSenderOptionsError`, its code and `InvalidEmailSenderOptionsReason` are removed, each refusal is a native error with the same message, fixed in the options. A comparison with the old `code` still compiles and is never reached. It does not name `@enardo/errors`.
 - `CLAUDE.md`:
   - `:3`: this spec joins the reasons, in the tree.
@@ -106,18 +108,18 @@ Repo, `docs/backlog.md`:
 New, in `__tests__/constructor.test.ts`:
 
 85. No `transport` and a refused `defaultFrom` → the native `TypeError`, the `no-transport` message: `transport` is checked first.
-86. `defaultFrom: "a@example.test"` (a string, past the types) → the native `RangeError`, the `default-from` message: what is refused does not depend on the value's shape.
+86. `defaultFrom: "a@example.test"` (a string, past the types) → the native `TypeError`, the `default-from` message: what is refused does not depend on the value's shape.
 
 Existing tests that change, each keeping its number and its other assertions. The `details` and `code` assertions become "the native `X`":
 
 - `TypeError`, the `no-transport` message: `__tests__/constructor.test.ts:58`, `:71`, `:84`, `:230`.
 - `TypeError`, the `pool` message: `:99`, `:113`, `:126`, `:204`, `:278`, `:304`.
 - `TypeError`, the `not-smtp` message: `:354`, `:381`, `:448`, `:477`, `:531`, `:555`, `:595`, `:619`, `:646`; `:489` (case 51) checks it too.
-- `RangeError`, the `default-from` message: `:155` (case 8), and `__tests__/recipients.test.ts:574`. Case 8 replaces its `toJSON()` check of the address by the own-properties check below, on `stack` and `message`, and checks `error.stack` for the markers.
+- `TypeError`, the `default-from` message: `:155` (case 8), and `__tests__/recipients.test.ts:574`. Case 8 replaces its `toJSON()` check of the address by the own-properties check below, on `stack` and `message`, and checks `error.stack` for the markers.
 - `Error`, the `transport-options` message: `expectTransportOptionsRefusal` (`:675`), in cases 69 to 77. It takes an `Error`, and in place of `toJSON()`, which a native error lacks, it checks that `SECRET` is not in `error.message`, `error.stack` or `JSON.stringify(error.cause)`, and that the error's own properties are exactly `stack`, `message` and, when there is a `cause`, `cause`: a field copied from nodemailer's error fails it. Cases 76 and 77 check `Object.hasOwn(error, "cause")` is `false`, in place of `:796`: `{ cause: undefined }` fails them. Each `cause` stays as asserted.
 - `__tests__/send.test.ts:262` (case 32) and its import of `BaseError` (`:7`): removed, as it pins the removed class alone. `:302` (case 33): the entry point exports exactly `NodemailerEmailSender`.
 
-`__tests__/support/assertions.ts` gains `expectNativeError(error, type, message)`, of the shape of `packages/uow-repository-mongo/__tests__/support/native-errors.ts`, for `Error`, `TypeError` and `RangeError`.
+`__tests__/support/assertions.ts` gains `expectNativeError(error, type, message)`, of the shape of `packages/uow-repository-mongo/__tests__/support/native-errors.ts`, for `Error` and `TypeError`.
 
 The old usage (from the types, not compiled): an import of the removed class or type fails to compile; `isBaseErrorLike(error) && error.code === "INVALID_EMAIL_SENDER_OPTIONS"` compiles, since `code` is a `string` there, and is never reached, as the cases above show no `code`, and a native error has no brand: the upgrade note says so.
 
