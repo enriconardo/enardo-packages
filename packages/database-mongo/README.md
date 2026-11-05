@@ -3,9 +3,9 @@
 `MongoDatabase`: the connection to MongoDB, and the sync of each schema's collection, validator and indexes, which the app runs on request.
 
 ```ts
-import { MongoDatabase, type IMongoSchema } from "@enardo/database-mongo";
+import { MongoDatabase, type MongoSchema } from "@enardo/database-mongo";
 
-const usersSchema: IMongoSchema = {
+const usersSchema: MongoSchema = {
   collectionName: "users",
   validation: { $jsonSchema: { bsonType: "object", required: ["email"] } },
   indexes: [{ name: "email_unique", key: { email: 1 }, unique: true }],
@@ -76,7 +76,8 @@ await db.dropStaleIndexes(schemas);
 ## Upgrading from 1.x
 
 - `connect()` no longer syncs: call `syncSchema(schemas)` and `dropStaleIndexes(schemas)`.
-- `Logger` and `LoggerMetadata` are no longer exported, and `IMongoDatabase` declares the two methods: a fake of it adds them.
+- `Logger` and `LoggerMetadata` are no longer exported, and the `IMongoDatabase` interface is removed: `MongoDatabase` is the type, and a fake of it is a `Pick<MongoDatabase, "syncSchema" | "dropStaleIndexes">`.
+- The `I` prefix is gone: `IMongoDatabaseOptions` is `MongoDatabaseOptions`, `IMongoIndex` is `MongoIndex`, `IMongoSchema` is `MongoSchema` and `IMongoValidation` is `MongoValidation`.
 - `getDb()` and `getClient()` throw a native `Error` where they threw `DatabaseError` (`NOT_CONNECTED`), and `@enardo/database` `^2.0.0` is the peer.
 - `schemas` moves from the options to the two calls; `logger` goes, and the results take its place. Both are compile errors where the options are an object literal; from a variable they compile and sync nothing, so check the calls.
 - During the first rollout, the 1.x instances that start still sync at `connect()` with their schema and drop the indexes it does not name: the release that upgrades changes no schema, and schema changes start with the next one.

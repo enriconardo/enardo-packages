@@ -1,10 +1,10 @@
+import type { Database } from "@enardo/database";
 import type { Db, IndexDescriptionInfo } from "mongodb";
 import { MongoClient, MongoServerError } from "mongodb";
 import type {
-  IMongoDatabase,
-  IMongoDatabaseOptions,
-  IMongoIndex,
-  IMongoSchema,
+  MongoDatabaseOptions,
+  MongoIndex,
+  MongoSchema,
   SchemaSyncResult,
   StaleIndexDropResult,
 } from "./mongo.database.types";
@@ -39,7 +39,8 @@ function isIndexConflict(error: unknown): error is MongoServerError {
 }
 
 /**
- * MongoDB implementation of the {@link IMongoDatabase} interface.
+ * MongoDB implementation of the {@link Database} contract, with the two steps
+ * that bring the database to the schemas. Both reject when not connected.
  *
  * Manages the connection lifecycle to a MongoDB instance. The schemas'
  * collections, validators and indexes are synced on request, as a step of
@@ -63,7 +64,7 @@ function isIndexConflict(error: unknown): error is MongoServerError {
  * await db.disconnect();
  * ```
  */
-export class MongoDatabase implements IMongoDatabase {
+export class MongoDatabase implements Database {
   private readonly dbUri: string;
   private readonly dbName: string;
 
@@ -76,7 +77,7 @@ export class MongoDatabase implements IMongoDatabase {
   /** The last call in line, for a call of the same kind to share. */
   private last: { kind: CallKind; promise: Promise<void> } | undefined;
 
-  constructor(options: IMongoDatabaseOptions) {
+  constructor(options: MongoDatabaseOptions) {
     const { dbUri, dbName } = options;
     this.dbUri = dbUri;
     this.dbName = dbName;
@@ -220,7 +221,7 @@ export class MongoDatabase implements IMongoDatabase {
    */
   private async createIndexes(
     collectionName: string,
-    indexes: IMongoIndex[],
+    indexes: MongoIndex[],
   ): Promise<void> {
     if (indexes.length === 0) return;
     const collection = this.getDb().collection(collectionName);
@@ -273,7 +274,7 @@ export class MongoDatabase implements IMongoDatabase {
    * @throws {Error} Rejects when not connected, before any call to the server.
    */
   public async syncSchema(
-    schemas: readonly IMongoSchema[],
+    schemas: readonly MongoSchema[],
   ): Promise<SchemaSyncResult> {
     const db = this.requireDb("syncSchema");
     const createdCollections: string[] = [];
@@ -315,7 +316,7 @@ export class MongoDatabase implements IMongoDatabase {
    * @throws {Error} Rejects when not connected, before any call to the server.
    */
   public async dropStaleIndexes(
-    schemas: readonly IMongoSchema[],
+    schemas: readonly MongoSchema[],
   ): Promise<StaleIndexDropResult> {
     const db = this.requireDb("dropStaleIndexes");
     const listed: { name: string; existing: IndexDescriptionInfo[] }[] = [];

@@ -1,8 +1,7 @@
 import type { IndexDescription, IndexDescriptionInfo } from "mongodb";
-import type { Database } from "@enardo/database";
 
 /**
- * What {@link IMongoDatabase.syncSchema} did.
+ * What {@link MongoDatabase.syncSchema} did.
  *
  * @property createdCollections - The collections it created, in the order of
  * the schemas.
@@ -12,37 +11,13 @@ export interface SchemaSyncResult {
 }
 
 /**
- * What {@link IMongoDatabase.dropStaleIndexes} did.
+ * What {@link MongoDatabase.dropStaleIndexes} did.
  *
  * @property droppedIndexes - Each index dropped, with the definition the
  * server listed, in the order of the schemas, then of the list.
  */
 export interface StaleIndexDropResult {
   droppedIndexes: { collection: string; index: IndexDescriptionInfo }[];
-}
-
-/**
- * MongoDB-specific database interface: {@link Database} plus the two steps
- * that bring the database to the schemas. Both reject when not connected.
- */
-export interface IMongoDatabase extends Database {
-  /**
-   * Create the collections, validators and missing indexes of the schemas,
-   * the expand step of a deploy. It drops nothing.
-   *
-   * @returns The collections it created.
-   */
-  syncSchema(schemas: readonly IMongoSchema[]): Promise<SchemaSyncResult>;
-
-  /**
-   * Drop the indexes the schemas do not name, the contract step of a deploy.
-   * It drops nothing while a schema's collection or index is missing.
-   *
-   * @returns The indexes it dropped.
-   */
-  dropStaleIndexes(
-    schemas: readonly IMongoSchema[],
-  ): Promise<StaleIndexDropResult>;
 }
 
 /**
@@ -53,7 +28,7 @@ export interface IMongoDatabase extends Database {
  * index synchronization: the name is how the sync matches an index
  * of the schema with one of the database.
  */
-export interface IMongoIndex extends IndexDescription {
+export interface MongoIndex extends IndexDescription {
   name: string;
 }
 
@@ -62,7 +37,7 @@ export interface IMongoIndex extends IndexDescription {
  *
  * Used as the `validator` when creating or updating a MongoDB collection.
  */
-export interface IMongoValidation {
+export interface MongoValidation {
   $jsonSchema: Record<string, unknown>;
 }
 
@@ -71,12 +46,12 @@ export interface IMongoValidation {
  *
  * Used by {@link MongoDatabase} to create/update collections,
  * apply JSON Schema validation, and manage indexes, through
- * {@link IMongoDatabase.syncSchema} and {@link IMongoDatabase.dropStaleIndexes}.
+ * {@link MongoDatabase.syncSchema} and {@link MongoDatabase.dropStaleIndexes}.
  */
-export interface IMongoSchema {
+export interface MongoSchema {
   readonly collectionName: string;
-  readonly validation: IMongoValidation;
-  readonly indexes?: IMongoIndex[];
+  readonly validation: MongoValidation;
+  readonly indexes?: MongoIndex[];
 }
 
 /**
@@ -85,7 +60,7 @@ export interface IMongoSchema {
  * @property dbUri - MongoDB connection URI.
  * @property dbName - Name of the database to connect to.
  */
-export interface IMongoDatabaseOptions {
+export interface MongoDatabaseOptions {
   readonly dbUri: string;
   readonly dbName: string;
 }
