@@ -27,7 +27,7 @@ await emailSender.send({
 | `NodemailerEmailSenderOptions` | The constructor options: `transport`, `defaultFrom` |
 | `NodemailerSmtpOptions` | nodemailer's SMTP options, with no pool and no LMTP |
 
-`send` rejects with the errors of `@enardo/email`, which the package does not re-export: import them from there, or, for two misuses, with a native error (see [`send`](#send)).
+`send` rejects with the errors of `@enardo/email` or, for two misuses, with a native error (see [`send`](#send)). The package does not re-export those errors: import them from `@enardo/email`.
 
 ## Options
 
