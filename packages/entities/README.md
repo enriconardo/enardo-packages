@@ -58,8 +58,8 @@ id.equals(EntityId.create("user-abc-123")); // true
 Empty or whitespace-only strings throw on construction:
 
 ```ts
-EntityId.create("");      // Error: EntityId cannot be empty
-EntityId.create("   ");   // Error: EntityId cannot be empty
+EntityId.create("");      // InvalidEntityIdError: EntityId cannot be empty
+EntityId.create("   ");   // InvalidEntityIdError: EntityId cannot be empty
 ```
 
 ---
