@@ -11,10 +11,8 @@ Loading the `.env` file is the platform's job, not this package's (below).
 | `createEnv(source)` | Returns an `EnvReader` bound to `source`. |
 | `EnvReader` | `string`, `number`, `bool`, `requireString`, `requireNumber`, `requireBool`. |
 | `EnvSource` | `Readonly<Record<string, unknown>>`: what `createEnv` takes. |
-| `EnvMissingError` | A required variable is unset. Code `ENV_MISSING`, `details: { key }`. |
-| `EnvMalformedError` | A variable is not of the type expected. Code `ENV_MALFORMED`, `details: { key, expected }`, `expected` being `"string"`, `"number"` or `"boolean"`. |
 
-Both errors extend `BaseError` of `@enardo/errors`.
+Both an unset and a malformed variable throw a native `Error` with no `code`: no caller branches on the difference, and a variable comes from the deploy, so the configuration is what changes. The message is for a person (it holds the key, and the expected type where one applies), so match no string on it. A program that must treat an unset variable apart uses the optional reader, which returns `undefined` on unset and throws only on a malformed value.
 
 ## Usage
 
@@ -29,8 +27,8 @@ const debug = env.bool("DEBUG") ?? false;
 ```
 
 - `string`, `number` and `bool` return the value, or `undefined` when the variable is unset. There is no default parameter: write `?? default`.
-- `requireString`, `requireNumber` and `requireBool` return the value, or throw `EnvMissingError` when the variable is unset.
-- A variable that is set but malformed throws `EnvMalformedError`, in both variants: a reader never falls back to a default on a bad value.
+- `requireString`, `requireNumber` and `requireBool` return the value, or throw an `Error` when the variable is unset.
+- A variable that is set but malformed throws an `Error`, in both variants: a reader never falls back to a default on a bad value.
 
 ## Rules
 
@@ -39,8 +37,13 @@ const debug = env.bool("DEBUG") ?? false;
 - **`number`** takes decimal notation only: an optional sign, digits with an optional fraction, an optional exponent (`3000`, `-1.5`, `.5`, `5.`, `1e3`), and a finite result. No whitespace, `0x`, `0b`, `0o`, `_`, `Infinity` or `NaN`. A finite number is taken as it is (Vite's `define` of `import.meta.env.*` can set one).
 - **`bool`** takes `true`, `1`, `yes` and `false`, `0`, `no`, in any case and with no whitespace. A boolean is taken as it is (Vite's `DEV`, `PROD` and `SSR`).
 - **The source is read at each call**, never copied: what is assigned to `process.env` after `createEnv` is seen. A read that throws (a getter, a Proxy trap) propagates as it is.
-- **An error never holds the value**, in its message, `details` or `toJSON()`: it can be a secret.
+- **An error never holds the value**, in its message or its serialized form, and it has no `details` or `toJSON()`: it can be a secret.
 - A source needs an index signature. `process.env` and `ImportMetaEnv` have one; an interface without it is refused by the compiler.
+
+## Upgrading from 2.x
+
+- `EnvMissingError`, `EnvMalformedError` and their codes (`ENV_MISSING`, `ENV_MALFORMED`) are removed, with `details` and `toJSON()`. Both cases throw a native `Error` with the same message, to fix in the configuration. An import of the removed names fails to compile. A comparison with the old `code` still compiles and is never reached.
+- `JSON.stringify` of an error gives `{}`: a caller serializing by hand reads `name`, `message` and `stack`.
 
 ## One `.env` for server and client
 

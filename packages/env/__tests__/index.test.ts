@@ -3,10 +3,8 @@ import * as entryPoint from "~/index";
 import type { EnvReader, EnvSource } from "~/index";
 
 describe("entry point", () => {
-  it("exports exactly createEnv, EnvMalformedError and EnvMissingError at runtime", () => {
-    expect(Object.keys(entryPoint).sort()).toEqual(
-      ["createEnv", "EnvMalformedError", "EnvMissingError"].sort(),
-    );
+  it("exports exactly createEnv at runtime", () => {
+    expect(Object.keys(entryPoint)).toEqual(["createEnv"]);
   });
 
   it("exports the public types", () => {

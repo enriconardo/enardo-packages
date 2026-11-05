@@ -10,16 +10,16 @@ export type EnvSource = Readonly<Record<string, unknown>>;
  * instead. A value of the wrong type always throws.
  */
 export interface EnvReader {
-  /** The value as it is, or `undefined` if unset. Throws `EnvMalformedError` on a non-string. */
+  /** The value as it is, or `undefined` if unset. Throws an `Error` on a non-string. */
   string(key: string): string | undefined;
-  /** A decimal number (a finite number value as it is), or `undefined` if unset. Throws `EnvMalformedError` on anything else. */
+  /** A decimal number (a finite number value as it is), or `undefined` if unset. Throws an `Error` on anything else. */
   number(key: string): number | undefined;
-  /** `true`/`1`/`yes` or `false`/`0`/`no` (any case; a boolean value as it is), or `undefined` if unset. Throws `EnvMalformedError` on anything else. */
+  /** `true`/`1`/`yes` or `false`/`0`/`no` (any case; a boolean value as it is), or `undefined` if unset. Throws an `Error` on anything else. */
   bool(key: string): boolean | undefined;
-  /** As `string`, but throws `EnvMissingError` if unset. */
+  /** As `string`, but throws an `Error` if unset. */
   requireString(key: string): string;
-  /** As `number`, but throws `EnvMissingError` if unset. */
+  /** As `number`, but throws an `Error` if unset. */
   requireNumber(key: string): number;
-  /** As `bool`, but throws `EnvMissingError` if unset. */
+  /** As `bool`, but throws an `Error` if unset. */
   requireBool(key: string): boolean;
 }

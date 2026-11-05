@@ -1,4 +1,3 @@
-import { EnvMalformedError, EnvMissingError } from "./errors";
 import type { EnvReader, EnvSource } from "./env.types";
 
 const DECIMAL = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
@@ -35,8 +34,10 @@ function toBool(value: unknown): boolean | undefined {
  * each call, never copied.
  *
  * An unset variable (not an own key, or `undefined` or `""`) reads as
- * `undefined`; a set one of the wrong type throws `EnvMalformedError`. The
- * `require*` readers throw `EnvMissingError` for an unset one.
+ * `undefined`; a set one of the wrong type throws an `Error`. The `require*`
+ * readers throw an `Error` for an unset one. Neither has a `code`: the message
+ * is for a person, and holds the key, and the expected type where one applies, never the value.
+ * A program that treats an unset variable apart uses the optional reader.
  *
  * @example
  * ```ts
@@ -54,7 +55,10 @@ export function createEnv(source: EnvSource): EnvReader {
     const raw = read(source, key);
     if (raw === undefined) return undefined;
     const value = convert(raw);
-    if (value === undefined) throw new EnvMalformedError(key, expected);
+    if (value === undefined)
+      throw new Error(
+        `Environment variable "${key}" is not a valid ${expected}`,
+      );
     return value;
   }
 
@@ -64,7 +68,8 @@ export function createEnv(source: EnvSource): EnvReader {
     convert: (value: unknown) => T | undefined,
   ): T {
     const value = optional(key, expected, convert);
-    if (value === undefined) throw new EnvMissingError(key);
+    if (value === undefined)
+      throw new Error(`Environment variable "${key}" is required but not set`);
     return value;
   }
 
