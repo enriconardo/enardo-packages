@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
+    "@types/node": "catalog:",
     "eslint": "catalog:",
     "globals": "catalog:",
     "mongodb-memory-server": "catalog:",

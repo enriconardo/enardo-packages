@@ -11,12 +11,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 In the order approved.
 
 - **Review the `lesson-critic`'s log once it holds 25 lessons.** Count the verdicts that changed a lesson, that the form alone would not have given and that the user did not take back, the user's overrides, and the cost (`docs/lesson-critic-log.md`). The user keeps, changes or drops the agent; fewer than 3 such verdicts in 25 lessons is only a suggestion to drop it. From the spec of `chore/repo/learn-rule-critic` (2026-10-28), decision 8.
-- **`@types/node` is ahead of the runtime.**
-  - The catalog has `@types/node: ^26.4.0`; the dev container runs Node 24 (`docker/dev/Dockerfile`).
-  - `@types/node` 26.4.0 declares globals that Node 24.21.0 does not define: `ErrorEvent`, `QuotaExceededError`, `EventSource`, `Storage`, `localStorage`, `sessionStorage`. A program with the Node types and no DOM lib compiles code that throws a `ReferenceError` at runtime.
-  - Today that program is `tsconfig.node.json` of `@enardo/http-client`, on the `runtime-node.json` preset, and the lint of `runtimeNeutral` covers the gap: `EventSource` through the computed list of browser-only globals, the others through a hand list (`missingOnNode`, in `@enardo/eslint-config`).
-  - Aligning `@types/node` with Node 24 would let the typecheck catch these names. Whether `@types/node` 24 declares them is not probed.
-  - From the review of `fix/http/runtime-neutral-types`.
 - **`@enardo/uow-repository-mongo`'s README does not ask for a unique index on a custom `idField`, and no test of its sets one.** Two `add()`s of one key in two units of work then write a duplicate, and every later commit on the aggregate fails; duplicate roots stay silent (`findOne` takes `limit: 1`; read from the code, not run). From the spec of `fix/uow-repository/native-misuse-errors` (2026-11-02).
 - **The `I` prefix of exported types** (2026-10-29): `IDatabase`, `IMongoDatabase`, `IMongoDatabaseOptions`, `IMongoIndex`, `IMongoSchema`, `IMongoValidation`, `ITransaction`, `ITransactionManager`, `IMongoTransaction`, `IRepository`, `IUnitOfWork`; every other exported type has none. Rename them in a major of each package, each package whole, with `@typescript-eslint/naming-convention` in the presets to keep the prefix out. Publish `@enardo/uow-repository` 0.2.0 only after this rename too: published before it, it would cost a `0.3.0` and a second change of range in `cambusa`. From `docs/specs/2026-10-28-explicit-schema-sync.md`.
 
