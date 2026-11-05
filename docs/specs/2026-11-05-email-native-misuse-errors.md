@@ -45,7 +45,7 @@ Today the two reasons sit under a public `code`, which ADR 0012 keeps for what a
 Taken with the user at intake. The verdicts themselves are ADR 0018's; no new ADR.
 
 1. **A `TypeError` for `type`, a plain `Error` for `missing`.** `type` is a value of the wrong type. In `missing` no value has one: `{ to, subject, text }` compiles and is valid on another sender, so what is refused is the message combined with the sender's state. The spec of `@enardo/entities` says of a state that "a `TypeError` does not describe it", and `@enardo/env` gives an unset variable a plain `Error`. The user's choice after the `critic`'s first run, over a `TypeError` for both.
-2. **The contract names both classes.** `@enardo/email`'s README and `send`'s JSDoc say that a `send` with no sender rejects with a native `Error`, and one with content that is not a string with a native `TypeError`, both with no `code`. Every implementation then behaves alike.
+2. **The contract says "a native error, with no `code`", and names no class.** `@enardo/email`'s README and `send`'s JSDoc say so for a `send` with no sender, or with content that is not a string; the adapter's README and tests name the classes. There is no conformance suite, the cases are the adapter's, and the contract says never to branch on these errors, so a class it named would be a difference nobody reads. The user's choice after the `critic`'s second run. No new ADR: the verdicts of ADR 0018 stand, and decisions 6 and 7 record the exceptions.
 3. **The rest stays:**
    - `send` rejects and never throws;
    - the messages are those of the removed reasons, in the adapter's code;
@@ -59,12 +59,13 @@ Taken with the user at intake. The verdicts themselves are ADR 0018's; no new AD
 Not taken:
 
 - **A `TypeError` for `missing`**, first chosen, on the analogy with `no-transport` and Node's `ERR_MISSING_ARGS`: both are a required argument, which the types refuse, and here the types accept the message.
-- **The contract saying only "a native error"**: implementations could differ for no reason, and a test could not check one.
+- **The contract naming both classes**, first chosen: every implementation would behave alike, at the price of a major to change a class no caller reads.
+- **A new ADR, with a status note on ADR 0018**, which the `critic`'s second run proposed when this spec restated its grounds: the *Why* now quotes them as they stand.
 - **`missing` at the constructor**: it would refuse a valid composition.
 
 ## Open questions
 
-1. **Does the contract name the classes** (decision 2), raised by the `critic`'s second run? There is no conformance suite, the cases are the adapter's, and the contract says never to branch on these errors, so naming them makes a difference nobody reads into contract behaviour. The alternative: the contract says "a native error, with no `code`", and the adapter's README and tests name the classes.
+None.
 
 ## Changes
 
@@ -73,12 +74,12 @@ Not taken:
 - `package.json`: the version.
 - `src/errors/invalid-email-message.error.ts`: the `missing` and `type` members of `InvalidEmailMessageDetails` and their `case`s in `messageOf` go.
 - `src/email.types.ts:47`, the comment on `from`: the same rule on the composition, and the native error when it is absent with no default.
-- `src/email-sender.ts`, `send`'s JSDoc: `InvalidEmailMessageError` for an empty `to` or a refused address; before anything is sent, a native `Error` for no sender, and a native `TypeError` for a `subject`, `text` or `html` that is not a string.
+- `src/email-sender.ts`, `send`'s JSDoc: `InvalidEmailMessageError` for an empty `to` or a refused address; a native error, with no `code`, before anything is sent, for no sender, or a `subject`, `text` or `html` that is not a string.
 - `README.md`:
   - *Exports* `:13`: "What `send` rejects with" holds, with the native errors under *Errors*.
-  - *Errors* `:36`: `send` rejects with one of the classes, with a native error for a misuse, or with what a value of the caller's threw. `:40`: the two reasons and their "when" go. A new line: a native `Error` for no sender and no default, a native `TypeError` for content that is not a string, both with no `code`: a bug or a composition to fix, never a condition to branch on or retry. *Callers* gains: a composition root that creates a sender with no default hands it only to code that passes `from` on every message.
-  - *Implementations* `:100`: reject with a `TypeError`; `:101`: reject with an `Error`. `:103`, `:104`: `InvalidEmailMessageError` for an empty `to` or a refused address. *No personal data* (`:46`) and `:108` reach the native errors' messages too.
-  - A section *Upgrading from 3.x*, before *Contributing*: the two reasons are gone, `missing` a native `Error` and `type` a native `TypeError`, each with the same message and no `code`. A comparison with `details.reason` or a `details.field` of content fails to compile. `instanceof InvalidEmailMessageError` and a comparison with its `code` compile, and no longer match those two cases.
+  - *Errors* `:36`: `send` rejects with one of the classes, with a native error for a misuse, or with what a value of the caller's threw. `:40`: the two reasons and their "when" go. A new line: a native error, with no `code`, for no sender and no default, or content that is not a string: a bug or a composition to fix, never a condition to branch on or retry. *Callers* gains: a composition root that creates a sender with no default hands it only to code that passes `from` on every message.
+  - *Implementations* `:100`, `:101`: reject with a native error, with no `code`. `:103`, `:104`: `InvalidEmailMessageError` for an empty `to` or a refused address. *No personal data* (`:46`) and `:108` reach the native errors' messages too.
+  - A section *Upgrading from 3.x*, before *Contributing*: the two reasons are gone, each now a native error with no `code`. A comparison with `details.reason` or a `details.field` of content fails to compile. `instanceof InvalidEmailMessageError` and a comparison with its `code` compile, and no longer match those two cases.
 
 `@enardo/email-nodemailer`, staying at `5.0.0`:
 
@@ -87,7 +88,7 @@ Not taken:
   - `:30`, `:70`, `:93`: `send` rejects with the errors of `@enardo/email` or, for those two misuses, a native error.
   - `:66`: the content is refused with a `TypeError`.
   - `:76`: the table's row gives `TypeError`, `:77` `Error`, each with its message.
-  - `:20` and *Upgrading from 4.x* `:112`: the peer is `^4.0.0`. A new line: those two refusals are native errors (see `@enardo/email`'s upgrade note).
+  - `:20` and *Upgrading from 4.x* `:112`: the peer is `^4.0.0`. A new line: no sender is a native `Error` and content that is not a string a native `TypeError`, each with the message it had and no `code` (see `@enardo/email`'s upgrade note).
 - `CLAUDE.md`:
   - `:3`: this spec joins the reasons, in the tree.
   - `:33`: every failure of the send becomes an error of `@enardo/email`, and no error of nodemailer's passes through; the two misuses are the sender's own native errors.
