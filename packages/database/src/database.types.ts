@@ -5,7 +5,7 @@
  * regardless of the underlying storage engine. How calls made while another
  * is in progress behave is each implementation's to document.
  */
-export interface IDatabase {
+export interface Database {
   /**
    * Establish a connection to the database.
    *
@@ -24,7 +24,7 @@ export interface IDatabase {
   /**
    * Check whether the database is connected.
    *
-   * @returns `true` between a {@link IDatabase.connect} that resolved and the
+   * @returns `true` between a {@link Database.connect} that resolved and the
    * close of the connection. It checks no server: it does not tell that the
    * server is reachable.
    */

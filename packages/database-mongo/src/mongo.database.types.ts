@@ -1,5 +1,5 @@
 import type { IndexDescription, IndexDescriptionInfo } from "mongodb";
-import type { IDatabase } from "@enardo/database";
+import type { Database } from "@enardo/database";
 
 /**
  * What {@link IMongoDatabase.syncSchema} did.
@@ -22,10 +22,10 @@ export interface StaleIndexDropResult {
 }
 
 /**
- * MongoDB-specific database interface: {@link IDatabase} plus the two steps
+ * MongoDB-specific database interface: {@link Database} plus the two steps
  * that bring the database to the schemas. Both reject when not connected.
  */
-export interface IMongoDatabase extends IDatabase {
+export interface IMongoDatabase extends Database {
   /**
    * Create the collections, validators and missing indexes of the schemas,
    * the expand step of a deploy. It drops nothing.
