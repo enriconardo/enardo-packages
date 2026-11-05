@@ -19,12 +19,13 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0009](0009-critic-runs-no-longer-logged.md) | The critic keeps its triggers, and its runs are no longer logged | accepted |
 | [0010](0010-a-vitest-preset-package.md) | The browser test project lives in a vitest preset package | accepted |
 | [0011](0011-only-a-block-moves-into-a-preset.md) | Only a block of configuration that a second package needs moves into a preset; a scalar is repeated with its comment, unless it fits every package on a preset | accepted |
-| [0012](0012-errors-recognized-by-a-brand.md) | An error of the ecosystem is recognized by a brand and its `code`, never by `BaseError`'s identity | accepted; point 3's open question settled by 0013; point 5 settled by fix/database/error-contract-and-lifecycle (DatabaseError removed) |
+| [0012](0012-errors-recognized-by-a-brand.md) | An error of the ecosystem is recognized by a brand and its `code`, never by `BaseError`'s identity | accepted; point 3's open question settled by 0013; point 5 settled by fix/database/error-contract-and-lifecycle (DatabaseError removed); point 6's test given by 0018 |
 | [0013](0013-contract-peer-of-its-adapter.md) | A contract is a peer of the adapter that implements it | accepted |
 | [0014](0014-a-package-logs-only-what-its-caller-cannot-see.md) | A package logs only what its caller cannot see, at `debug` or `warn`, and takes no `logger` without a log point | accepted |
 | [0015](0015-a-lesson-critic-judges-every-learn-proposal.md) | A light critic judges every lesson the learn step proposes, from its evidence and the rules it would join | accepted |
 | [0016](0016-passwords-argon2id-on-node-crypto.md) | Passwords are hashed with Argon2id on `node:crypto`, in one package | accepted |
 | [0017](0017-types-take-no-i-prefix.md) | Types take no `I` prefix, and a contract takes the plain name | accepted |
+| [0018](0018-where-the-refused-value-comes-from.md) | Where a refused value comes from decides between a `BaseError` and a native error | accepted |
 
 ## Template
 
