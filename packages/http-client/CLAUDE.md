@@ -51,7 +51,7 @@ __tests__/support/          the helpers both kinds of test file share, beyond a 
 
 - **`src/` runs unchanged in browsers and on Node 24.** It uses only what both define: `fetch`, `Request`, `Response`, `Headers`, `URL`, `URLSearchParams`, `FormData`, `Blob`, `AbortController`, `AbortSignal.any()`, `TextDecoder`, the streams, the timers.
   - No `node:*` or builtin module imports, and no `undici`.
-  - No global that only one runtime has: `window`, `document`, `process`, `Buffer`. Nor one that Node 24 lacks though `@types/node` declares it: `ErrorEvent`, Web Storage.
+  - No global that only one runtime has: `window`, `document`, `process`, `Buffer`. Nor one that Node 24 lacks without a flag though `@types/node` declares it: `EventSource`, Web Storage.
 - **Public types resolve in both.** A consumer may have the DOM libs and no Node types (a browser app), or the Node types and no DOM libs (a Node server).
   - Never name a DOM-only type alias (`BodyInit`, `HeadersInit`, `RequestInfo`): `@types/node` does not declare them. Derive the type from a global both runtimes declare, as `HttpBody = NonNullable<RequestInit["body"]>` does.
   - Every consumer has `skipLibCheck`. An unresolved name in the declarations turns into `any`, with no error anywhere.
@@ -67,7 +67,7 @@ __tests__/support/          the helpers both kinds of test file share, beyond a 
 | Check | Catches | Misses |
 | --- | --- | --- |
 | `tsconfig.browser.json` | Node globals, `node:*` and builtin imports | all of them after a `/// <reference types="node" />`: `@types/node` is a devDependency |
-| `tsconfig.node.json` | DOM globals, DOM-only type names | what `@types/node` declares and Node 24 lacks: `ErrorEvent`, `EventSource`, `QuotaExceededError`, Web Storage |
+| `tsconfig.node.json` | DOM globals, DOM-only type names | what `@types/node` declares and Node 24 lacks without a flag: `EventSource`, Web Storage |
 | `isolatedDeclarations` (in both runtime programs) | exported types left to inference | |
 | lint `no-restricted-imports` | `undici`, `node:*`, builtin modules | a dynamic `import()` |
 | lint `no-restricted-globals` | globals of one runtime, also as `globalThis.<name>`; the globals Node 24 lacks | type positions, destructuring (`const { process } = globalThis`) |

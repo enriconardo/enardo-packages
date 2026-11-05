@@ -2,14 +2,14 @@ packages:
   - 'packages/*'
 allowBuilds:
   mongodb-memory-server: true
-minimumReleaseAgeExclude:
-  - '@types/node@26.1.1'
 # Versions of the dev tooling shared by every package: reference them as
 # `catalog:` so they cannot drift apart.
 catalog:
   '@eslint/js': ^10.0.1
   '@vitest/browser-playwright': ^4.1.11
-  '@types/node': ^26.4.0
+  # The major of the Node in docker/dev/Dockerfile: a later one lets code
+  # compile against APIs that runtime does not have.
+  '@types/node': ^24.19.0
   eslint: ^10.9.1
   eslint-config-prettier: ^10.1.8
   globals: ^17.11.0

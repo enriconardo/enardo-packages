@@ -13,9 +13,9 @@ const browserGlobals = Object.keys(globals.browser);
 const nodeGlobals = Object.keys(globals.node);
 
 // The keys of `globals.node` that Node 24 does not define, apart from the
-// CommonJS module scope. @types/node declares some of them (ErrorEvent, Web
-// Storage), so they would pass both runtime typechecks. Check the list again
-// when Node, `globals` or @types/node change.
+// CommonJS module scope. @types/node declares some of them (Web Storage), so
+// they would pass both runtime typechecks. Check the list again when Node,
+// `globals` or @types/node change.
 const missingOnNode = [
   "ErrorEvent",
   "QuotaExceededError",
