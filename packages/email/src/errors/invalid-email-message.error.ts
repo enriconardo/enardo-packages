@@ -8,23 +8,12 @@ export type InvalidEmailMessageDetails =
   /** The address at `index` of `to` (0 for a single recipient) is refused. */
   | { readonly field: "to"; readonly reason: "address"; readonly index: number }
   /** The address of `from` or `replyTo` is refused. */
-  | { readonly field: "from" | "replyTo"; readonly reason: "address" }
-  /** There is no `from`, and the email sender has no default sender. */
-  | { readonly field: "from"; readonly reason: "missing" }
-  /** The value of `field` is not a string. */
-  | {
-      readonly field: "subject" | "text" | "html";
-      readonly reason: "type";
-    };
+  | { readonly field: "from" | "replyTo"; readonly reason: "address" };
 
 function messageOf(details: InvalidEmailMessageDetails): string {
   switch (details.reason) {
     case "empty":
       return "The email has no recipient: to is an empty list";
-    case "missing":
-      return "The email has no sender: no from, and no default sender";
-    case "type":
-      return `The email sender refuses ${details.field}: not a string`;
     case "address": {
       const field = "index" in details ? `to[${details.index}]` : details.field;
       return `The email sender refuses the address of ${field}`;

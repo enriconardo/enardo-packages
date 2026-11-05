@@ -10,7 +10,7 @@ The contract for sending email: the types of a message and of its sender, and th
 | `EmailMessage` | The message: `to`, `subject`, `text`, and optionally `html`, `from` and `replyTo` |
 | `EmailRecipient` | A mailbox: an `address`, and an optional display `name`. `from` and `replyTo` use it too |
 | `SendEmailOptions` | `tags` |
-| `InvalidEmailMessageError`, `EmailRecipientsRefusedError`, `EmailSendFailedError` | What `send` rejects with: see [Errors](#errors) |
+| `InvalidEmailMessageError`, `EmailRecipientsRefusedError`, `EmailSendFailedError` | What `send` rejects with, but for the native errors of a misuse: see [Errors](#errors) |
 | `InvalidEmailMessageDetails`, `EmailRecipientsRefusedDetails`, `RefusedEmailRecipient`, `EmailSendFailedDetails` | The types of their `details` |
 | `EmailErrorCause` | The type of their `cause` |
 
@@ -33,17 +33,18 @@ async function sendWelcome(emailSender: EmailSender, user: { email: string; name
 
 ## Errors
 
-The three classes extend `BaseError` of `@enardo/errors`; none extends another. `send` rejects with one of them, or with what a value of the caller's threw when read (a getter of the message).
+The three classes extend `BaseError` of `@enardo/errors`; none extends another. `send` rejects with one of them, with a native error for a misuse, or with what a value of the caller's threw when read (a getter of the message).
 
 | Class | `code` | `details` | When |
 | --- | --- | --- | --- |
-| `InvalidEmailMessageError` | `INVALID_EMAIL_MESSAGE` | `{ field: "to", reason: "empty" }`, `{ field: "to", reason: "address", index }`, `{ field: "from" \| "replyTo", reason: "address" }`, or `{ field: "from", reason: "missing" }`, or `{ field: "subject" \| "text" \| "html", reason: "type" }` | before anything is sent: an empty `to`, an address the implementation refuses, no sender, a `subject`, `text` or `html` that is not a string |
+| `InvalidEmailMessageError` | `INVALID_EMAIL_MESSAGE` | `{ field: "to", reason: "empty" }`, `{ field: "to", reason: "address", index }`, or `{ field: "from" \| "replyTo", reason: "address" }` | before anything is sent: an empty `to`, an address the implementation refuses |
 | `EmailRecipientsRefusedError` | `EMAIL_RECIPIENTS_REFUSED` | `{ refused }`: `{ index, retryable }` for each refused recipient, in ascending order of `index` | the relay refused one recipient or more; it took the message for the others, if any |
 | `EmailSendFailedError` | `EMAIL_SEND_FAILED` | `{ retryable }` | any other failure: the relay out of reach, the sender or the message refused, an authentication that failed, an answer lost |
 
+- **A native error, with no `code`**, for no sender and no default, or a `subject`, `text` or `html` that is not a string: a bug or a composition to fix, never a condition to branch on or retry.
 - **`index`** is the position of the recipient in `to`, 0 for a single recipient.
 - **`retryable`** says whether the same send, later and with nothing changed, may succeed: the relay refused for now (an SMTP `4xx`), not for good (`5xx`), or could not be reached. It does not say that a retry is safe.
-- **No personal data.** Neither the message, `details` nor `cause` holds an address, a name, a subject or a body: the errors can be logged. `cause` holds the identifiers of the driver's failure, which each implementation documents; its type, `EmailErrorCause`, takes strings and numbers, never an `Error`.
+- **No personal data.** Neither the message, `details` nor `cause`, nor the message of a native error, holds an address, a name, a subject or a body: the errors can be logged. `cause` holds the identifiers of the driver's failure, which each implementation documents; its type, `EmailErrorCause`, takes strings and numbers, never an `Error`.
 
 ## Contract
 
@@ -54,6 +55,7 @@ Each field's comment holds the details. In short:
 - Validate `address`: it is one address, `local@domain`. A display name goes in `name`, never in `address`.
 - Escape every value put into `html`: it is sent as given.
 - Send a message each to people who must not see each other's addresses: every recipient of a list is in the `To` header.
+- Hand a sender created with no default to code that passes `from` on every message: without one, `send` rejects with a native error.
 - Treat a resolved `send` as accepted by the relay, not as delivered: a bounce never reaches the caller. A rejected `send` may have reached some of its recipients, or all of them, when the relay's answer was lost: a retry can send twice.
 - Branch on the error's class or `code`, never on its message.
 - Retry an `EmailRecipientsRefusedError` with the refused recipients whose `retryable` is true, and only them: the others took the message, or refused it for good. That retry is a message of its own, whose `To` header lists them alone.
@@ -97,18 +99,23 @@ An implementation declares this package as a peer dependency, so it throws the c
 - Hand each `address` to the transport as one address, never inside a string the transport parses: a malformed address can be refused, never turned into other recipients.
 - Encode `name` and `subject` for their headers: neither becomes header syntax, and a line break never starts a header.
 - Reject a call with an empty `to` list.
-- Reject a `subject`, `text` or `html` that is not a string, `html` being absent only when `undefined`.
-- When `from` is absent, use the default sender set when the implementation was created, and reject the call when there is none.
+- Reject a `subject`, `text` or `html` that is not a string with a native error, with no `code`, `html` being absent only when `undefined`.
+- When `from` is absent, use the default sender set when the implementation was created, and reject the call with a native error, with no `code`, when there is none.
 - Resolve once the relay has accepted the message for every recipient; reject when it refuses the message or any recipient, and when its answer is lost.
 - Reject with the errors of [Errors](#errors), never with the driver's own:
-  - `InvalidEmailMessageError` for what is refused before anything is sent;
+  - `InvalidEmailMessageError` for an empty `to` or a refused address;
   - `EmailRecipientsRefusedError` when the relay refused recipients, each listed once, by its index in `to`. Two entries of `to` that the transport sends as one recipient are both listed;
   - `EmailSendFailedError` for any other failure, and for a refusal of recipients it cannot name.
 - Set `retryable` when a later send may succeed with nothing changed, and document the rule.
-- Keep addresses, names, subjects and bodies out of the errors: put the driver's identifiers in `cause`, never the driver's error, whose fields can echo the recipients' addresses.
+- Keep addresses, names, subjects and bodies out of the errors, the native ones included: put the driver's identifiers in `cause`, never the driver's error, whose fields can echo the recipients' addresses.
 - Never modify `message` or `options`.
 - Do with each option what its comment says, or reject the call; never ignore one silently. TypeScript cannot check it: a `send` that declares no `options` parameter still implements `EmailSender`.
   - `tags`: metadata for the provider, which never reaches the recipient. An implementation whose provider keeps no such data drops them, and says so in its documentation.
+
+## Upgrading from 3.x
+
+- The reasons `type` and `missing` of `InvalidEmailMessageDetails` are gone: `send` now rejects with a native error, with no `code`, for no sender and no default, and for a `subject`, `text` or `html` that is not a string. A comparison with `details.reason` or a `details.field` of content fails to compile.
+- `instanceof InvalidEmailMessageError` and a comparison with its `code` still compile, and no longer match those two cases.
 
 ## Contributing
 
