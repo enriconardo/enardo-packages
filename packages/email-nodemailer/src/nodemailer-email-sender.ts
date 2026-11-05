@@ -75,10 +75,12 @@ export class NodemailerEmailSender implements EmailSender {
    * Sends `message`, as `@enardo/email`'s contract says. `tags` are dropped:
    * SMTP has nowhere to keep them.
    *
-   * @throws {InvalidEmailMessageError} (rejects) when `to` is empty, when
-   * an address is refused, when there is no sender, or when `subject`,
-   * `text` or `html` is not a string (`html` is absent only when
-   * `undefined`).
+   * @throws {InvalidEmailMessageError} (rejects) when `to` is empty or an
+   * address is refused.
+   * @throws {Error} (rejects) when there is no sender: no `from`, and no
+   * default sender. It has no `code`.
+   * @throws {TypeError} (rejects) when `subject`, `text` or `html` is not a
+   * string (`html` is absent only when `undefined`). It has no `code`.
    * @throws {EmailRecipientsRefusedError} (rejects) when the relay refused
    * recipients, some or all.
    * @throws {EmailSendFailedError} (rejects) for any other rejection of
@@ -157,7 +159,11 @@ export class NodemailerEmailSender implements EmailSender {
     // Without a sender, nodemailer writes no From header and sends
     // `MAIL FROM:<>`, the null sender of bounces.
     if (!sender) {
-      throw new InvalidEmailMessageError({ field: "from", reason: "missing" });
+      // A plain `Error`, with no `code`: the message is valid on another
+      // sender, so what is refused is the composition (ADR 0018).
+      throw new Error(
+        "The email has no sender: no from, and no default sender",
+      );
     }
 
     const replyToMailbox =
@@ -176,7 +182,8 @@ export class NodemailerEmailSender implements EmailSender {
         typeof value !== "string" &&
         !(field === "html" && value === undefined)
       ) {
-        throw new InvalidEmailMessageError({ field, reason: "type" });
+        // A bug the compiler refuses (ADR 0018): native, with no `code`.
+        throw new TypeError(`The email sender refuses ${field}: not a string`);
       }
     }
 

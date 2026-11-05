@@ -12,8 +12,8 @@ export interface EmailSendFailedDetails extends Record<string, unknown> {
 }
 
 /**
- * Sending failed for any reason but the message's own (`InvalidEmailMessageError`)
- * or a refusal of recipients that the implementation can name
+ * Sending failed for any reason but the message's own (`InvalidEmailMessageError`, or
+ * a native error for a misuse) or a refusal of recipients that the implementation can name
  * (`EmailRecipientsRefusedError`): the relay out of reach, the sender or the
  * message refused, an authentication that failed, an answer lost.
  *

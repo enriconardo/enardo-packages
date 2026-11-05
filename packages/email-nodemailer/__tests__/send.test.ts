@@ -9,7 +9,11 @@ import * as entryPoint from "~/index";
 import { NodemailerEmailSender } from "~/index";
 import {
   ADDRESS_MARKERS,
+  expectNativeError,
+  expectOnlyMessageAndStack,
+  reasonOf,
   rejectionOf,
+  SEND_MESSAGES,
   unprintedRejectionOf,
 } from "./support/assertions";
 import { headerValues, mailboxesOf } from "./support/headers";
@@ -56,17 +60,16 @@ describe("send", () => {
   it("19: rejects with no from and no defaultFrom, and opens no connection", async () => {
     const server = await idleServer();
 
-    const error = await rejectionOf(
+    const error = await reasonOf(
       senderOn(server).send({
         to: RECIPIENT,
         subject: "Welcome",
         text: "Hello",
       }),
-      InvalidEmailMessageError,
     );
 
-    expect(error.code).toBe("INVALID_EMAIL_MESSAGE");
-    expect(error.details).toStrictEqual({ field: "from", reason: "missing" });
+    expectNativeError(error, Error, SEND_MESSAGES.noSender);
+    expectOnlyMessageAndStack(error);
   });
 
   it("20: sends from defaultFrom when the message has no from", async () => {
@@ -213,16 +216,32 @@ describe("send", () => {
   );
 
   describe("31: always a rejection", () => {
-    it.each([
-      ["an empty to", { ...MESSAGE, to: [] }],
+    /** Checks what the send rejects with, for one row. */
+    type RejectionCheck = (reason: unknown) => void;
+
+    const invalidMessage: RejectionCheck = (reason) => {
+      expect(reason).toBeInstanceOf(InvalidEmailMessageError);
+    };
+    const noSender: RejectionCheck = (reason) => {
+      expectNativeError(reason, Error, SEND_MESSAGES.noSender);
+      expectOnlyMessageAndStack(reason);
+    };
+
+    it.each<readonly [string, EmailMessage, RejectionCheck]>([
+      ["an empty to", { ...MESSAGE, to: [] }, invalidMessage],
       [
         "a refused address",
         { ...MESSAGE, to: { address: "a,b@example.test" } },
+        invalidMessage,
       ],
-      ["no sender", { to: RECIPIENT, subject: "Welcome", text: "Hello" }],
+      [
+        "no sender",
+        { to: RECIPIENT, subject: "Welcome", text: "Hello" },
+        noSender,
+      ],
     ])(
       "31: returns a promise that rejects for %s, and does not throw",
-      async (_label, message) => {
+      async (_label, message, check) => {
         const sender = senderOn(await idleServer());
         let result: Promise<void> | undefined;
 
@@ -231,7 +250,8 @@ describe("send", () => {
         }).not.toThrow();
 
         expect(result).toBeInstanceOf(Promise);
-        await expect(result).rejects.toBeInstanceOf(InvalidEmailMessageError);
+        // Already checked to be a promise: the fallback only satisfies the types.
+        check(await reasonOf(result ?? Promise.resolve()));
       },
     );
 

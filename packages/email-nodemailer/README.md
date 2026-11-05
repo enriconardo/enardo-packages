@@ -17,7 +17,7 @@ await emailSender.send({
 });
 ```
 
-> Published to the `@enardo` registry. `nodemailer` `^10.1.0` and `@enardo/email` `^3.0.0` are peer dependencies: install them beside the package.
+> Published to the `@enardo` registry. `nodemailer` `^10.1.0` and `@enardo/email` `^4.0.0` are peer dependencies: install them beside the package.
 
 ## Exports
 
@@ -27,7 +27,7 @@ await emailSender.send({
 | `NodemailerEmailSenderOptions` | The constructor options: `transport`, `defaultFrom` |
 | `NodemailerSmtpOptions` | nodemailer's SMTP options, with no pool and no LMTP |
 
-`send` rejects with the errors of `@enardo/email`, which the package does not re-export: import them from there.
+`send` rejects with the errors of `@enardo/email` or, for two misuses, with a native error (see [`send`](#send)). The package does not re-export those errors: import them from `@enardo/email`.
 
 ## Options
 
@@ -63,18 +63,18 @@ It refuses some valid addresses too:
 
 **Names** may hold any text: quotes, commas, angle brackets, line breaks. nodemailer quotes or encodes a name for its header, so it never becomes header syntax. The sender trims a name, and leaves out a blank one, so the header holds the bare address.
 
-**What the types refuse** is checked at run time too. A recipient that is not an object, a hole in the `to` list or a `from` or `replyTo` of `null` or `""` included, or an address that is not a string, is refused like a refused address. `from` and `replyTo` are absent only when `undefined`. A name that is not a string is left out. A `subject`, `text` or `html` that is not a string is refused too, `html` being absent only when `undefined`: nodemailer reads an object body with a `path` from a file, or an `href` from a URL, and writes an object subject with `prepared` as raw header text.
+**What the types refuse** is checked at run time too. A recipient that is not an object, a hole in the `to` list or a `from` or `replyTo` of `null` or `""` included, or an address that is not a string, is refused like a refused address. `from` and `replyTo` are absent only when `undefined`. A name that is not a string is left out. A `subject`, `text` or `html` that is not a string is refused with a `TypeError`, `html` being absent only when `undefined`: nodemailer reads an object body with a `path` from a file, or an `href` from a URL, and writes an object subject with `prepared` as raw header text.
 
 ## `send`
 
-`send` resolves once the relay has accepted the message for every recipient. It rejects with the errors of `@enardo/email`:
+`send` resolves once the relay has accepted the message for every recipient. It rejects with the errors of `@enardo/email` or, for two misuses, with a native error with no `code`:
 
 | When | Rejects with | Sent |
 | --- | --- | --- |
 | `to` is an empty list | `InvalidEmailMessageError`, `{ field: "to", reason: "empty" }` | no |
 | an address is refused | `InvalidEmailMessageError`, `{ field, reason: "address" }`, with `index` in `to` | no |
-| a `subject`, `text` or `html` that is not a string (`html` absent only when `undefined`) | `InvalidEmailMessageError`, `{ field, reason: "type" }` | no |
-| neither `from` nor `defaultFrom` | `InvalidEmailMessageError`, `{ field: "from", reason: "missing" }` | no |
+| a `subject`, `text` or `html` that is not a string (`html` absent only when `undefined`) | `TypeError`: `The email sender refuses <field>: not a string` | no |
+| neither `from` nor `defaultFrom` | `Error`: `The email has no sender: no from, and no default sender` | no |
 | the relay refused recipients, some or all | `EmailRecipientsRefusedError`, `{ refused }`: `{ index, retryable }` for each | to the others, if any |
 | any other failure: the connection refused or lost, a timeout, authentication failed, the sender or the message refused, `maxRecipients` exceeded | `EmailSendFailedError`, `{ retryable }`, with nodemailer's identifiers in `cause` | maybe: a lost answer can follow a delivered message |
 
@@ -90,7 +90,7 @@ It refuses some valid addresses too:
 
 ## Errors
 
-The package adds no error class. `send` rejects with the errors of `@enardo/email`: see `send`, above, and that package's README.
+The package adds no error class. `send` rejects with the errors of `@enardo/email`, or with a native error for a misuse: see `send`, above, and that package's README.
 
 The constructor throws native errors, with no `code`: the options are fixed in your code or configuration, and nothing handles them by `code`.
 
@@ -109,7 +109,8 @@ The sender meets the contract's rules, with these limits:
 
 ## Upgrading from 4.x
 
-- `@enardo/email` `^3.0.0` is now a peer dependency: install it beside the package.
+- `@enardo/email` `^4.0.0` is now the peer dependency: install it beside the package.
+- No sender is a native `Error` and content that is not a string a native `TypeError`, each with the message it had and no `code` (see `@enardo/email`'s upgrade note). `instanceof InvalidEmailMessageError` and a comparison with its `code` no longer match those two cases.
 - The `logger` option is gone, with the `Logger` and `LoggerMetadata` types: an import of them fails to compile.
 - `InvalidEmailSenderOptionsError`, its code and `InvalidEmailSenderOptionsReason` are removed. Each refusal of the constructor is a native error with the same message, to fix in the options (see [Errors](#errors)). An import of the removed names fails to compile. A comparison with the old `code` still compiles and is never reached.
 

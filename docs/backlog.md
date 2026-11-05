@@ -11,7 +11,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 In the order approved.
 
 - **Review the `lesson-critic`'s log once it holds 25 lessons.** Count the verdicts that changed a lesson, that the form alone would not have given and that the user did not take back, the user's overrides, and the cost (`docs/lesson-critic-log.md`). The user keeps, changes or drops the agent; fewer than 3 such verdicts in 25 lessons is only a suggestion to drop it. From the spec of `chore/repo/learn-rule-critic` (2026-10-28), decision 8.
-- **The `type` and `missing` reasons of `InvalidEmailMessageError` of `@enardo/email` become native errors** (ADR 0018). `type` is a bug the compiler refuses, `missing` a sender composed without a default. `empty` and `address` stay, `from` included. New majors of `@enardo/email` and `@enardo/email-nodemailer`, for reasons no known project reads: the last of the three. Tier L. From the spec of `fix/email-nodemailer/native-misuse-errors` (2026-11-05), and the evaluation behind ADR 0018.
 
 ## To evaluate
 

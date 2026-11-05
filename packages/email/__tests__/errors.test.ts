@@ -135,22 +135,6 @@ describe("the errors of send", () => {
         details: { field: "replyTo", reason: "address" },
         message: "The email sender refuses the address of replyTo",
       },
-      {
-        details: { field: "from", reason: "missing" },
-        message: "The email has no sender: no from, and no default sender",
-      },
-      {
-        details: { field: "subject", reason: "type" },
-        message: "The email sender refuses subject: not a string",
-      },
-      {
-        details: { field: "text", reason: "type" },
-        message: "The email sender refuses text: not a string",
-      },
-      {
-        details: { field: "html", reason: "type" },
-        message: "The email sender refuses html: not a string",
-      },
     ])(
       "has the details given, and the message $message, for $details",
       ({ details, message }) => {
@@ -311,6 +295,23 @@ describe("the types of the errors", () => {
   it("refuses an empty list of refused recipients", () => {
     // @ts-expect-error the relay refused at least one recipient
     compileOnly(() => new EmailRecipientsRefusedError([]));
+  });
+
+  it("refuses the reasons type and missing, now native errors of send", () => {
+    compileOnly(
+      () =>
+        new InvalidEmailMessageError(
+          // @ts-expect-error content that is not a string is a native error
+          { field: "subject", reason: "type" },
+        ),
+    );
+    compileOnly(
+      () =>
+        new InvalidEmailMessageError(
+          // @ts-expect-error no sender is a native error
+          { field: "from", reason: "missing" },
+        ),
+    );
   });
 
   describe("the cause", () => {

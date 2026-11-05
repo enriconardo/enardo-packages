@@ -44,7 +44,9 @@ export interface EmailMessage {
   html?: string;
   /**
    * The sender. When absent, the implementation's default sender, set when it
-   * is created; an implementation without one rejects the call.
+   * is created; an implementation without one rejects the call with a native
+   * error, with no `code`: a sender with no default is handed only to code
+   * that passes `from` on every message.
    */
   from?: EmailRecipient;
   /** Where replies go, instead of `from`. */
