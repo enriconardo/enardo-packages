@@ -23,7 +23,7 @@ export interface UnitOfWorkParticipant<
  * The unit of work as application code sees it: without the transaction
  * context type, which only persistence adapters need.
  */
-export interface IUnitOfWork {
+export interface UnitOfWork {
   /** Runs `work`, then writes the changes of every participant in one transaction. */
   execute<TResult>(work: () => Promise<TResult>): Promise<TResult>;
   /** Reports whether committing now would write anything. */
@@ -39,9 +39,9 @@ export interface IUnitOfWork {
  * detached. Reusing the instance would silently drop edits made to those
  * entities, so a second call throws instead.
  */
-export class UnitOfWork<
+export class TransactionalUnitOfWork<
   TContext extends Transaction = Transaction,
-> implements IUnitOfWork {
+> implements UnitOfWork {
   private used = false;
   private readonly participants = new Set<UnitOfWorkParticipant<TContext>>();
 

@@ -12,7 +12,11 @@ import {
   MongoTransactionManager,
   type MongoTransaction,
 } from "@enardo/transaction-manager-mongo";
-import { Repository, UnitOfWork, type Mapper } from "@enardo/uow-repository";
+import {
+  TrackingRepository,
+  TransactionalUnitOfWork,
+  type Mapper,
+} from "@enardo/uow-repository";
 import { MongoDataStore } from "~/mongo-data-store";
 import { connect, createDatabase } from "./support/fixtures";
 import { expectNativeError, reasonOf } from "./support/native-errors";
@@ -117,11 +121,13 @@ describe("a custom idField", () => {
   /** Runs one use case, in a unit of work and a repository of its own. */
   async function useCase<T>(
     run: (
-      orders: Repository<Order, OrderRecords, string, MongoTransaction>,
+      orders: TrackingRepository<Order, OrderRecords, string, MongoTransaction>,
     ) => Promise<T>,
   ): Promise<T> {
-    const orders = new Repository(createStore(), orderMapper);
-    const unitOfWork = new UnitOfWork<MongoTransaction>(transactionManager);
+    const orders = new TrackingRepository(createStore(), orderMapper);
+    const unitOfWork = new TransactionalUnitOfWork<MongoTransaction>(
+      transactionManager,
+    );
     unitOfWork.register(orders);
     return unitOfWork.execute(() => run(orders));
   }
@@ -246,7 +252,7 @@ describe("a custom idField", () => {
     });
     const bareUseCase = async (
       run: (
-        orders: Repository<
+        orders: TrackingRepository<
           Pick<Order, "ref" | "note">,
           BareRecords,
           string,
@@ -254,8 +260,10 @@ describe("a custom idField", () => {
         >,
       ) => Promise<unknown>,
     ): Promise<unknown> => {
-      const orders = new Repository(store, bareMapper);
-      const unitOfWork = new UnitOfWork<MongoTransaction>(transactionManager);
+      const orders = new TrackingRepository(store, bareMapper);
+      const unitOfWork = new TransactionalUnitOfWork<MongoTransaction>(
+        transactionManager,
+      );
       unitOfWork.register(orders);
       return unitOfWork.execute(() => run(orders));
     };

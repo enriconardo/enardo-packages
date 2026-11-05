@@ -30,7 +30,7 @@ const transactionManager = new MongoTransactionManager(client);
 | --- | --- | --- |
 | `MongoDataStore` | `DataStore<TRecords, TId, MongoTransaction, number>` | Reads an aggregate from a root collection and any child collections, and applies change sets after checking the version on the root document |
 
-You still write the `Mapper`, and you create the `Repository` and `UnitOfWork` from the core package.
+You still write the `Mapper`, and you create the `TrackingRepository` and `TransactionalUnitOfWork` from the core package.
 
 ## Quick start
 
@@ -54,7 +54,7 @@ import {
   MongoTransactionManager,
   type MongoTransaction,
 } from "@enardo/transaction-manager-mongo";
-import { Repository, UnitOfWork, type Mapper } from "@enardo/uow-repository";
+import { TrackingRepository, TransactionalUnitOfWork, type Mapper } from "@enardo/uow-repository";
 import { MongoDataStore } from "@enardo/uow-repository-mongo";
 
 // 1. The entity, the records that store it, and the mapper between them.
@@ -105,10 +105,10 @@ const transactionManager = new MongoTransactionManager(client);
 // 4. One unit of work, with its repositories, per use case.
 function createContext() {
   // An ObjectId isn't a primitive identity, so the repository needs a key for it.
-  const products = new Repository(productStore, productMapper, (id) =>
+  const products = new TrackingRepository(productStore, productMapper, (id) =>
     id.toHexString(),
   );
-  const unitOfWork = new UnitOfWork<MongoTransaction>(transactionManager);
+  const unitOfWork = new TransactionalUnitOfWork<MongoTransaction>(transactionManager);
   unitOfWork.register(products);
   return { products, unitOfWork };
 }
@@ -223,10 +223,10 @@ await db.collection("items").createIndex({ sku: 1 }, { unique: true });
 
 ### Identities
 
-`Repository` derives change-tracker keys only from `string`, `number`, `bigint` and `boolean` identities. When the root's `_id` is an `ObjectId`, pass it as the identity and give the repository a key function:
+`TrackingRepository` derives change-tracker keys only from `string`, `number`, `bigint` and `boolean` identities. When the root's `_id` is an `ObjectId`, pass it as the identity and give the repository a key function:
 
 ```ts
-const products = new Repository(productStore, productMapper, (id) => id.toHexString());
+const products = new TrackingRepository(productStore, productMapper, (id) => id.toHexString());
 ```
 
 `TId` of the store is always the identity as the documents hold it. When the domain has an identity of its own, such as a value object, the mapper converts it with `toStoredId`, and the repository hands the store the converted value (see [Stored identities](../uow-repository/README.md#stored-identities)). Every filter on an id field, including the `aggregateIdField` of child collections, uses that value, and so does `ConcurrencyConflictError`:
@@ -243,7 +243,7 @@ const userStore = new MongoDataStore<UserRecords, ObjectId>({
   client,
   collections: { users: { collection: db.collection("users"), root: true } },
 });
-const users = new Repository(userStore, userMapper, (id) => id.toString());
+const users = new TrackingRepository(userStore, userMapper, (id) => id.toString());
 ```
 
 The mapper can keep `ObjectId` out of the entity, as the quick start does with hex strings. Records keep `ObjectId`, `Decimal128`, `Long` and other BSON values as they are: the core package copies class instances by reference, so they reach the driver with their prototype.
@@ -258,7 +258,7 @@ Besides the `DataStore` methods, the store reads aggregates by any filter on the
 | `findMany(filter?, { sort?, skip?, limit? })` | Every aggregate whose root matches; sorting and paging apply to the root documents |
 | `count(filter?)` | The number of root documents that match |
 
-- **Lookups a write depends on**, such as a user found by email and then changed, need tracking. Extend `Repository` and pass the query to its protected `findOneBy`, as the [core README](../uow-repository/README.md#custom-finders) shows:
+- **Lookups a write depends on**, such as a user found by email and then changed, need tracking. Extend `TrackingRepository` and pass the query to its protected `findOneBy`, as the [core README](../uow-repository/README.md#custom-finders) shows:
 
   ```ts
   findByEmail(email: Email): Promise<User | null> {
@@ -290,11 +290,11 @@ Driver errors, such as a duplicate key (code 11000) from a unique index, reach t
 
 ### Transactions
 
-Run the unit of work with `MongoTransactionManager` from [`@enardo/transaction-manager-mongo`](../transaction-manager-mongo/README.md), and declare its context on the unit of work: `new UnitOfWork<MongoTransaction>(transactionManager)`. Every write of the store passes the transaction's session, so the writes of all repositories commit or roll back together. That package's README covers the transaction options and retries.
+Run the unit of work with `MongoTransactionManager` from [`@enardo/transaction-manager-mongo`](../transaction-manager-mongo/README.md), and declare its context on the unit of work: `new TransactionalUnitOfWork<MongoTransaction>(transactionManager)`. Every write of the store passes the transaction's session, so the writes of all repositories commit or roll back together. That package's README covers the transaction options and retries.
 
 ### Limits
 
-- **Custom finders return one aggregate.** `Repository` tracks query results through `findOneBy` only. Lists that a write depends on have to be loaded one aggregate at a time.
+- **Custom finders return one aggregate.** `TrackingRepository` tracks query results through `findOneBy` only. Lists that a write depends on have to be loaded one aggregate at a time.
 - **The root record keeps its id.** On an update, only the root record's `$set` and `$unset` are written. A mapper that changes the root's `_id` for the same identity loses that change.
 - **A replace restarts the version.** `remove` followed by `add` of the same identity writes version 1 again. A use case that read version 1 before several later updates could then pass the check. This needs a long-running use case, and is unlikely with one unit of work per request.
 - **No standalone server.** Transactions and snapshot reads need a replica set or a sharded cluster.
@@ -307,7 +307,7 @@ The package adds no error class. A misuse throws a native error, with no `code`:
 
 `InvalidDataStoreOptionsError` and `MissingCollectionChangesError` are removed, with their codes (`INVALID_DATA_STORE_OPTIONS`, `MISSING_COLLECTION_CHANGES`). Each misuse now throws a native error with the same message. A caller that read a `code` fixes the cause instead: the mappings or the change set.
 
-`@enardo/uow-repository` `^0.2.0` is now a peer dependency, not a dependency: install it beside this package. Its own changes are in its [upgrade note](../uow-repository/README.md#upgrading-from-01).
+`@enardo/uow-repository` `^0.2.0` is now a peer dependency, not a dependency: install it beside this package. Its own changes are in its [upgrade note](../uow-repository/README.md#upgrading-from-01): the classes are now `TrackingRepository` and `TransactionalUnitOfWork`. The context type `IMongoTransaction` of `@enardo/transaction-manager-mongo` is now `MongoTransaction`.
 
 ## Contributing
 
@@ -347,7 +347,7 @@ __tests__/
   support/native-errors.ts      asserts a thrown value is a native error, with no `code`
   public-api.test.ts            the exports of the entry point
   mongo-data-store.test.ts      the DataStore contract, called directly
-  repository-with-mongo.test.ts Repository and UnitOfWork end to end
+  repository-with-mongo.test.ts TrackingRepository and TransactionalUnitOfWork end to end
   custom-id-field.test.ts       what a custom idField needs: the unique index, the mapper's `_id`
 ```
 

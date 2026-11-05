@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { BaseError } from "@enardo/errors";
 import type { Transaction } from "@enardo/transaction-manager";
 import { ConcurrencyConflictError } from "~/errors";
-import { Repository } from "~/repository";
+import { TrackingRepository } from "~/repository";
 import { retryOnConflict } from "~/retry-on-conflict";
-import { UnitOfWork } from "~/unit-of-work";
+import { TransactionalUnitOfWork } from "~/unit-of-work";
 import type { AggregateWrite, DataStore, VersionedRecords } from "~/data-store";
 import type { Mapper } from "~/mapper";
 import type { RecordKeys } from "~/record-set";
@@ -122,8 +122,8 @@ describe("retryOnConflict", () => {
     let raced = false;
 
     await retryOnConflict(async () => {
-      const counters = new Repository(store, counterMapper);
-      const unitOfWork = new UnitOfWork(transactionManager);
+      const counters = new TrackingRepository(store, counterMapper);
+      const unitOfWork = new TransactionalUnitOfWork(transactionManager);
       unitOfWork.register(counters);
 
       await unitOfWork.execute(async () => {

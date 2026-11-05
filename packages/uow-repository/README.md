@@ -1,6 +1,6 @@
 # @enardo/uow-repository
 
-Save domain aggregates without writing save logic. You load entities through a `Repository` and change them like plain objects. A `UnitOfWork` then writes only the records and fields that changed, across every repository, in one transaction.
+Save domain aggregates without writing save logic. You load entities through a `TrackingRepository` and change them like plain objects. A `TransactionalUnitOfWork` then writes only the records and fields that changed, across every repository, in one transaction.
 
 ```ts
 await unitOfWork.execute(async () => {
@@ -36,8 +36,8 @@ The work is split between the package and your code:
 
 | Piece | Written by | Job |
 | --- | --- | --- |
-| `Repository` | this package | Loads entities, keeps one instance per identity, and plans writes by comparing each entity with a snapshot of its records |
-| `UnitOfWork` | this package | Runs your use case, collects the planned writes of every registered repository, and runs them in one transaction |
+| `TrackingRepository` | this package | Loads entities, keeps one instance per identity, and plans writes by comparing each entity with a snapshot of its records |
+| `TransactionalUnitOfWork` | this package | Runs your use case, collects the planned writes of every registered repository, and runs them in one transaction |
 | `Mapper` | you | Converts an entity to and from its records, and reads its identity |
 | `DataStore` | you | Reads records with their version, and applies changes after checking the version, with your database driver |
 | `TransactionManager` | you, or an adapter package | Opens, commits and rolls back a transaction with your driver. The contract comes from [`@enardo/transaction-manager`](../transaction-manager/README.md). |
@@ -61,8 +61,8 @@ import type {
 } from "@enardo/transaction-manager";
 import {
   ConcurrencyConflictError,
-  Repository,
-  UnitOfWork,
+  TrackingRepository,
+  TransactionalUnitOfWork,
   type DataStore,
   type Mapper,
   type VersionedRecords,
@@ -159,8 +159,8 @@ const transactionManager: TransactionManager = {
 
 // 5. Wire them up: one unit of work, with its repositories, per use case.
 function createContext() {
-  const products = new Repository(productStore, productMapper);
-  const unitOfWork = new UnitOfWork(transactionManager);
+  const products = new TrackingRepository(productStore, productMapper);
+  const unitOfWork = new TransactionalUnitOfWork(transactionManager);
   unitOfWork.register(products);
   return { products, unitOfWork };
 }
@@ -199,8 +199,8 @@ Next, replace the `Map` with your database: an adapter package, or a `DataStore`
 There are no config files or environment variables. Everything is wired in code:
 
 ```ts
-const repository = new Repository(dataStore, mapper, identityKey); // identityKey is optional
-const unitOfWork = new UnitOfWork(transactionManager);
+const repository = new TrackingRepository(dataStore, mapper, identityKey); // identityKey is optional
+const unitOfWork = new TransactionalUnitOfWork(transactionManager);
 unitOfWork.register(repository);
 ```
 
@@ -215,7 +215,7 @@ The contracts, with doc comments, are defined in [`src/data-store.ts`](src/data-
 
 ### Scope: one unit of work per use case
 
-A `UnitOfWork` can be used once. Create one, with its repositories, for each request or use case. `DataStore`, `Mapper` and transaction manager implementations hold no state and can be shared.
+A `TransactionalUnitOfWork` can be used once. Create one, with its repositories, for each request or use case. `DataStore`, `Mapper` and transaction manager implementations hold no state and can be shared.
 
 ```ts
 // Shared adapters, created once.
@@ -227,8 +227,8 @@ const transactionManager = new MongoTransactionManager(client);
 
 // Created for each request.
 export function createProductContext() {
-  const products = new Repository(productStore, productMapper);
-  const unitOfWork = new UnitOfWork(transactionManager);
+  const products = new TrackingRepository(productStore, productMapper);
+  const unitOfWork = new TransactionalUnitOfWork(transactionManager);
   unitOfWork.register(products);
   return { products, unitOfWork };
 }
@@ -255,7 +255,7 @@ When `execute()` ends, whether it succeeded or failed, the unit of work clears e
 
 - **A second `execute()` rejects** with a native `Error`: after the first call has finished, and also while it is still running (a nested or concurrent call). The work of the rejected call doesn't run.
 
-Register each repository on exactly one unit of work. Give application code the narrower interfaces: `IRepository<TDomain, TId>` for repositories, and `IUnitOfWork` for the unit of work, which hides the transaction context type.
+Register each repository on exactly one unit of work. Give application code the narrower interfaces: `Repository<TDomain, TId>` for repositories, and `UnitOfWork` for the unit of work, which hides the transaction context type.
 
 ### Records and record keys
 
@@ -293,7 +293,7 @@ A short test catches round-trip bugs:
 
 ```ts
 it("round-trips stored records", async () => {
-  const products = new Repository(productStore, productMapper);
+  const products = new TrackingRepository(productStore, productMapper);
   await products.findById("p-1");
   expect(products.hasPendingChanges()).toBe(false);
 });
@@ -325,15 +325,15 @@ The contract is `TransactionManager` from `@enardo/transaction-manager`. The uni
 
 ### Custom finders
 
-`Repository` loads entities only by identity. To find one by another criterion, such as a unique field, extend it and pass your store's query to the protected `findOneBy`:
+`TrackingRepository` loads entities only by identity. To find one by another criterion, such as a unique field, extend it and pass your store's query to the protected `findOneBy`:
 
 ```ts
-interface UserRepository extends IRepository<User, string> {
+interface UserRepository extends Repository<User, string> {
   findByEmail(email: string): Promise<User | null>;
 }
 
 class UserStoreRepository
-  extends Repository<User, UserRecords, string, Transaction>
+  extends TrackingRepository<User, UserRecords, string, Transaction>
   implements UserRepository
 {
   constructor(private readonly store: UserStore) {
@@ -374,7 +374,7 @@ const productMapper: Mapper<Product, ProductRecords, ProductId, ObjectId> = {
   toStoredId,
 };
 
-const products = new Repository(productStore, productMapper, (id) => id.value);
+const products = new TrackingRepository(productStore, productMapper, (id) => id.value);
 ```
 
 - **Required only when the forms differ.** The compiler requires `toStoredId` when `TStoredId` is another type than `TId`. Leave both type arguments equal, and the method out, when the store keeps the identity as it is.
@@ -386,7 +386,7 @@ const products = new Repository(productStore, productMapper, (id) => id.value);
 Identities that are a `string`, `number`, `bigint` or `boolean` work as they are. `"1"` and `1` count as different identities. For any other identity, which rejects with a `TypeError` without one, pass an `identityKey` function that never maps two ids to the same string:
 
 ```ts
-const orders = new Repository(orderStore, orderMapper, (id) =>
+const orders = new TrackingRepository(orderStore, orderMapper, (id) =>
   JSON.stringify([id.accountId, id.orderNumber]),
 );
 ```
@@ -497,6 +497,19 @@ The messages of the record sets name the side at fault: `previous` is the snapsh
 
 `UnitOfWorkAlreadyUsedError`, `UnsupportedIdentityError`, `InvalidRecordSetError`, `DuplicateRecordKeyError` and `DuplicateEntityError` are removed, with their codes (`UOW_ALREADY_USED`, `UNSUPPORTED_IDENTITY`, `INVALID_RECORD_SET`, `DUPLICATE_RECORD_KEY`, `DUPLICATE_ENTITY`). Each misuse now throws a native error with the same message. A caller that read a `code` fixes the cause instead: the call, the mapper, the aggregate's invariant or the stored data.
 
+The `I` prefix is gone, and the contracts take the plain names, so the classes take a qualifier:
+
+| 0.1 | 0.2 |
+| --- | --- |
+| class `Repository` | class `TrackingRepository` |
+| class `UnitOfWork` | class `TransactionalUnitOfWork` |
+| `IRepository` | `Repository` |
+| `IUnitOfWork` | `UnitOfWork` |
+
+`@enardo/transaction-manager` `^2.0.0` is the peer: its `ITransaction` and `ITransactionManager` are now `Transaction` and `TransactionManager`.
+
+Rename the classes first, then the contracts. Renaming `IRepository` to `Repository` first merges it with the class, and the next rename would hit both. A use of the class that is left behind fails to compile (`import { Repository }` with `verbatimModuleSyntax`, `extends Repository<…>`, `new UnitOfWork()`). The one form that still compiles is a `UnitOfWork` type with no type argument, which is now the contract: it keeps `execute` and `hasPendingChanges`, and has no `register`. Application code that held `IUnitOfWork` or `IRepository` takes the new `UnitOfWork` or `Repository`, never the classes.
+
 ## Contributing
 
 ### Setup
@@ -527,8 +540,8 @@ Run these inside `packages/uow-repository`.
 ```text
 src/
   index.ts            public API: anything not exported here is internal
-  repository.ts       Repository, IRepository: reads, tracking, flush planning
-  unit-of-work.ts     UnitOfWork, FlushUnit, UnitOfWorkParticipant
+  repository.ts       TrackingRepository, Repository: reads, tracking, flush planning
+  unit-of-work.ts     TransactionalUnitOfWork, FlushUnit, UnitOfWorkParticipant
   change-tracker.ts   identity map and entity states
   record-set.ts       record set types, diffRecordSets (internal)
   snapshot.ts         toSnapshot, copyData (internal): deep copies that keep class instances
@@ -544,7 +557,7 @@ __tests__/            one *.test.ts per module; support/ holds shared helpers
 
 - Export public API from `src/index.ts`, and export types with `export type`.
 - A new error extends `BaseError` when a caller may handle it by `code`; a misuse throws a native error. Put each `BaseError` in `src/errors/<name>.error.ts`. It extends `BaseError` with a `name`, an upper-snake-case `code` declared with `declare readonly code: "<CODE>"` (a code belongs to one class across packages) and `details`, and is re-exported from `src/errors/index.ts`. Add it to the [Errors](#errors) table.
-- In tests, import sources through the `~/` alias, e.g. `import { Repository } from "~/repository"`.
+- In tests, import sources through the `~/` alias, e.g. `import { TrackingRepository } from "~/repository"`.
 - `hasPendingChanges()` must always agree with `planFlush()`, and a test checks it.
 - Doc comments explain why code behaves as it does, not only what it does. See [`src/snapshot.ts`](src/snapshot.ts).
 - Commit messages follow `[@enardo/uow-repository] <summary>`.

@@ -13,7 +13,7 @@ import { copyData, toSnapshot } from "./snapshot";
 import type { FlushUnit, UnitOfWorkParticipant } from "./unit-of-work";
 
 /** Repository contract consumed by application and domain services. */
-export interface IRepository<TDomain, TId> {
+export interface Repository<TDomain, TId> {
   /**
    * Returns the tracked in-memory instance without querying the store, or
    * `null` if it is tracked as removed. Otherwise queries the store and, when
@@ -58,7 +58,7 @@ export interface IRepository<TDomain, TId> {
  * store receives the stored identity, `TStoredId`, which the mapper converts
  * it to: the repository is the boundary between the two.
  */
-export class Repository<
+export class TrackingRepository<
   TDomain,
   TRecords extends RecordSet<TRecords>,
   TId,
@@ -66,7 +66,7 @@ export class Repository<
   TVersion extends NonNullable<unknown> = number,
   TStoredId = TId,
 >
-  implements IRepository<TDomain, TId>, UnitOfWorkParticipant<TContext>
+  implements Repository<TDomain, TId>, UnitOfWorkParticipant<TContext>
 {
   readonly changeTracker = new ChangeTracker<
     TId,

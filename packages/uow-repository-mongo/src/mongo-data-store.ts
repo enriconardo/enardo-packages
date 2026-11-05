@@ -186,7 +186,7 @@ export class MongoDataStore<
    * Reads the first aggregate whose root document matches `filter`, with the
    * records of every child collection, as findById does.
    *
-   * Pass it to the protected findOneBy of Repository, so that the aggregate
+   * Pass it to the protected findOneBy of TrackingRepository, so that the aggregate
    * is tracked: `this.findOneBy(() => store.findOne({ email }))`.
    */
   async findOne(

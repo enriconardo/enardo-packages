@@ -4,8 +4,8 @@ import type {
   TransactionManager,
 } from "@enardo/transaction-manager";
 import { ConcurrencyConflictError } from "~/errors";
-import { Repository } from "~/repository";
-import { UnitOfWork } from "~/unit-of-work";
+import { TrackingRepository } from "~/repository";
+import { TransactionalUnitOfWork } from "~/unit-of-work";
 import type { DataStore, VersionedRecords } from "~/data-store";
 import type { Mapper } from "~/mapper";
 import type { RecordKeys, RecordSet } from "~/record-set";
@@ -130,7 +130,7 @@ type ProductStore = DataStore<ProductRecords, string, Transaction>;
 type OrderStore = DataStore<OrderRecords, OrderId, Transaction>;
 type TicketStore = DataStore<TicketRecords, string, Transaction>;
 
-describe("Repository", () => {
+describe("TrackingRepository", () => {
   it("tracks an entity without an id property through a custom composite identity key", async () => {
     const findById = vi.fn(async () => versioned(storedOrder()));
     const { unitOfWork, repository } = createSetup(
@@ -284,7 +284,7 @@ describe("Repository", () => {
 
     // The returned instance is detached: a later unit of work doesn't see its edits.
     product!.name = "Mouse";
-    const nextUnitOfWork = new UnitOfWork(transactionManager);
+    const nextUnitOfWork = new TransactionalUnitOfWork(transactionManager);
     nextUnitOfWork.register(repository);
     const reloaded = await nextUnitOfWork.execute(() =>
       repository.findById("p-1"),
@@ -967,8 +967,8 @@ function createSetup<TDomain, TRecords extends RecordSet<TRecords>, TId>(
     delete: async () => undefined,
     ...store,
   };
-  const unitOfWork = new UnitOfWork(transactionManager);
-  const repository = new Repository(dataStore, mapper, identityKey);
+  const unitOfWork = new TransactionalUnitOfWork(transactionManager);
+  const repository = new TrackingRepository(dataStore, mapper, identityKey);
   unitOfWork.register(repository);
 
   return { unitOfWork, repository, transaction, transactionManager };
@@ -995,7 +995,7 @@ function createProductSetup(records: readonly ProductRecord[] = []) {
 }
 
 /** Finds products by name with a query of its own, as an adapter's repository would. */
-class ProductsByName extends Repository<
+class ProductsByName extends TrackingRepository<
   Product,
   ProductRecords,
   string,
@@ -1036,7 +1036,7 @@ function createFinderSetup(records: readonly ProductRecord[] = []) {
     apply,
     delete: async () => undefined,
   };
-  const unitOfWork = new UnitOfWork({
+  const unitOfWork = new TransactionalUnitOfWork({
     async runInTransaction(work) {
       return work(transaction);
     },
