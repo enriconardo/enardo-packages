@@ -1,6 +1,6 @@
 # 0017. Types take no `I` prefix, and a contract takes the plain name
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-05
 - Spec: `docs/specs/2026-11-05-drop-i-prefix.md`
 
