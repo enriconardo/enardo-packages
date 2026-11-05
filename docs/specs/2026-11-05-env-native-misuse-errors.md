@@ -15,7 +15,7 @@ From the backlog item *`ENV_MISSING` and `ENV_MALFORMED` of `@enardo/env` become
 
 A variable comes from the deploy: the configuration has to change, and no branch on a `code` helps. Every `code` is public API (ADR 0012 point 4), and these two have no reader.
 
-Nothing is broken today, and no failure asks for this: it is a matter of a coherent contract. The moment is what counts: `cambusa` is on 1.0.0, with its move to 2.x still queued, so no project has to migrate from 2.x if `3.0.0` comes first.
+Nothing is broken today, and no failure asks for this: it applies the ADR's verdict, and removes two public classes, their tests and a dependency that nothing reads. The classes exist only in `2.0.0`, which `cambusa` never installed. The order saves little: from 2.x with no reader, `3.0.0` would be a range bump. Going first only keeps a reader from being written during `cambusa`'s move.
 
 ## Probes
 
@@ -39,21 +39,21 @@ Nothing is broken today, and no failure asks for this: it is a matter of a coher
 Taken with the user at intake; decision 1 changed with the user after the `critic`'s first run.
 
 1. **Unset and malformed: a native `Error`, both.** No caller branches on the difference (ADR 0018), and the message already tells one from the other. On Node every value is a string, so the common malformed case is a string failing a grammar, which `default-from` of `@enardo/email-nodemailer` answers with an `Error`.
-2. **The message is what tells them apart**, and the tests pin it (case 3).
+2. **The message is for a person.** The README says so, as `@enardo/errors` does ("never parse `message`"). A program that must treat an unset variable differently uses the optional reader, which returns `undefined` on unset and throws only on malformed. The tests pin the wording, which still may change in a minor.
 3. **The two classes go**, with their codes, `details` and `src/errors/`. No class is kept over a native base: a class of the package's own would invite the `instanceof` that the rule means to remove the need for, as in the three earlier misuse tasks.
 4. **`@enardo/errors` leaves the manifest.** Nothing else in `src/` uses it, and the package then has no dependency.
 5. **The messages stay word for word.** They hold the key, and the expected type where one applies, which is what `details` gave; never the value.
-6. **No `code` on the native errors** (ADR 0018 point 4). Adding one later is a minor, and so is becoming a `BaseError`, which extends `Error` (probes).
+6. **No `code` on the native errors** (ADR 0018 point 4). Adding one later is a minor.
 
 Not taken:
 
-- **`TypeError` for a malformed value**, first confirmed at intake, as `@enardo/http-client` and `@enardo/password-hasher` do on a bad string: a distinction with no reader, and a later `BaseError` would cost a major, since a `BaseError` is no `TypeError`.
+- **`TypeError` for a malformed value**, first confirmed at intake, as `@enardo/http-client` and `@enardo/password-hasher` do on a bad string: a distinction with no reader.
 - **`RangeError` for a malformed value:** every `RangeError` in `packages/*/src` is a numeric bound.
-- **No change at all:** nothing is broken, but the migration costs least before `cambusa` moves, and ADR 0018 queued it.
+- **Keep the item queued until the next major of `@enardo/env`**, with a line in `chore/cambusa/env-2` saying it reads neither the classes nor the codes, as the `critic` proposes: *Open questions*.
 
 ## Open questions
 
-None.
+1. Now, or at the next major of `@enardo/env` (*Not taken*)? The recommendation is now: the task is small, the user queued it, and it leaves `cambusa` one target instead of two.
 
 ## Changes
 
@@ -64,7 +64,7 @@ None.
 - `src/index.ts`: the classes' export goes.
 - `src/errors/`: removed.
 - `package.json`: `version` `3.0.0`; `dependencies` goes. `pnpm-lock.yaml` follows, with `./dev.sh exec pnpm install`.
-- `README.md`: the classes' rows and the *Both errors extend…* line go; the *Usage* bullets, and a line under *Exports*, say that both cases throw a native `Error` with no `code`, told apart by the message; *Rules* (`:42`) says an error never holds the value, in its message or its serialized form, without `details` or `toJSON()`; a new *Upgrading from 2.x*, as the earlier tasks have: the classes are gone and an import of them fails to compile, a comparison with the old `code` still compiles and is never reached, and `JSON.stringify` of an error gives `{}`.
+- `README.md`: the classes' rows and the *Both errors extend…* line go; the *Usage* bullets, and a line under *Exports*, say that both cases throw a native `Error` with no `code`, whose message is for a person, and that a program uses the optional reader to treat unset apart; *Rules* (`:42`) says an error never holds the value, in its message or its serialized form, without `details` or `toJSON()`; a new *Upgrading from 2.x*, as the earlier tasks have: the classes are gone and an import of them fails to compile, a comparison with the old `code` still compiles and is never reached, and `JSON.stringify` of an error gives `{}`.
 - `CLAUDE.md`: the `src/errors/` row of *Layout* goes; *Errors* says native errors, why (ADR 0018), and that the messages hold the key and the expected type, never the value.
 - `__tests__/errors/`: removed. What it checks that still applies moves to `__tests__/create-env.test.ts`, with the cases below. Its helpers `expectMalformed` and `expectMissing` assert the new outcome.
 - `__tests__/index.test.ts`: the entry point exports exactly `createEnv`.
@@ -74,18 +74,17 @@ None.
 ## Test cases
 
 1. Each of `requireString`, `requireNumber` and `requireBool`, on `{}`, `{ A: "" }` and `{ A: undefined }` → an error whose `constructor` is `Error` and whose `name` is `"Error"`, so a subclass or a `TypeError` fails it. Message: `Environment variable "A" is required but not set`.
-2. Every input the existing tests call malformed, on the reader they use → an error whose `constructor` is `Error`, `name` `"Error"`. Message: `Environment variable "A" is not a valid <string | number | boolean>`, with the type of the reader, so a message fixed to one type fails it.
-3. `requireString` on `1`, `requireNumber` and `requireBool` on `"x"` → the message of case 2, not that of case 1, so a `require*` that reports a malformed value as unset fails it.
-4. An unset and a malformed variable, one read each → the error has no own `code`, `details` or `cause` (`Object.hasOwn`), and `"code" in error` is false, so a subclass carrying a `code`, or a `{ cause: undefined }`, fails it.
-5. Each of the six readers on a value holding a secret: the string `s3cr3t-value` for `number` and `bool` and their `require*`, and for `string` and `requireString` an object whose `toString()` returns it → `message`, `stack` and `JSON.stringify(error)` do not hold it. `stack` is new, since a log prints it: Node and Chromium hold the message there and exercise the assertion, Firefox and WebKit do not (probes), and it passes on them either way.
-6. A getter of the source that throws a `RangeError` → that very object: the existing test stays, with no change.
-7. The entry point → `Object.keys` is exactly `["createEnv"]`, on Node and in browsers.
+2. Every input the existing tests call malformed, on the reader they use, the `require*` ones included → an error whose `constructor` is `Error`, `name` `"Error"`. Message: `Environment variable "A" is not a valid <string | number | boolean>`, with the type of the reader, so a message fixed to one type, or a `require*` that reports a malformed value as unset, fails it.
+3. An unset and a malformed variable, one read each → the error has no own `code`, `details` or `cause` (`Object.hasOwn`), and `"code" in error` is false, so a subclass carrying a `code`, or a `{ cause: undefined }`, fails it.
+4. Each of the six readers on a value holding a secret: the string `s3cr3t-value` for `number` and `bool` and their `require*`, and for `string` and `requireString` an object whose `toString()` returns it → `message`, `stack` and `JSON.stringify(error)` do not hold it. `stack` is new, since a log prints it: Node and Chromium hold the message there and exercise the assertion, Firefox and WebKit do not (probes), and it passes on them either way. It pins what holds today: it passes before the change.
+5. A getter of the source that throws a `RangeError` → that very object: the existing test stays, with no change.
+6. The entry point → `Object.keys` is exactly `["createEnv"]`, on Node and in browsers.
 
 The other tests of `create-env.test.ts`, on what the readers return, stay unchanged.
 
 ## Risks
 
-`low`. An app that matched on `EnvMissingError` or `EnvMalformedError` by import stops compiling; one that compares `code` as a string compiles and no longer matches, which case 4 pins and *Upgrading from 2.x* says. `JSON.stringify` of an error goes from the whole record to `{}` and `toJSON()` goes: `@enardo/logger` still logs `name`, `message` and `stack` (probes), but a caller serializing by hand loses the message. No known project does any of these.
+`low`. An app that matched on `EnvMissingError` or `EnvMalformedError` by import stops compiling; one that compares `code` as a string compiles and no longer matches, which case 3 pins and *Upgrading from 2.x* says. `JSON.stringify` of an error goes from the whole record to `{}` and `toJSON()` goes: `@enardo/logger` still logs `name`, `message` and `stack` (probes), but a caller serializing by hand loses the message. No known project does any of these.
 
 ## Out of scope
 
@@ -95,7 +94,7 @@ The other tests of `create-env.test.ts`, on what the readers return, stay unchan
 
 ## Plan
 
-1. **Test-first:** the `test-author` writes cases 1 to 5 and 7 from this spec, failing for the expected reason. Committed with the change of step 2, since a red state is never committed.
+1. **Test-first:** the `test-author` writes cases 1 to 4 and 6 from this spec. Cases 1, 2, 3 and 6 fail for the expected reason; case 4 passes today, and pins that the value stays out. Committed with the change of step 2, since a red state is never committed.
 2. The throws, the removal of `src/errors/` and `__tests__/errors/`, the export, the JSDoc, the manifest and the lockfile. `./dev.sh exec pnpm --filter @enardo/env test`, `typecheck` and `lint` green.
 3. README and `CLAUDE.md`.
 4. The backlog item goes, in a commit of its own, whose body holds the follow-up: `chore/cambusa/env-2` in `cambusa`'s backlog names `^2.0.0` and the classes, and moves to `^3.0.0` once it is published. The report of checkpoint 2 repeats it. `pnpm verify`.
