@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { createEnv, EnvMalformedError, EnvMissingError } from "~/index";
+import { createEnv } from "~/index";
 
 // These tests run on Node and in browsers: no `process` here. A test that
 // needs `process.env` goes in create-env.node.test.ts.
@@ -19,26 +19,40 @@ const thrownBy = (run: () => unknown): unknown => {
   throw new Error("expected the call to throw, it returned");
 };
 
+/** Checks that `error` is a plain `Error`: not a subclass, not a `TypeError`. */
+const expectPlainError = (error: unknown): Error => {
+  expect(error).toBeInstanceOf(Error);
+  expect((error as Error).constructor).toBe(Error);
+  expect((error as Error).name).toBe("Error");
+  return error as Error;
+};
+
 const expectMalformed = (
   run: () => unknown,
   key: string,
   expected: "string" | "number" | "boolean",
 ): void => {
-  const error = thrownBy(run);
+  const error = expectPlainError(thrownBy(run));
 
-  expect(error).toBeInstanceOf(EnvMalformedError);
-  expect(error).not.toBeInstanceOf(EnvMissingError);
-  expect((error as EnvMalformedError).code).toBe("ENV_MALFORMED");
-  expect((error as EnvMalformedError).details).toEqual({ key, expected });
+  expect(error.message).toBe(
+    `Environment variable "${key}" is not a valid ${expected}`,
+  );
 };
 
 const expectMissing = (run: () => unknown, key: string): void => {
-  const error = thrownBy(run);
+  const error = expectPlainError(thrownBy(run));
 
-  expect(error).toBeInstanceOf(EnvMissingError);
-  expect(error).not.toBeInstanceOf(EnvMalformedError);
-  expect((error as EnvMissingError).code).toBe("ENV_MISSING");
-  expect((error as EnvMissingError).details).toEqual({ key });
+  expect(error.message).toBe(
+    `Environment variable "${key}" is required but not set`,
+  );
+};
+
+/** Checks that `error` carries nothing beyond a plain `Error`'s fields. */
+const expectNoExtraFields = (error: unknown): void => {
+  expect(Object.hasOwn(error as object, "code")).toBe(false);
+  expect(Object.hasOwn(error as object, "details")).toBe(false);
+  expect(Object.hasOwn(error as object, "cause")).toBe(false);
+  expect("code" in (error as object)).toBe(false);
 };
 
 /** The sources on which `A` is unset. */
@@ -104,7 +118,7 @@ describe("createEnv", () => {
   });
 
   describe("string", () => {
-    it("throws EnvMalformedError on a boolean, as Vite's DEV", () => {
+    it("throws a malformed Error on a boolean, as Vite's DEV", () => {
       expectMalformed(
         () => createEnv({ DEV: true }).string("DEV"),
         "DEV",
@@ -116,7 +130,7 @@ describe("createEnv", () => {
       ["a number", 1],
       ["null", null],
       ["an object", {}],
-    ])("throws EnvMalformedError on %s", (_, value) => {
+    ])("throws a malformed Error on %s", (_, value) => {
       expectMalformed(() => createEnv({ A: value }).string("A"), "A", "string");
     });
   });
@@ -157,7 +171,7 @@ describe("createEnv", () => {
       ".",
       "+",
       "1e",
-    ])("throws EnvMalformedError on the string %j", (value) => {
+    ])("throws a malformed Error on the string %j", (value) => {
       expectMalformed(() => createEnv({ A: value }).number("A"), "A", "number");
     });
 
@@ -167,7 +181,7 @@ describe("createEnv", () => {
       ["true", true],
       ["null", null],
       ["an object", {}],
-    ])("throws EnvMalformedError on the value %s", (_, value) => {
+    ])("throws a malformed Error on the value %s", (_, value) => {
       expectMalformed(() => createEnv({ A: value }).number("A"), "A", "number");
     });
 
@@ -196,7 +210,7 @@ describe("createEnv", () => {
     });
 
     it.each([" true", "true ", "on", "2", "y"])(
-      "throws EnvMalformedError on the string %j",
+      "throws a malformed Error on the string %j",
       (value) => {
         expectMalformed(
           () => createEnv({ A: value }).bool("A"),
@@ -209,7 +223,7 @@ describe("createEnv", () => {
     it.each([
       ["1", 1],
       ["null", null],
-    ])("throws EnvMalformedError on the value %s", (_, value) => {
+    ])("throws a malformed Error on the value %s", (_, value) => {
       expectMalformed(() => createEnv({ A: value }).bool("A"), "A", "boolean");
     });
 
@@ -226,12 +240,12 @@ describe("createEnv", () => {
     ] as const;
 
     describe.each(REQUIRE_METHODS)("%s", (method) => {
-      it.each(UNSET_SOURCES)("throws EnvMissingError on %s", (_, source) => {
+      it.each(UNSET_SOURCES)("throws an unset Error on %s", (_, source) => {
         expectMissing(() => createEnv(source)[method]("A"), "A");
       });
     });
 
-    it("requireString throws EnvMalformedError, not EnvMissingError, on a number", () => {
+    it("requireString reports a malformed value, not an unset one, on a number", () => {
       expectMalformed(
         () => createEnv({ A: 1 }).requireString("A"),
         "A",
@@ -239,7 +253,7 @@ describe("createEnv", () => {
       );
     });
 
-    it("requireNumber throws EnvMalformedError, not EnvMissingError, on a malformed string", () => {
+    it("requireNumber reports a malformed value, not an unset one, on a malformed string", () => {
       expectMalformed(
         () => createEnv({ A: "x" }).requireNumber("A"),
         "A",
@@ -247,7 +261,7 @@ describe("createEnv", () => {
       );
     });
 
-    it("requireBool throws EnvMalformedError, not EnvMissingError, on a malformed string", () => {
+    it("requireBool reports a malformed value, not an unset one, on a malformed string", () => {
       expectMalformed(
         () => createEnv({ A: "x" }).requireBool("A"),
         "A",
@@ -266,6 +280,41 @@ describe("createEnv", () => {
       expect(createEnv({ A: "abc" }).requireString("A")).toBe("abc");
       expect(createEnv({ A: "3000" }).requireNumber("A")).toBe(3000);
       expect(createEnv({ A: "yes" }).requireBool("A")).toBe(true);
+    });
+  });
+
+  describe("errors", () => {
+    it("an unset variable throws an Error with no own code, details or cause", () => {
+      expectNoExtraFields(thrownBy(() => createEnv({}).requireString("A")));
+    });
+
+    it("a malformed variable throws an Error with no own code, details or cause", () => {
+      expectNoExtraFields(thrownBy(() => createEnv({ A: "x" }).number("A")));
+    });
+
+    describe("never holds the value", () => {
+      const SECRET = "s3cr3t-value";
+      // A value that is not a string, but whose `String()` is the secret.
+      const secretObject = { toString: (): string => SECRET };
+
+      it.each([
+        ["number", SECRET],
+        ["requireNumber", SECRET],
+        ["bool", SECRET],
+        ["requireBool", SECRET],
+        ["string", secretObject],
+        ["requireString", secretObject],
+      ] as const)("%s, in its message, stack or JSON", (method, value) => {
+        const error = thrownBy(() =>
+          createEnv({ A: value })[method]("A"),
+        ) as Error;
+
+        expect(error.message).not.toContain(SECRET);
+        // Firefox and WebKit leave the message out of `stack`, Node and
+        // Chromium hold it: the assertion bites on those two.
+        expect(error.stack ?? "").not.toContain(SECRET);
+        expect(JSON.stringify(error)).not.toContain(SECRET);
+      });
     });
   });
 

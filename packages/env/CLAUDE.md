@@ -7,7 +7,6 @@ Strict readers of environment variables, bound to a source the caller passes: `p
 ```
 src/create-env.ts           createEnv: the read of a key and the three conversions
 src/env.types.ts            EnvSource, EnvReader
-src/errors/                 EnvMissingError, EnvMalformedError
 tsconfig.json               editor, build and __tests__ (library.json, no override)
 tsconfig.browser.json       src/ alone, as a browser sees it (runtime-browser.json)
 tsconfig.node.json          src/ alone, as Node sees it (runtime-node.json)
@@ -26,8 +25,8 @@ vitest.config.ts            the test projects: node (every file), browser (all b
 
 ## Errors
 
-- **An error never holds the value**, not in its message, `details`, `cause` or `toJSON()`: it can be a secret. They take the key and the type expected, nothing else, and have no `cause`. Tests check the serialized form.
-- Two siblings over `BaseError`, each with a `code`, as the root `CLAUDE.md` asks.
+- **Unset and malformed throw a native `Error`, with no `code`** (ADR 0018): a variable comes from the deploy, and no caller branches on the difference. The message is for a person.
+- **An error never holds the value**, not in its message, `stack`, `cause` or serialized form: it can be a secret. The messages hold the key and the expected type, nothing else, and there is no `cause`. Tests check the serialized form.
 
 ## Two runtimes
 
