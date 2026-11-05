@@ -30,9 +30,6 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@enardo/errors": "workspace:^"
-  },
   "devDependencies": {
     "@enardo/email": "workspace:^",
     "@enardo/eslint-config": "workspace:^",

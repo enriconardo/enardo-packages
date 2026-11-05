@@ -2,8 +2,14 @@ import { setTimeout as delay } from "node:timers/promises";
 import { InvalidEmailMessageError } from "@enardo/email";
 import type { EmailMessage, EmailRecipient } from "@enardo/email";
 import { describe, expect, it } from "vitest";
-import { InvalidEmailSenderOptionsError, NodemailerEmailSender } from "~/index";
-import { ADDRESS_MARKERS, rejectionOf, thrownBy } from "./support/assertions";
+import { NodemailerEmailSender } from "~/index";
+import {
+  ADDRESS_MARKERS,
+  expectNativeError,
+  OPTIONS_MESSAGES,
+  rejectionOf,
+  thrownBy,
+} from "./support/assertions";
 import {
   createRandom,
   generateAddress,
@@ -568,11 +574,10 @@ describe("recipients", () => {
             transport: server.transportOptions,
             defaultFrom,
           }),
-        InvalidEmailSenderOptionsError,
+        Error,
       );
 
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "default-from" });
+      expectNativeError(error, Error, OPTIONS_MESSAGES.defaultFrom);
     });
 
     it("43: refuses the address 42 in to, before sending", async () => {

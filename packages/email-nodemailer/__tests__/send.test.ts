@@ -4,14 +4,12 @@ import {
   InvalidEmailMessageError,
 } from "@enardo/email";
 import type { EmailErrorCause, EmailMessage } from "@enardo/email";
-import { BaseError } from "@enardo/errors";
 import { describe, expect, it } from "vitest";
 import * as entryPoint from "~/index";
-import { InvalidEmailSenderOptionsError, NodemailerEmailSender } from "~/index";
+import { NodemailerEmailSender } from "~/index";
 import {
   ADDRESS_MARKERS,
   rejectionOf,
-  thrownBy,
   unprintedRejectionOf,
 } from "./support/assertions";
 import { headerValues, mailboxesOf } from "./support/headers";
@@ -259,48 +257,8 @@ describe("send", () => {
     });
   });
 
-  describe("32: the error class", () => {
-    const ERRORS: readonly (readonly [
-      string,
-      abstract new (...args: never[]) => BaseError,
-      string,
-      () => Promise<unknown>,
-    ])[] = [
-      [
-        "InvalidEmailSenderOptionsError",
-        InvalidEmailSenderOptionsError,
-        "INVALID_EMAIL_SENDER_OPTIONS",
-        async () => {
-          const server = await startServer();
-          return thrownBy(
-            () =>
-              new NodemailerEmailSender({
-                transport: server.transportOptions,
-                defaultFrom: { address: "a,b@example.test" },
-              }),
-            InvalidEmailSenderOptionsError,
-          );
-        },
-      ],
-    ];
-
-    it.each(ERRORS)(
-      "32: %s is an instance of its class and of BaseError, with its name and code",
-      async (name, errorClass, code, produce) => {
-        const error = await produce();
-
-        expect(error).toBeInstanceOf(errorClass);
-        expect(error).toBeInstanceOf(BaseError);
-        expect((error as BaseError).name).toBe(name);
-        expect((error as BaseError).code).toBe(code);
-      },
-    );
-  });
-
-  it("33: the entry point exports exactly the sender and its options error at run time", () => {
-    expect(Object.keys(entryPoint).sort()).toEqual(
-      ["NodemailerEmailSender", "InvalidEmailSenderOptionsError"].sort(),
-    );
+  it("33: the entry point exports exactly the sender at run time", () => {
+    expect(Object.keys(entryPoint)).toEqual(["NodemailerEmailSender"]);
   });
 
   describe("40: reading the rejection", () => {

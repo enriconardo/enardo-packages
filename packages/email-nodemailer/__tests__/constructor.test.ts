@@ -2,10 +2,12 @@ import { EventEmitter } from "node:events";
 import type { EmailMessage } from "@enardo/email";
 import SMTPTransport from "nodemailer/lib/smtp-transport";
 import { describe, expect, it } from "vitest";
-import { InvalidEmailSenderOptionsError, NodemailerEmailSender } from "~/index";
+import { NodemailerEmailSender } from "~/index";
 import type { NodemailerSmtpOptions } from "~/index";
 import {
   ADDRESS_MARKERS,
+  expectNativeError,
+  OPTIONS_MESSAGES,
   thrownBy,
   unprintedThrownBy,
 } from "./support/assertions";
@@ -51,11 +53,10 @@ describe("NodemailerEmailSender's constructor", () => {
       const error = thrownBy(
         // @ts-expect-error a sender needs a transport
         () => new NodemailerEmailSender({}),
-        InvalidEmailSenderOptionsError,
+        TypeError,
       );
 
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "no-transport" });
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.noTransport);
     });
 
     it("3: refuses { defaultFrom } alone, in the types and at run time", () => {
@@ -64,11 +65,10 @@ describe("NodemailerEmailSender's constructor", () => {
       const error = thrownBy(
         // @ts-expect-error a sender needs a transport
         () => new NodemailerEmailSender({ defaultFrom }),
-        InvalidEmailSenderOptionsError,
+        TypeError,
       );
 
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "no-transport" });
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.noTransport);
     });
 
     it("3: counts a transport set to undefined as absent (present: truthy)", () => {
@@ -77,11 +77,10 @@ describe("NodemailerEmailSender's constructor", () => {
       const error = thrownBy(
         // @ts-expect-error a sender needs a transport
         () => new NodemailerEmailSender(options),
-        InvalidEmailSenderOptionsError,
+        TypeError,
       );
 
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "no-transport" });
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.noTransport);
     });
   });
 
@@ -92,11 +91,10 @@ describe("NodemailerEmailSender's constructor", () => {
     const error = thrownBy(
       // @ts-expect-error the type of transport refuses a pool
       () => new NodemailerEmailSender({ transport }),
-      InvalidEmailSenderOptionsError,
+      TypeError,
     );
 
-    expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-    expect(error.details).toStrictEqual({ reason: "pool" });
+    expectNativeError(error, TypeError, OPTIONS_MESSAGES.pool);
   });
 
   describe("6: a url that turns a pool on", () => {
@@ -106,11 +104,10 @@ describe("NodemailerEmailSender's constructor", () => {
 
       const error = thrownBy(
         () => new NodemailerEmailSender({ transport: { url } }),
-        InvalidEmailSenderOptionsError,
+        TypeError,
       );
 
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "pool" });
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.pool);
     });
 
     it("6: refuses transport: { url: …?pool=true, pool: false }", async () => {
@@ -119,11 +116,10 @@ describe("NodemailerEmailSender's constructor", () => {
 
       const error = thrownBy(
         () => new NodemailerEmailSender({ transport: { url, pool: false } }),
-        InvalidEmailSenderOptionsError,
+        TypeError,
       );
 
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "pool" });
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.pool);
     });
   });
 
@@ -148,13 +144,14 @@ describe("NodemailerEmailSender's constructor", () => {
           transport: server.transportOptions,
           defaultFrom,
         }),
-      InvalidEmailSenderOptionsError,
+      Error,
     );
 
-    expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-    expect(error.details).toStrictEqual({ reason: "default-from" });
+    expectNativeError(error, Error, OPTIONS_MESSAGES.defaultFrom);
     expect(error.message).not.toMatch(ADDRESS_MARKERS);
-    expect(JSON.stringify(error.toJSON())).not.toMatch(ADDRESS_MARKERS);
+    expect(error.stack ?? "").not.toMatch(ADDRESS_MARKERS);
+    // Nothing else, where the address could be.
+    expect(Reflect.ownKeys(error).sort()).toEqual(["message", "stack"]);
   });
 
   it("9: a transporter the sender created closes its socket after a send", async () => {
@@ -197,11 +194,10 @@ describe("NodemailerEmailSender's constructor", () => {
 
       const error = thrownBy(
         () => new NodemailerEmailSender({ transport }),
-        InvalidEmailSenderOptionsError,
+        TypeError,
       );
 
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "pool" });
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.pool);
     });
 
     it("45: builds a sender on a pool getter that answers false, then true, which sends and closes its socket", async () => {
@@ -223,11 +219,10 @@ describe("NodemailerEmailSender's constructor", () => {
       (transport) => {
         const error = thrownBy(
           () => new NodemailerEmailSender({ transport: transport as never }),
-          InvalidEmailSenderOptionsError,
+          TypeError,
         );
 
-        expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-        expect(error.details).toStrictEqual({ reason: "no-transport" });
+        expectNativeError(error, TypeError, OPTIONS_MESSAGES.noTransport);
       },
     );
   });
@@ -271,11 +266,10 @@ describe("NodemailerEmailSender's constructor", () => {
 
       const error = thrownBy(
         () => new NodemailerEmailSender({ transport }),
-        InvalidEmailSenderOptionsError,
+        TypeError,
       );
 
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "pool" });
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.pool);
     });
   });
 
@@ -297,11 +291,10 @@ describe("NodemailerEmailSender's constructor", () => {
 
       const error = thrownBy(
         () => new NodemailerEmailSender({ transport: url as never }),
-        InvalidEmailSenderOptionsError,
+        TypeError,
       );
 
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "pool" });
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.pool);
     });
   });
 
@@ -347,11 +340,10 @@ describe("NodemailerEmailSender's constructor", () => {
 
         const error = thrownBy(
           () => new NodemailerEmailSender({ transport }),
-          InvalidEmailSenderOptionsError,
+          TypeError,
         );
 
-        expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-        expect(error.details).toStrictEqual({ reason: "not-smtp" });
+        expectNativeError(error, TypeError, OPTIONS_MESSAGES.notSmtp);
       },
     );
 
@@ -374,11 +366,10 @@ describe("NodemailerEmailSender's constructor", () => {
           new NodemailerEmailSender({
             transport: plugin as NodemailerSmtpOptions,
           }),
-        InvalidEmailSenderOptionsError,
+        TypeError,
       );
 
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "not-smtp" });
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.notSmtp);
       // 55: nodemailer's Mail writes itself into a plugin it takes.
       expect(Object.hasOwn(plugin as object, "mailer")).toBe(false);
     });
@@ -441,11 +432,10 @@ describe("NodemailerEmailSender's constructor", () => {
             new NodemailerEmailSender({
               transport: transport as unknown as NodemailerSmtpOptions,
             }),
-          InvalidEmailSenderOptionsError,
+          TypeError,
         );
 
-        expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-        expect(error.details).toStrictEqual({ reason: "not-smtp" });
+        expectNativeError(error, TypeError, OPTIONS_MESSAGES.notSmtp);
         // nodemailer's Mail writes itself into the transport it takes, and
         // listens to its errors: neither may have happened since.
         expect(Object.hasOwn(transport, "mailer")).toBe(false);
@@ -463,32 +453,32 @@ describe("NodemailerEmailSender's constructor", () => {
     ];
 
     it.each(NOT_OPTIONS)(
-      "51: refuses %s as not-smtp, with the sender's error rather than a native one",
+      "51: refuses %s as not-smtp, with the sender's TypeError rather than one of nodemailer's",
       (_label, transport) => {
         const error = thrownBy(
           () =>
             new NodemailerEmailSender({
               transport: transport as NodemailerSmtpOptions,
             }),
-          InvalidEmailSenderOptionsError,
+          TypeError,
         );
 
-        expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-        expect(error.details).toStrictEqual({ reason: "not-smtp" });
+        expectNativeError(error, TypeError, OPTIONS_MESSAGES.notSmtp);
       },
     );
 
     it("51: refuses a function before nodemailer writes into it", () => {
       const transport = (): void => undefined;
 
-      thrownBy(
+      const error = thrownBy(
         () =>
           new NodemailerEmailSender({
             transport: transport as unknown as NodemailerSmtpOptions,
           }),
-        InvalidEmailSenderOptionsError,
+        TypeError,
       );
 
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.notSmtp);
       expect(Object.hasOwn(transport, "mailer")).toBe(false);
     });
   });
@@ -524,11 +514,10 @@ describe("NodemailerEmailSender's constructor", () => {
         new NodemailerEmailSender({
           transport: transport as unknown as NodemailerSmtpOptions,
         }),
-      InvalidEmailSenderOptionsError,
+      TypeError,
     );
 
-    expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-    expect(error.details).toStrictEqual({ reason: "not-smtp" });
+    expectNativeError(error, TypeError, OPTIONS_MESSAGES.notSmtp);
   });
 
   describe("55: objects that are not SMTPTransport", () => {
@@ -548,11 +537,10 @@ describe("NodemailerEmailSender's constructor", () => {
           new NodemailerEmailSender({
             transport: emitter as unknown as NodemailerSmtpOptions,
           }),
-        InvalidEmailSenderOptionsError,
+        TypeError,
       );
 
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "not-smtp" });
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.notSmtp);
       // nodemailer's Mail writes itself into the transport it takes, and
       // listens to its errors: neither may have happened.
       expect(Object.hasOwn(emitter, "mailer")).toBe(false);
@@ -588,11 +576,10 @@ describe("NodemailerEmailSender's constructor", () => {
       (url) => {
         const error = thrownBy(
           () => new NodemailerEmailSender({ transport: url as never }),
-          InvalidEmailSenderOptionsError,
+          TypeError,
         );
 
-        expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-        expect(error.details).toStrictEqual({ reason: "not-smtp" });
+        expectNativeError(error, TypeError, OPTIONS_MESSAGES.notSmtp);
       },
     );
   });
@@ -612,11 +599,10 @@ describe("NodemailerEmailSender's constructor", () => {
             // @ts-expect-error the type of transport refuses LMTP
             transport: { ...server.transportOptions, lmtp: true },
           }),
-        InvalidEmailSenderOptionsError,
+        TypeError,
       );
 
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "not-smtp" });
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.notSmtp);
     });
 
     const LMTP_URLS: readonly (readonly [
@@ -639,11 +625,10 @@ describe("NodemailerEmailSender's constructor", () => {
 
         const error = thrownBy(
           () => new NodemailerEmailSender({ transport }),
-          InvalidEmailSenderOptionsError,
+          TypeError,
         );
 
-        expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-        expect(error.details).toStrictEqual({ reason: "not-smtp" });
+        expectNativeError(error, TypeError, OPTIONS_MESSAGES.notSmtp);
       },
     );
 
@@ -672,14 +657,16 @@ describe("NodemailerEmailSender's constructor", () => {
      * Checks that `error` is the refusal of options nodemailer could not
      * read, and that the secret is nowhere in it.
      */
-    function expectTransportOptionsRefusal(
-      error: InvalidEmailSenderOptionsError,
-    ): void {
-      expect(error.code).toBe("INVALID_EMAIL_SENDER_OPTIONS");
-      expect(error.details).toStrictEqual({ reason: "transport-options" });
+    function expectTransportOptionsRefusal(error: Error): void {
+      expectNativeError(error, Error, OPTIONS_MESSAGES.transportOptions);
       expect(error.message).not.toContain(SECRET);
       expect(error.stack ?? "").not.toContain(SECRET);
-      expect(JSON.stringify(error.toJSON())).not.toContain(SECRET);
+      expect(JSON.stringify(error.cause) ?? "").not.toContain(SECRET);
+      // Nothing else: a field copied from nodemailer's error fails here.
+      const expectedKeys = Object.hasOwn(error, "cause")
+        ? ["cause", "message", "stack"]
+        : ["message", "stack"];
+      expect(Reflect.ownKeys(error).sort()).toEqual(expectedKeys);
     }
 
     /** A transport whose own `host` getter throws what `thrown` returns. */
@@ -712,7 +699,7 @@ describe("NodemailerEmailSender's constructor", () => {
       (_label, transport) => {
         const error = thrownBy(
           () => new NodemailerEmailSender({ transport }),
-          InvalidEmailSenderOptionsError,
+          Error,
         );
 
         expectTransportOptionsRefusal(error);
@@ -731,7 +718,7 @@ describe("NodemailerEmailSender's constructor", () => {
           new NodemailerEmailSender({
             transport: transport as NodemailerSmtpOptions,
           }),
-        InvalidEmailSenderOptionsError,
+        Error,
       );
 
       expectTransportOptionsRefusal(error);
@@ -746,7 +733,7 @@ describe("NodemailerEmailSender's constructor", () => {
           new NodemailerEmailSender({
             transport: transport as NodemailerSmtpOptions,
           }),
-        InvalidEmailSenderOptionsError,
+        Error,
       );
 
       expectTransportOptionsRefusal(error);
@@ -761,7 +748,7 @@ describe("NodemailerEmailSender's constructor", () => {
           new NodemailerEmailSender({
             transport: transport as unknown as NodemailerSmtpOptions,
           }),
-        InvalidEmailSenderOptionsError,
+        Error,
       );
 
       expectTransportOptionsRefusal(error);
@@ -775,7 +762,7 @@ describe("NodemailerEmailSender's constructor", () => {
 
       const error = thrownBy(
         () => new NodemailerEmailSender({ transport }),
-        InvalidEmailSenderOptionsError,
+        Error,
       );
 
       expectTransportOptionsRefusal(error);
@@ -787,16 +774,15 @@ describe("NodemailerEmailSender's constructor", () => {
 
       const error = thrownBy(
         () => new NodemailerEmailSender({ transport }),
-        InvalidEmailSenderOptionsError,
+        Error,
       );
 
       expectTransportOptionsRefusal(error);
       expect(error.cause).toBeUndefined();
       expect(Object.hasOwn(error, "cause")).toBe(false);
-      expect(Object.hasOwn(error.toJSON(), "cause")).toBe(false);
     });
 
-    it("77: a host getter that throws an error whose code and name getters throw: no cause, and the sender's error still", () => {
+    it("77: a host getter that throws an error whose code and name getters throw: no cause, and the sender's Error still", () => {
       const transport = withThrowingHost(() => {
         const thrown = new Error(SECRET);
         for (const key of ["code", "name"]) {
@@ -811,11 +797,46 @@ describe("NodemailerEmailSender's constructor", () => {
 
       const error = unprintedThrownBy(
         () => new NodemailerEmailSender({ transport }),
-        InvalidEmailSenderOptionsError,
+        Error,
       );
 
       expectTransportOptionsRefusal(error);
       expect(error.cause).toBeUndefined();
+      expect(Object.hasOwn(error, "cause")).toBe(false);
+    });
+  });
+
+  // The cases of fix/email-nodemailer/native-misuse-errors: each refusal of
+  // the options is a native error. The types refuse each of these values, so
+  // each goes through a cast.
+
+  describe("85-86: native refusals", () => {
+    it("85: refuses no transport and a refused defaultFrom with the no-transport TypeError: transport is checked first", () => {
+      const options = {
+        defaultFrom: { address: "victim@example.test, attacker@evil.test" },
+      };
+
+      const error = thrownBy(
+        () => new NodemailerEmailSender(options as never),
+        TypeError,
+      );
+
+      expectNativeError(error, TypeError, OPTIONS_MESSAGES.noTransport);
+    });
+
+    it("86: refuses the string defaultFrom a@example.test with the default-from Error", async () => {
+      const server = await idleServer();
+
+      const error = thrownBy(
+        () =>
+          new NodemailerEmailSender({
+            transport: server.transportOptions,
+            defaultFrom: "a@example.test" as never,
+          }),
+        Error,
+      );
+
+      expectNativeError(error, Error, OPTIONS_MESSAGES.defaultFrom);
     });
   });
 });

@@ -26,21 +26,19 @@ await emailSender.send({
 | `NodemailerEmailSender` | Implements `EmailSender` |
 | `NodemailerEmailSenderOptions` | The constructor options: `transport`, `defaultFrom` |
 | `NodemailerSmtpOptions` | nodemailer's SMTP options, with no pool and no LMTP |
-| `InvalidEmailSenderOptionsError` | What the constructor throws: see [Errors](#errors) |
-| `InvalidEmailSenderOptionsReason` | The type of its `details.reason` |
 
 `send` rejects with the errors of `@enardo/email`, which the package does not re-export: import them from there.
 
 ## Options
 
-- **`transport`** (required): nodemailer's SMTP options. The sender creates its transporter from them, which opens a connection for each message and closes it once the message is sent. The constructor throws `InvalidEmailSenderOptionsError` when `transport` is missing (counted as missing when falsy), and when nodemailer would build from it anything but that:
+- **`transport`** (required): nodemailer's SMTP options. The sender creates its transporter from them, which opens a connection for each message and closes it once the message is sent. The constructor throws a `TypeError` when `transport` is missing (counted as missing when falsy), and when nodemailer would build from it anything but that:
   - a pool (`pool: true`, or a `url` with `?pool=true`): it keeps a connection open after a send, and nothing would close it. The types refuse `pool: true` too;
   - another transport, from flags the types let through in a variable (`streamTransport`, `jsonTransport`, `sendmail`): a stream transport, for one, resolves without sending anything;
   - LMTP (`lmtp: true`, or a `url` with `?lmtp=true`, which wins over `lmtp: false`): it hands the message to its final mailbox store, with no queue behind it, and nodemailer would not always keep the reply of a recipient it refuses. The types refuse `lmtp: true` too;
   - anything nodemailer would not read as options: a transport object (an object with a `send` function, an `SMTPTransport` instance included), or a value that is neither an object nor an `smtp:` or `smtps:` URL, in any case. The sender refuses these before nodemailer sees them, so nodemailer writes nothing into your object, unless a `send` getter, or a Proxy, answers the sender and nodemailer differently. A `direct:` URL is refused too: nodemailer 10 sends it to `localhost:587`.
 
-  An error thrown while nodemailer reads the options (a `logger` in `transport` that throws included), such as for a `url` it cannot parse, or for legacy SES options (`ECONFIG`), becomes an `InvalidEmailSenderOptionsError` with the reason `transport-options`. Its `cause` holds the `name` and `code` of what nodemailer threw, each only when it is a string, and nothing else: the error's message and fields can hold the URL, password included.
-- **`defaultFrom`**: the sender of a message without `from`. Its address is checked by the constructor, which throws when it is refused (see [Addresses](#addresses)).
+  An error thrown while nodemailer reads the options (a `logger` in `transport` that throws included), such as for a `url` it cannot parse, or for legacy SES options (`ECONFIG`), becomes a native `Error`. Its `cause` holds the `name` and `code` of what nodemailer threw, each only when it is a string, and nothing else: the error's message and fields can hold the URL, password included.
+- **`defaultFrom`**: the sender of a message without `from`. Its address is checked by the constructor, which throws a native `Error` when it is refused (see [Addresses](#addresses)).
 - **nodemailer's own logger** is off unless `transport` sets `logger`. When it is on, it logs the recipients and the server's text.
 
 ## Addresses
@@ -92,13 +90,15 @@ It refuses some valid addresses too:
 
 ## Errors
 
-`send` rejects with the errors of `@enardo/email`: see `send`, above, and that package's README. The constructor throws the package's own:
+The package adds no error class. `send` rejects with the errors of `@enardo/email`: see `send`, above, and that package's README.
 
-| Class | `code` | `details` |
-| --- | --- | --- |
-| `InvalidEmailSenderOptionsError` | `INVALID_EMAIL_SENDER_OPTIONS` | `{ reason: "no-transport" \| "pool" \| "not-smtp" \| "default-from" \| "transport-options" }`; `not-smtp` covers LMTP too |
+The constructor throws native errors, with no `code`: the options are fixed in your code, and nothing handles them by `code`.
 
-It extends `BaseError` of `@enardo/errors`. Its message and `details` hold no address. For `transport-options`, the `cause` is `{ name, code }` of the error nodemailer threw, each left out when missing or not a string, and absent when both are.
+- a `TypeError` for `transport`: missing, a pool, not SMTP options, or LMTP;
+- an `Error` for a refused `defaultFrom`. Its message holds no address;
+- an `Error` for what nodemailer threw while it read `transport`. Its `cause` is `{ name, code }` of what nodemailer threw, each left out when missing or not a string, and absent when both are.
+
+Tell them apart by message.
 
 ## Against `@enardo/email`'s contract
 
@@ -106,6 +106,12 @@ The sender meets the contract's rules, with these limits:
 
 - it refuses some valid addresses (see [Addresses](#addresses));
 - it gives no access to its transporter: a `socks` proxy, which needs its module set on the transporter (`set("proxy_socks_module", …)`), rejects every send (`EPROXY`), and no nodemailer plugin (`use()`) can be added.
+
+## Upgrading from 4.x
+
+- `@enardo/email` `^3.0.0` is now a peer dependency: install it beside the package.
+- The `logger` option is gone.
+- `InvalidEmailSenderOptionsError`, its code and `InvalidEmailSenderOptionsReason` are removed. Each refusal of the constructor is a native error with the same message, to fix in the options (see [Errors](#errors)). An import of the removed names fails to compile. A comparison with the old `code` still compiles and is never reached.
 
 ## Contributing
 
