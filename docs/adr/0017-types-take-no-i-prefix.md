@@ -21,6 +21,7 @@ Eleven exported types of five packages carried an `I` prefix (`IDatabase`, `IRep
 
 ## Alternatives considered
 
+- **Leave the names alone.** It costs nothing and no harm was reported; the benefit of the rename is uniformity alone, which the user chose over its cost.
 - **Keep the prefix on all contracts.** It would rename more of the repo's types than it spares, against the common TypeScript convention.
 - **Keep the classes' names, and give the contracts a new one.** Fewer lines in `cambusa`, but the longer name lands on the type the domain depends on.
-- **`@typescript-eslint/naming-convention` in the presets.** It answers a recurrence nobody has seen, binds the projects, and leaves holes: `IHTTPClient`, `export type { Plain as IFoo }`. `no-restricted-exports` was dropped on 2026-11-02 for the same reasons.
+- **`@typescript-eslint/naming-convention` in the presets.** It answers a recurrence nobody has seen, binds the projects, and leaves holes: `IHTTPClient`, `export type { Plain as IFoo }`. `no-restricted-exports` was dropped on 2026-11-02 on the same ground: no recurrence, and one rename caught at review. Added later, it costs a major of `@enardo/eslint-config`.
