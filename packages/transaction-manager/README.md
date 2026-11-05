@@ -6,19 +6,19 @@ The transaction contracts shared by the `@enardo/*` packages and the projects bu
 
 | Type | Meaning |
 | --- | --- |
-| `ITransaction` | An active transaction. It carries an `id`, useful for logging and for assertions in tests. |
-| `ITransactionManager<TContext extends ITransaction = ITransaction>` | Runs `work` inside a transaction with `runInTransaction(work)`, and returns its result |
+| `Transaction` | An active transaction. It carries an `id`, useful for logging and for assertions in tests. |
+| `TransactionManager<TContext extends Transaction = Transaction>` | Runs `work` inside a transaction with `runInTransaction(work)`, and returns its result |
 
 An implementation declares the context it hands to `work`. Code that writes inside the transaction then gets what its driver needs, without a cast:
 
 ```ts
-import type { ITransaction, ITransactionManager } from "@enardo/transaction-manager";
+import type { Transaction, TransactionManager } from "@enardo/transaction-manager";
 
-interface SessionTransaction extends ITransaction {
+interface SessionTransaction extends Transaction {
   readonly session: Session;
 }
 
-class SessionTransactionManager implements ITransactionManager<SessionTransaction> {
+class SessionTransactionManager implements TransactionManager<SessionTransaction> {
   async runInTransaction<T>(work: (transaction: SessionTransaction) => Promise<T>): Promise<T> {
     // open a session, start a transaction, run work, commit or roll back
   }
@@ -32,6 +32,15 @@ Implementations must:
 - Commit when `work` resolves, and roll back and rethrow the original error when it rejects.
 - Resolve only after the commit succeeded.
 - Hand `work` the same context type they declare. `work` may run more than once, if the driver retries after a transient error.
+
+## Upgrading from 1.x
+
+The `I` prefix is gone, with no other change:
+
+| 1.x | 2.0 |
+| --- | --- |
+| `ITransaction` | `Transaction` |
+| `ITransactionManager` | `TransactionManager` |
 
 ## Contributing
 

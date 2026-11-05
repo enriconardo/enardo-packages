@@ -1,12 +1,12 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type {
-  ITransaction,
-  ITransactionManager,
+  Transaction,
+  TransactionManager,
 } from "@enardo/transaction-manager";
 import {
-  UnitOfWork,
+  TransactionalUnitOfWork,
   type FlushUnit,
-  type IUnitOfWork,
+  type UnitOfWork,
   type UnitOfWorkParticipant,
 } from "~/unit-of-work";
 import { expectNativeError, reasonOf } from "./support/native-errors";
@@ -14,15 +14,15 @@ import { expectNativeError, reasonOf } from "./support/native-errors";
 const USED_UNIT_MESSAGE =
   "This unit of work has already been used; create a new one, with new repositories, for each execute call.";
 
-describe("UnitOfWork", () => {
-  it("implements IUnitOfWork, the contract application code depends on", () => {
-    expectTypeOf<UnitOfWork>().toExtend<IUnitOfWork>();
+describe("TransactionalUnitOfWork", () => {
+  it("implements UnitOfWork, the contract application code depends on", () => {
+    expectTypeOf<TransactionalUnitOfWork>().toExtend<UnitOfWork>();
   });
 
   it("returns the work result without opening a transaction when nothing is pending", async () => {
     const transaction = createTransaction();
     const manager = createManager(transaction);
-    const unitOfWork = new UnitOfWork(manager);
+    const unitOfWork = new TransactionalUnitOfWork(manager);
 
     await expect(unitOfWork.execute(async () => "done")).resolves.toBe("done");
 
@@ -34,7 +34,7 @@ describe("UnitOfWork", () => {
       id: "transaction-1",
       sessionId: "session-1",
     };
-    const unitOfWork = new UnitOfWork<SessionTransaction>(
+    const unitOfWork = new TransactionalUnitOfWork<SessionTransaction>(
       createManager(transaction),
     );
     let receivedContext: SessionTransaction | undefined;
@@ -59,9 +59,9 @@ describe("UnitOfWork", () => {
   it("runs every flush unit inside one transaction, then clears the participants", async () => {
     const events: string[] = [];
     const transaction = createTransaction();
-    const transactionManager: ITransactionManager = {
+    const transactionManager: TransactionManager = {
       async runInTransaction<TResult>(
-        work: (context: ITransaction) => Promise<TResult>,
+        work: (context: Transaction) => Promise<TResult>,
       ): Promise<TResult> {
         events.push("begin");
         const result = await work(transaction);
@@ -69,7 +69,7 @@ describe("UnitOfWork", () => {
         return result;
       },
     };
-    const unitOfWork = new UnitOfWork(transactionManager);
+    const unitOfWork = new TransactionalUnitOfWork(transactionManager);
     unitOfWork.register({
       planFlush: () => {
         events.push("plan");
@@ -95,7 +95,9 @@ describe("UnitOfWork", () => {
   });
 
   it("clears the participants when there is nothing to write", async () => {
-    const unitOfWork = new UnitOfWork(createManager(createTransaction()));
+    const unitOfWork = new TransactionalUnitOfWork(
+      createManager(createTransaction()),
+    );
     const participant = createParticipant(false);
     const clear = vi.spyOn(participant, "clear");
     unitOfWork.register(participant);
@@ -108,7 +110,7 @@ describe("UnitOfWork", () => {
   it("clears the participants without opening a transaction when the work fails", async () => {
     const transaction = createTransaction();
     const manager = createManager(transaction);
-    const unitOfWork = new UnitOfWork(manager);
+    const unitOfWork = new TransactionalUnitOfWork(manager);
     const participant = createParticipant(true);
     const clear = vi.spyOn(participant, "clear");
     unitOfWork.register(participant);
@@ -124,7 +126,7 @@ describe("UnitOfWork", () => {
 
   it("propagates a flush error and clears the participants", async () => {
     const transaction = createTransaction();
-    const unitOfWork = new UnitOfWork(createManager(transaction));
+    const unitOfWork = new TransactionalUnitOfWork(createManager(transaction));
     const flushFailure = new Error("cannot persist product");
     const clear = vi.fn();
     unitOfWork.register({
@@ -149,14 +151,14 @@ describe("UnitOfWork", () => {
     const events: string[] = [];
     const transaction = createTransaction();
     const transactionFailure = new Error("commit unavailable");
-    const manager: ITransactionManager = {
+    const manager: TransactionManager = {
       async runInTransaction(work) {
         await work(transaction);
         events.push("rollback");
         throw transactionFailure;
       },
     };
-    const unitOfWork = new UnitOfWork(manager);
+    const unitOfWork = new TransactionalUnitOfWork(manager);
     unitOfWork.register({
       planFlush: () => [createFlushUnit("product", events)],
       hasPendingChanges: () => true,
@@ -172,7 +174,9 @@ describe("UnitOfWork", () => {
 
   describe("single use", () => {
     it("rejects a second execute call after a successful one with a native Error", async () => {
-      const unitOfWork = new UnitOfWork(createManager(createTransaction()));
+      const unitOfWork = new TransactionalUnitOfWork(
+        createManager(createTransaction()),
+      );
       await unitOfWork.execute(async () => undefined);
 
       const error = await reasonOf(unitOfWork.execute(async () => undefined));
@@ -181,7 +185,9 @@ describe("UnitOfWork", () => {
     });
 
     it("rejects a second execute call after a failed one with a native Error", async () => {
-      const unitOfWork = new UnitOfWork(createManager(createTransaction()));
+      const unitOfWork = new TransactionalUnitOfWork(
+        createManager(createTransaction()),
+      );
       await expect(
         unitOfWork.execute(async () => Promise.reject(new Error("failed"))),
       ).rejects.toThrow("failed");
@@ -192,7 +198,9 @@ describe("UnitOfWork", () => {
     });
 
     it("rejects a nested execute call with a native Error", async () => {
-      const unitOfWork = new UnitOfWork(createManager(createTransaction()));
+      const unitOfWork = new TransactionalUnitOfWork(
+        createManager(createTransaction()),
+      );
 
       const error = await reasonOf(
         unitOfWork.execute(async () =>
@@ -204,7 +212,9 @@ describe("UnitOfWork", () => {
     });
 
     it("rejects a concurrent execute call with a native Error, without disturbing the running one", async () => {
-      const unitOfWork = new UnitOfWork(createManager(createTransaction()));
+      const unitOfWork = new TransactionalUnitOfWork(
+        createManager(createTransaction()),
+      );
       let releaseFirst!: () => void;
       const first = unitOfWork.execute(
         () =>
@@ -221,7 +231,9 @@ describe("UnitOfWork", () => {
     });
 
     it("rejects a call on a used unit with a native Error, without running its work", async () => {
-      const unitOfWork = new UnitOfWork(createManager(createTransaction()));
+      const unitOfWork = new TransactionalUnitOfWork(
+        createManager(createTransaction()),
+      );
       await unitOfWork.execute(async () => undefined);
       const work = vi.fn(async () => undefined);
 
@@ -234,13 +246,17 @@ describe("UnitOfWork", () => {
 
   describe("hasPendingChanges", () => {
     it("is false without participants", () => {
-      const unitOfWork = new UnitOfWork(createManager(createTransaction()));
+      const unitOfWork = new TransactionalUnitOfWork(
+        createManager(createTransaction()),
+      );
 
       expect(unitOfWork.hasPendingChanges()).toBe(false);
     });
 
     it("is false while every participant reports itself unchanged", () => {
-      const unitOfWork = new UnitOfWork(createManager(createTransaction()));
+      const unitOfWork = new TransactionalUnitOfWork(
+        createManager(createTransaction()),
+      );
       unitOfWork.register(createParticipant(false));
       unitOfWork.register(createParticipant(false));
 
@@ -248,7 +264,9 @@ describe("UnitOfWork", () => {
     });
 
     it("is true as soon as one participant holds a change", () => {
-      const unitOfWork = new UnitOfWork(createManager(createTransaction()));
+      const unitOfWork = new TransactionalUnitOfWork(
+        createManager(createTransaction()),
+      );
       unitOfWork.register(createParticipant(false));
       unitOfWork.register(createParticipant(true));
 
@@ -256,7 +274,9 @@ describe("UnitOfWork", () => {
     });
 
     it("stops polling once a participant reports a change", () => {
-      const unitOfWork = new UnitOfWork(createManager(createTransaction()));
+      const unitOfWork = new TransactionalUnitOfWork(
+        createManager(createTransaction()),
+      );
       const later = createParticipant(true);
       const laterSpy = vi.spyOn(later, "hasPendingChanges");
       unitOfWork.register(createParticipant(true));
@@ -267,7 +287,9 @@ describe("UnitOfWork", () => {
     });
 
     it("answers without planning a flush", () => {
-      const unitOfWork = new UnitOfWork(createManager(createTransaction()));
+      const unitOfWork = new TransactionalUnitOfWork(
+        createManager(createTransaction()),
+      );
       const participant = createParticipant(true);
       const planFlush = vi.spyOn(participant, "planFlush");
       unitOfWork.register(participant);
@@ -286,25 +308,25 @@ function createParticipant(pending: boolean): UnitOfWorkParticipant {
   };
 }
 
-interface SessionTransaction extends ITransaction {
+interface SessionTransaction extends Transaction {
   readonly sessionId: string;
 }
 
-function createTransaction(): ITransaction {
+function createTransaction(): Transaction {
   return {
     id: "transaction-1",
   };
 }
 
-function createManager<TContext extends ITransaction>(
+function createManager<TContext extends Transaction>(
   transaction: TContext,
 ): TestTransactionManager<TContext> {
   return new TestTransactionManager(transaction);
 }
 
 class TestTransactionManager<
-  TContext extends ITransaction,
-> implements ITransactionManager<TContext> {
+  TContext extends Transaction,
+> implements TransactionManager<TContext> {
   callCount = 0;
 
   constructor(private readonly transaction: TContext) {}

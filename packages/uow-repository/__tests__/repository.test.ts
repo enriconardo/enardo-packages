@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type {
-  ITransaction,
-  ITransactionManager,
+  Transaction,
+  TransactionManager,
 } from "@enardo/transaction-manager";
 import { ConcurrencyConflictError } from "~/errors";
-import { Repository } from "~/repository";
-import { UnitOfWork } from "~/unit-of-work";
+import { TrackingRepository } from "~/repository";
+import { TransactionalUnitOfWork } from "~/unit-of-work";
 import type { DataStore, VersionedRecords } from "~/data-store";
 import type { Mapper } from "~/mapper";
 import type { RecordKeys, RecordSet } from "~/record-set";
@@ -125,12 +125,12 @@ interface TicketRecords {
   tickets: [TicketRecord];
 }
 
-type GroupStore = DataStore<GroupRecords, string, ITransaction>;
-type ProductStore = DataStore<ProductRecords, string, ITransaction>;
-type OrderStore = DataStore<OrderRecords, OrderId, ITransaction>;
-type TicketStore = DataStore<TicketRecords, string, ITransaction>;
+type GroupStore = DataStore<GroupRecords, string, Transaction>;
+type ProductStore = DataStore<ProductRecords, string, Transaction>;
+type OrderStore = DataStore<OrderRecords, OrderId, Transaction>;
+type TicketStore = DataStore<TicketRecords, string, Transaction>;
 
-describe("Repository", () => {
+describe("TrackingRepository", () => {
   it("tracks an entity without an id property through a custom composite identity key", async () => {
     const findById = vi.fn(async () => versioned(storedOrder()));
     const { unitOfWork, repository } = createSetup(
@@ -284,7 +284,7 @@ describe("Repository", () => {
 
     // The returned instance is detached: a later unit of work doesn't see its edits.
     product!.name = "Mouse";
-    const nextUnitOfWork = new UnitOfWork(transactionManager);
+    const nextUnitOfWork = new TransactionalUnitOfWork(transactionManager);
     nextUnitOfWork.register(repository);
     const reloaded = await nextUnitOfWork.execute(() =>
       repository.findById("p-1"),
@@ -949,17 +949,17 @@ function createSetup<TDomain, TRecords extends RecordSet<TRecords>, TId>(
   mapper: Mapper<TDomain, TRecords, TId>,
   recordKeys: RecordKeys<TRecords>,
   store: Partial<
-    Omit<DataStore<TRecords, TId, ITransaction>, "recordKeys">
+    Omit<DataStore<TRecords, TId, Transaction>, "recordKeys">
   > = {},
   identityKey?: (id: TId) => string,
 ) {
-  const transaction: ITransaction = { id: "transaction-1" };
-  const transactionManager: ITransactionManager = {
+  const transaction: Transaction = { id: "transaction-1" };
+  const transactionManager: TransactionManager = {
     async runInTransaction(work) {
       return work(transaction);
     },
   };
-  const dataStore: DataStore<TRecords, TId, ITransaction> = {
+  const dataStore: DataStore<TRecords, TId, Transaction> = {
     recordKeys,
     findById: async () => null,
     findAll: async () => [],
@@ -967,8 +967,8 @@ function createSetup<TDomain, TRecords extends RecordSet<TRecords>, TId>(
     delete: async () => undefined,
     ...store,
   };
-  const unitOfWork = new UnitOfWork(transactionManager);
-  const repository = new Repository(dataStore, mapper, identityKey);
+  const unitOfWork = new TransactionalUnitOfWork(transactionManager);
+  const repository = new TrackingRepository(dataStore, mapper, identityKey);
   unitOfWork.register(repository);
 
   return { unitOfWork, repository, transaction, transactionManager };
@@ -995,11 +995,11 @@ function createProductSetup(records: readonly ProductRecord[] = []) {
 }
 
 /** Finds products by name with a query of its own, as an adapter's repository would. */
-class ProductsByName extends Repository<
+class ProductsByName extends TrackingRepository<
   Product,
   ProductRecords,
   string,
-  ITransaction
+  Transaction
 > {
   constructor(
     dataStore: ProductStore,
@@ -1023,7 +1023,7 @@ class ProductsByName extends Repository<
 /** Wires a repository with a custom finder over an in-memory record list. */
 function createFinderSetup(records: readonly ProductRecord[] = []) {
   const apply = vi.fn<ProductStore["apply"]>(async () => undefined);
-  const transaction: ITransaction = { id: "transaction-1" };
+  const transaction: Transaction = { id: "transaction-1" };
   const dataStore: ProductStore = {
     recordKeys: productKeys,
     findById: async (id) => {
@@ -1036,7 +1036,7 @@ function createFinderSetup(records: readonly ProductRecord[] = []) {
     apply,
     delete: async () => undefined,
   };
-  const unitOfWork = new UnitOfWork({
+  const unitOfWork = new TransactionalUnitOfWork({
     async runInTransaction(work) {
       return work(transaction);
     },

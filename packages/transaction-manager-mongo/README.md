@@ -17,8 +17,8 @@ await transactionManager.runInTransaction(async ({ session }) => {
 
 | Export | Meaning |
 | --- | --- |
-| `MongoTransactionManager` | Implements `ITransactionManager<IMongoTransaction>` |
-| `IMongoTransaction` | Extends `ITransaction` with the `session: ClientSession` every write in the transaction must pass |
+| `MongoTransactionManager` | Implements `TransactionManager<MongoTransaction>` |
+| `MongoTransaction` | Extends `Transaction` with the `session: ClientSession` every write in the transaction must pass |
 | `MongoTransactionManagerOptions` | The constructor options |
 
 ## Usage
@@ -54,6 +54,11 @@ The manager holds no state: create it once and share it.
 - **Rollback.** When `work` rejects, the transaction aborts and `runInTransaction` rejects with the original error.
 - **Retries.** After a transient error, such as a write conflict with another transaction, the driver runs `work` again. Every attempt gets the same transaction `id`. Write `work` so that it can run more than once, and don't catch driver errors inside it without rethrowing, or the driver can't tell whether the transaction aborted.
 - **Session.** Pass `session` to every operation that belongs to the transaction. An operation without it runs outside the transaction and isn't rolled back.
+
+## Upgrading from 0.1
+
+- `IMongoTransaction` is now `MongoTransaction`.
+- `@enardo/transaction-manager` `^2.0.0` is the peer: its `ITransaction` and `ITransactionManager` are now `Transaction` and `TransactionManager`.
 
 ## Contributing
 

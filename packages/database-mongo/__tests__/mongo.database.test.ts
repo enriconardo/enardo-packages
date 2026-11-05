@@ -7,10 +7,7 @@ import {
   type IndexDescriptionInfo,
 } from "mongodb";
 import { MongoDatabase } from "~/mongo.database";
-import type {
-  IMongoDatabaseOptions,
-  IMongoSchema,
-} from "~/mongo.database.types";
+import type { MongoDatabaseOptions, MongoSchema } from "~/mongo.database.types";
 import { connect, mongoUri, uniqueDbName } from "./support/fixtures";
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -18,7 +15,7 @@ import { connect, mongoUri, uniqueDbName } from "./support/fixtures";
 /** A validation that accepts every document. */
 const anyDocument = { $jsonSchema: {} };
 
-const testSchema: IMongoSchema = {
+const testSchema: MongoSchema = {
   collectionName: "users",
   validation: {
     $jsonSchema: {
@@ -126,7 +123,7 @@ async function expectNotConnected(
  */
 async function expectConflict(
   database: MongoDatabase,
-  schemas: readonly IMongoSchema[],
+  schemas: readonly MongoSchema[],
   expected: { collection: string; index: string; code: number },
 ): Promise<Error> {
   let rejection: unknown;
@@ -182,7 +179,7 @@ let databases: MongoDatabase[];
 
 /** A `MongoDatabase` on the test's database, disconnected after the test. */
 function createDatabase(
-  overrides?: Partial<IMongoDatabaseOptions>,
+  overrides?: Partial<MongoDatabaseOptions>,
 ): MongoDatabase {
   const database = new MongoDatabase({
     dbUri: mongoUri(),
@@ -710,7 +707,7 @@ describe("MongoDatabase", () => {
       await setupDb
         .collection("users")
         .createIndexes([{ name: "a_1", key: { a: 1 } }]);
-      const schemas: IMongoSchema[] = [
+      const schemas: MongoSchema[] = [
         {
           collectionName: "users",
           validation: anyDocument,
@@ -754,7 +751,7 @@ describe("MongoDatabase", () => {
       const oldB = await indexNamed(setupDb, "logs", "old_b");
       expect(oldA).toBeDefined();
       expect(oldB).toBeDefined();
-      const schemas: IMongoSchema[] = [
+      const schemas: MongoSchema[] = [
         testSchema,
         { collectionName: "logs", validation: anyDocument },
       ];

@@ -6,14 +6,14 @@ The contract of a database connection's lifecycle. The package holds one interfa
 
 | Type | Meaning |
 | --- | --- |
-| `IDatabase` | Opens a connection with `connect()`, closes it with `disconnect()`, and tells whether it is open with `isConnected()` |
+| `Database` | Opens a connection with `connect()`, closes it with `disconnect()`, and tells whether it is open with `isConnected()` |
 
-A caller depends on `IDatabase` only, and gets an implementation from its composition root:
+A caller depends on `Database` only, and gets an implementation from its composition root:
 
 ```ts
-import type { IDatabase } from "@enardo/database";
+import type { Database } from "@enardo/database";
 
-async function run(database: IDatabase, work: () => Promise<void>) {
+async function run(database: Database, work: () => Promise<void>) {
   await database.connect();
   try {
     await work();
@@ -31,6 +31,8 @@ async function run(database: IDatabase, work: () => Promise<void>) {
 - How calls made while another is in progress behave (a `disconnect()` during a `connect()`, two `connect()`s at once) is each implementation's to document.
 
 ## Upgrading from 1.x
+
+`IDatabase` is now `Database`: no exported type takes an `I` prefix.
 
 `DatabaseError` is removed, with the dependency on `@enardo/errors`: using the database with no connection is a misuse, which an implementation reports with a native `Error`. A caller that read its `code` `NOT_CONNECTED` fixes the call order instead.
 

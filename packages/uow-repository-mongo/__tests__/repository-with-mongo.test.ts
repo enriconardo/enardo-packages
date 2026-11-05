@@ -17,12 +17,12 @@ import {
 } from "mongodb";
 import {
   MongoTransactionManager,
-  type IMongoTransaction,
+  type MongoTransaction,
 } from "@enardo/transaction-manager-mongo";
 import {
   ConcurrencyConflictError,
-  Repository,
-  UnitOfWork,
+  TrackingRepository,
+  TransactionalUnitOfWork,
   retryOnConflict,
   type Mapper,
 } from "@enardo/uow-repository";
@@ -115,7 +115,7 @@ const groupMapper: Mapper<Group, GroupRecords, ObjectId> = {
 /** ObjectId is not a primitive identity, so the change tracker needs a key for it. */
 const hexKey = (id: ObjectId): string => id.toHexString();
 
-describe("Repository over MongoDB", () => {
+describe("TrackingRepository over MongoDB", () => {
   let client: MongoClient;
   let db: Db;
   let transactionManager: MongoTransactionManager;
@@ -149,13 +149,15 @@ describe("Repository over MongoDB", () => {
 
   /** Builds one unit of work, with its repositories, for one use case. */
   function createContext() {
-    const unitOfWork = new UnitOfWork<IMongoTransaction>(transactionManager);
-    const groups = new Repository(
+    const unitOfWork = new TransactionalUnitOfWork<MongoTransaction>(
+      transactionManager,
+    );
+    const groups = new TrackingRepository(
       createGroupStore(client, db),
       groupMapper,
       hexKey,
     );
-    const products = new Repository(
+    const products = new TrackingRepository(
       createProductStore(client, db),
       productMapper,
       hexKey,

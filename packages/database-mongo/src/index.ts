@@ -1,10 +1,9 @@
 export { MongoDatabase } from "./mongo.database";
 export type {
-  IMongoDatabase,
-  IMongoSchema,
-  IMongoIndex,
-  IMongoValidation,
-  IMongoDatabaseOptions,
+  MongoSchema,
+  MongoIndex,
+  MongoValidation,
+  MongoDatabaseOptions,
   SchemaSyncResult,
   StaleIndexDropResult,
 } from "./mongo.database.types";

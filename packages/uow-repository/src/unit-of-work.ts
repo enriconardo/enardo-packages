@@ -1,17 +1,17 @@
 import type {
-  ITransaction,
-  ITransactionManager,
+  Transaction,
+  TransactionManager,
 } from "@enardo/transaction-manager";
 
 /** A persistence write, planned before its transaction starts. */
-export interface FlushUnit<TContext extends ITransaction = ITransaction> {
+export interface FlushUnit<TContext extends Transaction = Transaction> {
   readonly kind: "insert" | "update" | "replace" | "delete";
   run(context: TContext): Promise<void>;
 }
 
 /** Buffers persistence changes for the lifetime of a unit of work. */
 export interface UnitOfWorkParticipant<
-  TContext extends ITransaction = ITransaction,
+  TContext extends Transaction = Transaction,
 > {
   planFlush(): readonly FlushUnit<TContext>[];
   /** Reports whether planFlush would yield anything, without building it. */
@@ -23,7 +23,7 @@ export interface UnitOfWorkParticipant<
  * The unit of work as application code sees it: without the transaction
  * context type, which only persistence adapters need.
  */
-export interface IUnitOfWork {
+export interface UnitOfWork {
   /** Runs `work`, then writes the changes of every participant in one transaction. */
   execute<TResult>(work: () => Promise<TResult>): Promise<TResult>;
   /** Reports whether committing now would write anything. */
@@ -39,14 +39,14 @@ export interface IUnitOfWork {
  * detached. Reusing the instance would silently drop edits made to those
  * entities, so a second call throws instead.
  */
-export class UnitOfWork<
-  TContext extends ITransaction = ITransaction,
-> implements IUnitOfWork {
+export class TransactionalUnitOfWork<
+  TContext extends Transaction = Transaction,
+> implements UnitOfWork {
   private used = false;
   private readonly participants = new Set<UnitOfWorkParticipant<TContext>>();
 
   constructor(
-    private readonly transactionManager: ITransactionManager<TContext>,
+    private readonly transactionManager: TransactionManager<TContext>,
   ) {}
 
   #clearParticipants(): void {

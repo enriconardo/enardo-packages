@@ -69,19 +69,19 @@ Abstract base class for read-only domain objects identified by an `EntityId`.
 
 ```ts
 import { Entity, EntityId } from "@enardo/entities";
-import type { IEntityCommonAttributes } from "@enardo/entities";
+import type { EntityCommonAttributes } from "@enardo/entities";
 
-interface IProductAttributes extends IEntityCommonAttributes {
+interface ProductAttributes extends EntityCommonAttributes {
   sku: string;
   price: number;
 }
 
-class Product extends Entity<IProductAttributes> {
-  static create(attributes: IProductAttributes): Product {
+class Product extends Entity<ProductAttributes> {
+  static create(attributes: ProductAttributes): Product {
     return new Product(attributes);
   }
 
-  private constructor(attributes: IProductAttributes) {
+  private constructor(attributes: ProductAttributes) {
     super(attributes);
   }
 
@@ -128,15 +128,15 @@ Abstract base class for aggregate roots. Extends `Entity` with:
 
 ```ts
 import { AggregateRoot, EntityId } from "@enardo/entities";
-import type { IAggregateRootCommonAttributes } from "@enardo/entities";
+import type { AggregateRootCommonAttributes } from "@enardo/entities";
 
-interface IUserAttributes extends IAggregateRootCommonAttributes {
+interface UserAttributes extends AggregateRootCommonAttributes {
   name: string;
   email: string;
 }
 
-class User extends AggregateRoot<IUserAttributes> {
-  protected constructor(attributes: IUserAttributes) {
+class User extends AggregateRoot<UserAttributes> {
+  protected constructor(attributes: UserAttributes) {
     super(attributes);
   }
 
