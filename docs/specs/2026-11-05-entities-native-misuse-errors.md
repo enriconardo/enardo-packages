@@ -1,5 +1,5 @@
 ---
-status: draft
+status: done
 type: fix
 tier: M
 implementer: sonnet/medium
@@ -62,7 +62,7 @@ Not taken:
 
 ## Open questions
 
-1. Now, or at the next major of `@enardo/entities`, or a project's first `markForRemoval` (*Not taken*)? Nothing calls these errors, so the major changes no running behaviour: its gain is a smaller public surface and the ADR applied. The recommendation is now: no reader exists, so it is the cheapest moment, and the first `markForRemoval` of a project would otherwise be written on the classes. `cambusa` need not follow: `^1.1.0` loses nothing by staying, so the costs of its move (*Risks*) wait until it has a reason.
+None. Question 1 (now, or at the next major) was answered at checkpoint 2: now, as recommended.
 
 ## Changes
 
