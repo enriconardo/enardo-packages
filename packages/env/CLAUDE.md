@@ -26,7 +26,7 @@ vitest.config.ts            the test projects: node (every file), browser (all b
 ## Errors
 
 - **Unset and malformed throw a native `Error`, with no `code`** (ADR 0018): a variable comes from the deploy, and no caller branches on the difference. The message is for a person.
-- **An error never holds the value**, not in its message, `stack`, `cause` or serialized form: it can be a secret. The messages hold the key and the expected type, nothing else, and there is no `cause`. Tests check the serialized form.
+- **An error never holds the value**, not in its message, `stack`, `cause` or serialized form: it can be a secret. The messages hold the key, and the expected type where one applies, nothing else, and there is no `cause`. Tests check the serialized form.
 
 ## Two runtimes
 

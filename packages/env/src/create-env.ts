@@ -36,7 +36,7 @@ function toBool(value: unknown): boolean | undefined {
  * An unset variable (not an own key, or `undefined` or `""`) reads as
  * `undefined`; a set one of the wrong type throws an `Error`. The `require*`
  * readers throw an `Error` for an unset one. Neither has a `code`: the message
- * is for a person, and holds the key and the expected type, never the value.
+ * is for a person, and holds the key, and the expected type where one applies, never the value.
  * A program that treats an unset variable apart uses the optional reader.
  *
  * @example

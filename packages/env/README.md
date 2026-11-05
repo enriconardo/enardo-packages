@@ -37,14 +37,13 @@ const debug = env.bool("DEBUG") ?? false;
 - **`number`** takes decimal notation only: an optional sign, digits with an optional fraction, an optional exponent (`3000`, `-1.5`, `.5`, `5.`, `1e3`), and a finite result. No whitespace, `0x`, `0b`, `0o`, `_`, `Infinity` or `NaN`. A finite number is taken as it is (Vite's `define` of `import.meta.env.*` can set one).
 - **`bool`** takes `true`, `1`, `yes` and `false`, `0`, `no`, in any case and with no whitespace. A boolean is taken as it is (Vite's `DEV`, `PROD` and `SSR`).
 - **The source is read at each call**, never copied: what is assigned to `process.env` after `createEnv` is seen. A read that throws (a getter, a Proxy trap) propagates as it is.
-- **An error never holds the value**, in its message or its serialized form, without `details` or `toJSON()`: it can be a secret.
+- **An error never holds the value**, in its message or its serialized form, and it has no `details` or `toJSON()`: it can be a secret.
 - A source needs an index signature. `process.env` and `ImportMetaEnv` have one; an interface without it is refused by the compiler.
 
 ## Upgrading from 2.x
 
 - `EnvMissingError`, `EnvMalformedError` and their codes (`ENV_MISSING`, `ENV_MALFORMED`) are removed, with `details` and `toJSON()`. Both cases throw a native `Error` with the same message, to fix in the configuration. An import of the removed names fails to compile. A comparison with the old `code` still compiles and is never reached.
 - `JSON.stringify` of an error gives `{}`: a caller serializing by hand reads `name`, `message` and `stack`.
-- `@enardo/errors` is no longer a dependency.
 
 ## One `.env` for server and client
 
