@@ -76,7 +76,7 @@ await db.dropStaleIndexes(schemas);
 ## Upgrading from 1.x
 
 - `connect()` no longer syncs: call `syncSchema(schemas)` and `dropStaleIndexes(schemas)`.
-- `Logger` and `LoggerMetadata` are no longer exported, and the `IMongoDatabase` interface is removed: `MongoDatabase` is the type, and a fake of it is a `Pick<MongoDatabase, "syncSchema" | "dropStaleIndexes">`.
+- `Logger` and `LoggerMetadata` are no longer exported, and the `IMongoDatabase` interface is removed: `MongoDatabase` is the type, and a fake of it is a `Database & Pick<MongoDatabase, "syncSchema" | "dropStaleIndexes">`.
 - The `I` prefix is gone: `IMongoDatabaseOptions` is `MongoDatabaseOptions`, `IMongoIndex` is `MongoIndex`, `IMongoSchema` is `MongoSchema` and `IMongoValidation` is `MongoValidation`.
 - `getDb()` and `getClient()` throw a native `Error` where they threw `DatabaseError` (`NOT_CONNECTED`), and `@enardo/database` `^2.0.0` is the peer.
 - `schemas` moves from the options to the two calls; `logger` goes, and the results take its place. Both are compile errors where the options are an object literal; from a variable they compile and sync nothing, so check the calls.

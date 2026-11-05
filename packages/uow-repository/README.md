@@ -12,7 +12,7 @@ await unitOfWork.execute(async () => {
 // Committed in one transaction: an update of p-1 that sets only `price`, and an insert of p-2.
 ```
 
-> Published to the `@enardo` registry, version 0.2.0: the API can still change. The package ships no database adapters: install an adapter package for your database, or write a `DataStore` and an `TransactionManager` for your driver.
+> Published to the `@enardo` registry, version 0.2.0: the API can still change. The package ships no database adapters: install an adapter package for your database, or write a `DataStore` and a `TransactionManager` for your driver.
 
 ## Contents
 
@@ -506,7 +506,7 @@ The `I` prefix is gone, and the contracts take the plain names, so the classes t
 | `IRepository` | `Repository` |
 | `IUnitOfWork` | `UnitOfWork` |
 
-`@enardo/transaction-manager` `^2.0.0` is the peer: its `ITransaction` and `ITransactionManager` are now `Transaction` and `TransactionManager`.
+`@enardo/transaction-manager` `^2.0.0` is the dependency: its `ITransaction` and `ITransactionManager` are now `Transaction` and `TransactionManager`.
 
 Rename the classes first, then the contracts. Renaming `IRepository` to `Repository` first merges it with the class, and the next rename would hit both. A use of the class that is left behind fails to compile (`import { Repository }` with `verbatimModuleSyntax`, `extends Repository<…>`, `new UnitOfWork()`). The one form that still compiles is a `UnitOfWork` type with no type argument, which is now the contract: it keeps `execute` and `hasPendingChanges`, and has no `register`. Application code that held `IUnitOfWork` or `IRepository` takes the new `UnitOfWork` or `Repository`, never the classes.
 
