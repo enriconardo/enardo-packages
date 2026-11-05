@@ -24,11 +24,11 @@ const transactionManager = new MongoTransactionManager(client);
 
 ## What it provides
 
-`@enardo/uow-repository` leaves two pieces to you: a `DataStore` and an `TransactionManager`. This package implements the `DataStore` for MongoDB. The transaction manager is `MongoTransactionManager` from `@enardo/transaction-manager-mongo`, whose `IMongoTransaction` context carries the session the store writes with.
+`@enardo/uow-repository` leaves two pieces to you: a `DataStore` and an `TransactionManager`. This package implements the `DataStore` for MongoDB. The transaction manager is `MongoTransactionManager` from `@enardo/transaction-manager-mongo`, whose `MongoTransaction` context carries the session the store writes with.
 
 | Export | Implements | Job |
 | --- | --- | --- |
-| `MongoDataStore` | `DataStore<TRecords, TId, IMongoTransaction, number>` | Reads an aggregate from a root collection and any child collections, and applies change sets after checking the version on the root document |
+| `MongoDataStore` | `DataStore<TRecords, TId, MongoTransaction, number>` | Reads an aggregate from a root collection and any child collections, and applies change sets after checking the version on the root document |
 
 You still write the `Mapper`, and you create the `Repository` and `UnitOfWork` from the core package.
 
@@ -52,7 +52,7 @@ import { MongoClient, ObjectId } from "mongodb";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import {
   MongoTransactionManager,
-  type IMongoTransaction,
+  type MongoTransaction,
 } from "@enardo/transaction-manager-mongo";
 import { Repository, UnitOfWork, type Mapper } from "@enardo/uow-repository";
 import { MongoDataStore } from "@enardo/uow-repository-mongo";
@@ -108,7 +108,7 @@ function createContext() {
   const products = new Repository(productStore, productMapper, (id) =>
     id.toHexString(),
   );
-  const unitOfWork = new UnitOfWork<IMongoTransaction>(transactionManager);
+  const unitOfWork = new UnitOfWork<MongoTransaction>(transactionManager);
   unitOfWork.register(products);
   return { products, unitOfWork };
 }
@@ -290,7 +290,7 @@ Driver errors, such as a duplicate key (code 11000) from a unique index, reach t
 
 ### Transactions
 
-Run the unit of work with `MongoTransactionManager` from [`@enardo/transaction-manager-mongo`](../transaction-manager-mongo/README.md), and declare its context on the unit of work: `new UnitOfWork<IMongoTransaction>(transactionManager)`. Every write of the store passes the transaction's session, so the writes of all repositories commit or roll back together. That package's README covers the transaction options and retries.
+Run the unit of work with `MongoTransactionManager` from [`@enardo/transaction-manager-mongo`](../transaction-manager-mongo/README.md), and declare its context on the unit of work: `new UnitOfWork<MongoTransaction>(transactionManager)`. Every write of the store passes the transaction's session, so the writes of all repositories commit or roll back together. That package's README covers the transaction options and retries.
 
 ### Limits
 

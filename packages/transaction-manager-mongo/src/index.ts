@@ -1,5 +1,5 @@
 export { MongoTransactionManager } from "./mongo-transaction-manager";
 export type {
-  IMongoTransaction,
+  MongoTransaction,
   MongoTransactionManagerOptions,
 } from "./mongo-transaction-manager";

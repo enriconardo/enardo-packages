@@ -10,7 +10,7 @@ import {
 import { Decimal128, ObjectId, type Db, type MongoClient } from "mongodb";
 import {
   MongoTransactionManager,
-  type IMongoTransaction,
+  type MongoTransaction,
 } from "@enardo/transaction-manager-mongo";
 import {
   ConcurrencyConflictError,
@@ -56,7 +56,7 @@ describe("MongoDataStore", () => {
   });
 
   function inTransaction(
-    work: (transaction: IMongoTransaction) => Promise<void>,
+    work: (transaction: MongoTransaction) => Promise<void>,
   ): Promise<void> {
     return transactionManager.runInTransaction(work);
   }

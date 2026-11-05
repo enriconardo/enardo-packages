@@ -17,7 +17,7 @@ import {
 } from "mongodb";
 import {
   MongoTransactionManager,
-  type IMongoTransaction,
+  type MongoTransaction,
 } from "@enardo/transaction-manager-mongo";
 import {
   ConcurrencyConflictError,
@@ -149,7 +149,7 @@ describe("Repository over MongoDB", () => {
 
   /** Builds one unit of work, with its repositories, for one use case. */
   function createContext() {
-    const unitOfWork = new UnitOfWork<IMongoTransaction>(transactionManager);
+    const unitOfWork = new UnitOfWork<MongoTransaction>(transactionManager);
     const groups = new Repository(
       createGroupStore(client, db),
       groupMapper,

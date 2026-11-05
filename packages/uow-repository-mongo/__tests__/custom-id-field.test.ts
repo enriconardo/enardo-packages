@@ -10,7 +10,7 @@ import {
 import { ObjectId, type Db, type MongoClient } from "mongodb";
 import {
   MongoTransactionManager,
-  type IMongoTransaction,
+  type MongoTransaction,
 } from "@enardo/transaction-manager-mongo";
 import { Repository, UnitOfWork, type Mapper } from "@enardo/uow-repository";
 import { MongoDataStore } from "~/mongo-data-store";
@@ -117,11 +117,11 @@ describe("a custom idField", () => {
   /** Runs one use case, in a unit of work and a repository of its own. */
   async function useCase<T>(
     run: (
-      orders: Repository<Order, OrderRecords, string, IMongoTransaction>,
+      orders: Repository<Order, OrderRecords, string, MongoTransaction>,
     ) => Promise<T>,
   ): Promise<T> {
     const orders = new Repository(createStore(), orderMapper);
-    const unitOfWork = new UnitOfWork<IMongoTransaction>(transactionManager);
+    const unitOfWork = new UnitOfWork<MongoTransaction>(transactionManager);
     unitOfWork.register(orders);
     return unitOfWork.execute(() => run(orders));
   }
@@ -250,12 +250,12 @@ describe("a custom idField", () => {
           Pick<Order, "ref" | "note">,
           BareRecords,
           string,
-          IMongoTransaction
+          MongoTransaction
         >,
       ) => Promise<unknown>,
     ): Promise<unknown> => {
       const orders = new Repository(store, bareMapper);
-      const unitOfWork = new UnitOfWork<IMongoTransaction>(transactionManager);
+      const unitOfWork = new UnitOfWork<MongoTransaction>(transactionManager);
       unitOfWork.register(orders);
       return unitOfWork.execute(() => run(orders));
     };

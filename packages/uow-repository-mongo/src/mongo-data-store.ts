@@ -9,7 +9,7 @@ import {
   type Sort,
   type UpdateFilter,
 } from "mongodb";
-import type { IMongoTransaction } from "@enardo/transaction-manager-mongo";
+import type { MongoTransaction } from "@enardo/transaction-manager-mongo";
 import {
   ConcurrencyConflictError,
   type AggregateWrite,
@@ -121,7 +121,7 @@ function changesOf(
 export class MongoDataStore<
   TRecords extends RecordSet<TRecords>,
   TId,
-> implements DataStore<TRecords, TId, IMongoTransaction, number> {
+> implements DataStore<TRecords, TId, MongoTransaction, number> {
   readonly recordKeys: RecordKeys<TRecords>;
   readonly #client: MongoClient;
   readonly #versionField: string;
@@ -264,7 +264,7 @@ export class MongoDataStore<
    */
   async apply(
     { id, expectedVersion, changes }: AggregateWrite<TRecords, TId, number>,
-    { session }: IMongoTransaction,
+    { session }: MongoTransaction,
   ): Promise<void> {
     const changeSet = changes as unknown as Record<string, AnyChanges>;
     const rootChanges = changesOf(changeSet, this.#root.name);
@@ -298,7 +298,7 @@ export class MongoDataStore<
   async delete(
     id: TId,
     expectedVersion: number | undefined,
-    { session }: IMongoTransaction,
+    { session }: MongoTransaction,
   ): Promise<void> {
     const filter =
       expectedVersion === undefined

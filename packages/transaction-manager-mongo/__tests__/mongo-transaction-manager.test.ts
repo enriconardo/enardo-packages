@@ -18,7 +18,7 @@ import {
 import type { TransactionManager } from "@enardo/transaction-manager";
 import {
   MongoTransactionManager,
-  type IMongoTransaction,
+  type MongoTransaction,
 } from "~/mongo-transaction-manager";
 import { connect, createDatabase } from "./support/fixtures";
 
@@ -44,7 +44,7 @@ describe("MongoTransactionManager", () => {
 
   it("implements the transaction manager contract with a Mongo transaction as context", () => {
     expectTypeOf<MongoTransactionManager>().toExtend<
-      TransactionManager<IMongoTransaction>
+      TransactionManager<MongoTransaction>
     >();
   });
 
