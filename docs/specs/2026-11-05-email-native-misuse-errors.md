@@ -13,9 +13,9 @@ branch: fix/email/native-misuse-errors
 
 From the backlog item of the same name (Queued), which applies ADR 0018. Its table gives `InvalidEmailMessageError` two verdicts:
 
-- `type`, a `subject`, `text` or `html` that is not a string: a bug. Native.
-- `missing`, no `from` and a sender without a default: the composition, or a `from` the caller could check first. Native.
-- `empty` and `address`, `from` included: each message. They stay, a value of the wrong type included (decision 6): what the compiler refuses is no test of its own.
+- `type`: "a bug: the compiler refuses it". Native.
+- `missing`: "the composition: no `from`, and a sender without a default". Native.
+- `empty` and `address`: "each message, `from` included". They stay. Decisions 6 and 7 say where these lines leave an exception, accepted.
 
 Today the two reasons sit under a public `code`, which ADR 0012 keeps for what a caller may handle, and no branch on that `code` helps: the program has to change. Nothing is broken: this is the last of the three branches that bring the code in line with ADR 0018.
 
@@ -34,7 +34,8 @@ Today the two reasons sit under a public `code`, which ADR 0012 keeps for what a
   - `tsc --noEmit` on `@enardo/email` → the rows of `errors.test.ts:139` to `:151`, and a type probe, each line marked with what it expected, every mark met: assigning `{ field: "subject", reason: "type" }` or `{ field: "from", reason: "missing" }` to `InvalidEmailMessageDetails` → TS2322; `details.reason === "type"`, `=== "missing"`, `details.field === "subject"` → TS2367; `case "type"` in a `switch` on `reason` → TS2678; `details.field === "from"`, and `details.reason === "address" && details.field`, compile;
   - the suite of `@enardo/email` → 4 failures, those four rows. No other;
   - the suite of `@enardo/email-nodemailer` → 34 failures of 370: in `content.test.ts`, case 78 (27), 79 (2), 82 (1), 83 (2 of its 3 rows); in `send.test.ts`, case 19, and the `no sender` row of case 31. No other: `recipients.test.ts` and `constructor.test.ts` pass;
-  - `pnpm pack` of `@enardo/email-nodemailer` → `"@enardo/email": "^4.0.0"` in the packed manifest.
+  - `pnpm pack` of `@enardo/email-nodemailer` → `"@enardo/email": "^4.0.0"` in the packed manifest;
+  - this clone threw a `TypeError` for `missing` too, the class before decision 1 settled. Not re-run: the tests that failed expected `InvalidEmailMessageError`, so the plain `Error` has no bearing on the list.
 - `packages/email-nodemailer/__tests__/support/assertions.ts` → `expectNativeError` and `OPTIONS_MESSAGES`, the form to reuse; `reasonOf` gives the rejection unchecked.
 - The highest case number in `packages/email-nodemailer/__tests__/` → 86.
 - `packages/email` has no `CLAUDE.md`, and its tests carry no case numbers.
@@ -52,8 +53,8 @@ Taken with the user at intake. The verdicts themselves are ADR 0018's; no new AD
    - `missing` stays in `send`, not in the constructor: a sender without a default is valid when each message has its `from`.
 4. **No `code`** on the native error (ADR 0018 point 4).
 5. **`field` and `reason` narrow** with the union: `field` is `"to" | "from" | "replyTo"`, `reason` is `"empty" | "address"`.
-6. **A recipient or an address of the wrong type stays `address`.** `toMailbox` refuses a non-object recipient and a non-string address through the same path as a malformed one (`nodemailer-email-sender.ts:210` to `:219`; `recipients.test.ts:460` to `:480`, with casts to compile). So `INVALID_EMAIL_MESSAGE` keeps reporting values the compiler refuses, which ADR 0018's alternatives hold against an all-`BaseError` class. They stay because, to a caller, a refused recipient is one condition whatever its value's type: `index` names it, the value comes from each message, and it may come from a loosely typed row. A `subject` of the wrong type has no such row to name: the content is written by the program.
-7. **`missing` is native even where a sender has no default on purpose.** There an absent `from` belongs to one message, and the sender cannot tell that from a forgotten default, which ADR 0018 point 3 would read as coming from outside. It stays native because the caller holds `from` before the call and can check it first, the ground ADR 0018 gives for `ENTITY_ALREADY_MARKED_FOR_REMOVAL` and `isMarkedForRemoval()`. On one field, then: `from: undefined` with no default rejects natively, `from: null` or `""` with `InvalidEmailMessageError`, `address`. The contract says that a caller with no default checks `from` before `send`. No known project is in this composition.
+6. **A recipient or an address of the wrong type stays `address`, an accepted asymmetry with `type`.** `toMailbox` refuses a non-object recipient and a non-string address through the same path as a malformed one (`nodemailer-email-sender.ts:210` to `:219`; `recipients.test.ts:460` to `:482`, with casts to compile), and splitting it would lose the structured `index` of a null address in a list. So `INVALID_EMAIL_MESSAGE` keeps reporting values the compiler refuses, which ADR 0018 holds against an all-`BaseError` class, and `replyTo: 42` and `subject: 42` get different errors. `type` is native on the ADR's verdict. Nothing here tells the two apart in principle.
+7. **`missing` is native on the ADR's ground, the composition, with an accepted cost.** Where a sender has no default on purpose, an absent `from` belongs to one message, and the sender cannot tell that from a forgotten default, which ADR 0018 point 3 would read as coming from outside. That composition gets a native error all the same: no known project is in it, and a `BaseError` would let an app whose allowlist holds `INVALID_EMAIL_MESSAGE` report a forgotten default as the client's fault on every request. On one field, then: `from: undefined` with no default rejects natively, `from: null` or `""` with `InvalidEmailMessageError`, `address`. The caller of `send` cannot see whether its sender has a default (`EmailSender` has only `send`), so the rule goes on the composition: a sender with no default is handed only to code that passes `from` on every message.
 
 Not taken:
 
@@ -63,7 +64,7 @@ Not taken:
 
 ## Open questions
 
-None.
+1. **Does the contract name the classes** (decision 2), raised by the `critic`'s second run? There is no conformance suite, the cases are the adapter's, and the contract says never to branch on these errors, so naming them makes a difference nobody reads into contract behaviour. The alternative: the contract says "a native error, with no `code`", and the adapter's README and tests name the classes.
 
 ## Changes
 
@@ -71,10 +72,11 @@ None.
 
 - `package.json`: the version.
 - `src/errors/invalid-email-message.error.ts`: the `missing` and `type` members of `InvalidEmailMessageDetails` and their `case`s in `messageOf` go.
+- `src/email.types.ts:47`, the comment on `from`: the same rule on the composition, and the native error when it is absent with no default.
 - `src/email-sender.ts`, `send`'s JSDoc: `InvalidEmailMessageError` for an empty `to` or a refused address; before anything is sent, a native `Error` for no sender, and a native `TypeError` for a `subject`, `text` or `html` that is not a string.
 - `README.md`:
   - *Exports* `:13`: "What `send` rejects with" holds, with the native errors under *Errors*.
-  - *Errors* `:36`: `send` rejects with one of the classes, with a native error for a misuse, or with what a value of the caller's threw. `:40`: the two reasons and their "when" go. A new line: a native `Error` for no sender and no default, a native `TypeError` for content that is not a string, both with no `code`: a bug or a composition to fix, never a condition to branch on or retry. *Callers* gains: with a sender that has no default, check `from` before `send`.
+  - *Errors* `:36`: `send` rejects with one of the classes, with a native error for a misuse, or with what a value of the caller's threw. `:40`: the two reasons and their "when" go. A new line: a native `Error` for no sender and no default, a native `TypeError` for content that is not a string, both with no `code`: a bug or a composition to fix, never a condition to branch on or retry. *Callers* gains: a composition root that creates a sender with no default hands it only to code that passes `from` on every message.
   - *Implementations* `:100`: reject with a `TypeError`; `:101`: reject with an `Error`. `:103`, `:104`: `InvalidEmailMessageError` for an empty `to` or a refused address. *No personal data* (`:46`) and `:108` reach the native errors' messages too.
   - A section *Upgrading from 3.x*, before *Contributing*: the two reasons are gone, `missing` a native `Error` and `type` a native `TypeError`, each with the same message and no `code`. A comparison with `details.reason` or a `details.field` of content fails to compile. `instanceof InvalidEmailMessageError` and a comparison with its `code` compile, and no longer match those two cases.
 
