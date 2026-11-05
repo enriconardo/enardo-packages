@@ -49,7 +49,7 @@ Nothing is broken today: this is a matter of a coherent contract. The moment is 
 
 Taken with the user: the list at intake, decision 1 after the `critic`'s first run.
 
-The test is point 6's: can a caller handle the condition by `code`, or does it fix its code?
+The test is point 6's: can a caller handle the condition by `code`, or does it fix its code? An option read from the environment answers no to both: it is not fixed in the code, and nothing handles it. Point 6 and the root `CLAUDE.md` name misconfiguration outright, so it is native here: the calling code can only stop, or try another value, and a `try`/`catch` around the constructor does either with no `code`. This reading is for options a constructor takes. It does not bind `ENV_*`, whose package exists to read the environment: its own branch weighs them.
 
 1. **`default-from`: a native `RangeError`.** One value, outside the addresses the sender accepts, as an option of `@enardo/password-hasher`. A string that fails the grammar is the case that matters; a value that is not a mailbox at all takes the same throw site, past the types.
 2. **`no-transport`, `pool` and `not-smtp`: a native `TypeError`.** `transport` is not SMTP options of the kind accepted, and the types already refuse `pool: true` and `lmtp: true`.
@@ -61,7 +61,7 @@ The test is point 6's: can a caller handle the condition by `code`, or does it f
 
 Not taken:
 
-- **`default-from` as a `BaseError`, `InvalidDefaultFromError`**, which the user first chose, as a caller could handle it by building the sender without `defaultFrom` and giving each message its `from`. That way on needs a second valid address, which could be passed as `defaultFrom` in the first place, and `cambusa` has one value for both (probes). It would also narrow point 6, as a misconfiguration kept as a `BaseError`, in an ADR that would have to answer for `baseUrl`, which has the same shape and throws a `TypeError`. A `code` can be added in a later minor, if a project needs one; once published, it cannot leave without a major.
+- **`default-from` as a `BaseError`, `InvalidDefaultFromError`**, which the user first chose, as a caller could handle it by building the sender without `defaultFrom` and giving each message its `from`. That way on needs a second valid address, which could be passed as `defaultFrom` in the first place, and `cambusa` has one value for both (probes). It would also narrow point 6, as a misconfiguration kept as a `BaseError`, in an ADR that would have to answer for `baseUrl`, which has the same shape and throws a `TypeError`. If a project later needs a `code`, it costs a major: a `BaseError` is no longer the native class this version promises. That cost is accepted, as no project has asked for one.
 - A native error with a `code`: ADR 0012 keeps a `code` for what a caller may handle, TypeScript would not declare it, and the two earlier branches set it aside.
 
 ## Open questions
@@ -95,9 +95,9 @@ Repo, `docs/backlog.md`:
 
 - The item leaves *Queued*. What it says of `@enardo/uow-repository` 0.2.0 is already on the item of the `I` prefix.
 - *To evaluate* gains three items, each from this spec, each against ADR 0012 point 6: can a caller handle the condition by `code`, or does it fix its code?
-  - `ENV_MISSING` and `ENV_MALFORMED` of `@enardo/env`. A variable is a misconfiguration, yet it is not fixed in the caller's code. `@enardo/email-nodemailer` made its options native, those an app reads from its environment included: no caller read the code, and its one fallback needed a second valid address.
+  - `ENV_MISSING` and `ENV_MALFORMED` of `@enardo/env`. A variable is a misconfiguration, yet it is not fixed in the caller's code. `@enardo/email-nodemailer` made its options native, those an app reads from its environment included: the calling code can only stop or try another value, which a `try`/`catch` around its constructor does with no `code`, and no known project runs a version with that code. That reading was for a constructor's options, and does not bind `@enardo/env`.
   - `ENTITY_NOT_MUTABLE` and `ENTITY_ALREADY_MARKED_FOR_REMOVAL` of `@enardo/entities`: its README shows a caller catching one with `instanceof`, so they are no plain case.
-  - `INVALID_ENTITY_ID` of `@enardo/entities`, and the `type` and `missing` reasons of `InvalidEmailMessageError` of `@enardo/email`: the review never listed them, so closing it leaves them without a verdict.
+  - `INVALID_ENTITY_ID` of `@enardo/entities`, and the `type` and `missing` reasons of `InvalidEmailMessageError` of `@enardo/email`, with its `address` reason on `from`, which can come from the same variable as `defaultFrom`: the review never listed them, so closing it leaves them without a verdict.
 
 ## Test cases
 
