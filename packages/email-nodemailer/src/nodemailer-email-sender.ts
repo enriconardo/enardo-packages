@@ -455,7 +455,8 @@ function transporterOf(
       ...(typeof code === "string" && { code }),
     });
     // `cause && { cause }`, not `{ cause }`: `{ cause: undefined }` makes
-    // `cause` an own property, which the log would show as an empty field.
+    // `cause` an own property, and the README promises none when there is
+    // nothing to say.
     throw new Error(
       "nodemailer could not build a transporter from the transport options",
       cause && { cause },

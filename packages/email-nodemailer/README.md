@@ -92,13 +92,13 @@ It refuses some valid addresses too:
 
 The package adds no error class. `send` rejects with the errors of `@enardo/email`: see `send`, above, and that package's README.
 
-The constructor throws native errors, with no `code`: the options are fixed in your code, and nothing handles them by `code`.
+The constructor throws native errors, with no `code`: the options are fixed in your code or configuration, and nothing handles them by `code`.
 
 - a `TypeError` for `transport`: missing, a pool, not SMTP options, or LMTP;
 - an `Error` for a refused `defaultFrom`. Its message holds no address;
 - an `Error` for what nodemailer threw while it read `transport`. Its `cause` is `{ name, code }` of what nodemailer threw, each left out when missing or not a string, and absent when both are.
 
-Tell them apart by message.
+The messages are for whoever reads the log: match no string on them.
 
 ## Against `@enardo/email`'s contract
 
@@ -110,7 +110,7 @@ The sender meets the contract's rules, with these limits:
 ## Upgrading from 4.x
 
 - `@enardo/email` `^3.0.0` is now a peer dependency: install it beside the package.
-- The `logger` option is gone.
+- The `logger` option is gone, with the `Logger` and `LoggerMetadata` types: an import of them fails to compile.
 - `InvalidEmailSenderOptionsError`, its code and `InvalidEmailSenderOptionsReason` are removed. Each refusal of the constructor is a native error with the same message, to fix in the options (see [Errors](#errors)). An import of the removed names fails to compile. A comparison with the old `code` still compiles and is never reached.
 
 ## Contributing
