@@ -176,7 +176,7 @@ Each entry of `collections` is one of:
 | Root | `collection`, `root: true`, `idField?` | Holds exactly one record per aggregate, found by `idField` (default `_id`) equal to the aggregate's identity. It carries the version. |
 | Child | `collection`, `aggregateIdField`, `idField?` | Holds any number of records per aggregate, found by `aggregateIdField` equal to the aggregate's identity. `idField` (default `_id`) identifies a record within the collection. |
 
-Exactly one entry must be the root, or the constructor throws a native `Error`. The store keys records by their `idField` value in extended JSON, so two equal `ObjectId` instances match. The store holds no state: create it once and share it.
+Exactly one entry must be the root, or the constructor throws a native `Error`. The store keys records by their `idField` value in extended JSON, so two equal `ObjectId` instances match. An `idField` other than `_id` needs a unique index and a mapper that keeps `_id`: see [A custom `idField`](#a-custom-idfield). The store holds no state: create it once and share it.
 
 ### Aggregates in one collection
 
@@ -205,6 +205,21 @@ const groupStore = new MongoDataStore<GroupRecords, ObjectId>({
 - **Writes.** `apply` checks and increments the version on the root document first, even when only members changed. Then it writes each child collection in one ordered `bulkWrite`: deletes, then inserts, then updates. Deletes and updates of a child are filtered by both its `idField` and `aggregateIdField`, so they never touch another aggregate's records.
 - **Record ids.** Give every child record an id your application assigns, such as `new ObjectId()` created in the mapper or the domain. A record key must be known before the record is written.
 - **Index the child link.** Create an index on each `aggregateIdField`, for example `members.createIndex({ groupId: 1 })`. Every read and delete filters on it.
+
+### A custom `idField`
+
+MongoDB's own index guards `_id`, so the default needs nothing. A custom `idField` has no such guard, and the store creates no index. Create a unique one on the field, for a root and for a child:
+
+```ts
+await db.collection("orders").createIndex({ ref: 1 }, { unique: true });
+await db.collection("items").createIndex({ sku: 1 }, { unique: true });
+```
+
+- **With the index,** a second record with the same key fails its commit with the driver's duplicate key error (code 11000), and the transaction rolls back.
+- **Without it on a root,** two `add()`s of one key in two units of work both commit, and two documents hold the key. `findById` silently finds one of them, and an update changes only that one. If the two share a child key, every later commit that loaded the aggregate fails with a native `Error`, even in a use case that only reads.
+- **Without it on a child,** two aggregates can hold the same key. Each one still writes only its own records, but the [core package](../uow-repository/README.md#records-and-record-keys) asks for a key that is unique within its collection.
+
+**The mapper keeps `_id`.** The documents still have an `_id`, and it reaches the snapshot when an aggregate loads. A mapper whose `toRecords` leaves it out asks to unset it, so every commit that loaded the aggregate fails with the server's error (code 66), even in a use case that only reads. Assign `_id` before the first write, keep it in the entity, and return it from both `toDomain` and `toRecords`.
 
 ### Identities
 
@@ -333,6 +348,7 @@ __tests__/
   public-api.test.ts            the exports of the entry point
   mongo-data-store.test.ts      the DataStore contract, called directly
   repository-with-mongo.test.ts Repository and UnitOfWork end to end
+  custom-id-field.test.ts       what a custom idField needs: the unique index, the mapper's `_id`
 ```
 
 ### Conventions
