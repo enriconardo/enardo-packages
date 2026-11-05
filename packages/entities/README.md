@@ -12,7 +12,8 @@ Domain-model building blocks for DDD-style applications: `Entity`, `AggregateRoo
   - [AggregateRoot](#aggregateroot)
 - [Lifecycle events](#lifecycle-events)
 - [Mutation hooks](#mutation-hooks)
-- [Error classes](#error-classes)
+- [Errors](#errors)
+- [Upgrading from 1.x](#upgrading-from-1x)
 - [Scripts](#scripts)
 
 ---
@@ -57,8 +58,8 @@ id.equals(EntityId.create("user-abc-123")); // true
 Empty or whitespace-only strings throw on construction:
 
 ```ts
-EntityId.create("");      // Error: EntityId cannot be empty
-EntityId.create("   ");   // Error: EntityId cannot be empty
+EntityId.create("");      // InvalidEntityIdError: EntityId cannot be empty
+EntityId.create("   ");   // InvalidEntityIdError: EntityId cannot be empty
 ```
 
 ---
@@ -120,7 +121,7 @@ Abstract base class for aggregate roots. Extends `Entity` with:
 
 - protected `setAttribute` for immutable attribute mutation
 - protected `setAttributes` for batch immutable attribute mutation
-- domain-event queue (`addDomainEvent` / `pullDomainEvents`)
+- domain-event queue (`addEvent` / `pullEvents`)
 - soft-delete lifecycle (`markForRemoval`)
 - optional `createdAt` / `updatedAt` timestamp management
 
@@ -167,12 +168,12 @@ Use `create` for brand-new aggregates. It queues a `user.created` lifecycle even
 
 ```ts
 const user = User.create({
-  id: new EntityId("user-1"),
+  id: EntityId.create("user-1"),
   name: "Ada",
   email: "ada@example.com",
 });
 
-user.pullDomainEvents();
+user.pullEvents();
 // [{ eventName: "user.created", occurredAt: Date, payload: { entityType: "user", entityId: EntityId } }]
 ```
 
@@ -182,7 +183,7 @@ Use `rehydrate` when reconstructing an aggregate from a database record. No even
 
 ```ts
 const user = User.rehydrate({
-  id: new EntityId("user-1"),
+  id: EntityId.create("user-1"),
   name: "Ada",
   email: "ada@example.com",
   createdAt: new Date("2026-01-01"),
@@ -217,21 +218,21 @@ user.markForRemoval("merged into another account");
 
 user.isMarkedForRemoval();  // true
 
-user.pullDomainEvents();
+user.pullEvents();
 // [{ eventName: "user.deleted", payload: { ..., reason: "merged into another account" } }]
 
-user.rename("X");  // throws EntityNotMutableError
+user.rename("X");  // throws an Error
 ```
 
 #### Draining the event queue
 
 ```ts
 // After persisting the aggregate:
-const events = user.pullDomainEvents();  // returns and clears the queue
+const events = user.pullEvents();  // returns and clears the queue
 dispatchAll(events);
 
 // On failure, discard without dispatching:
-user.clearDomainEvents();
+user.clearEvents();
 ```
 
 ---
@@ -273,7 +274,7 @@ Called after the attribute snapshot is replaced. The default is a no-op. Overrid
 ```ts
 protected override onAttributeMutation(changedKey: string): void {
   if (this.hasCreatedEventQueued()) return; // not yet persisted
-  this.addDomainEvent(this.createUpdatedEvent(changedKey));
+  this.addEvent(this.createUpdatedEvent(changedKey));
 }
 ```
 
@@ -283,31 +284,23 @@ Called after `_isMarkedForRemoval` is set but before the `deleted` event is queu
 
 ---
 
-## Error classes
+## Errors
 
 | Class | Code | Thrown when |
 |---|---|---|
-| `EntityNotMutableError` | `ENTITY_NOT_MUTABLE` | `setAttribute` is called on a removed aggregate |
-| `EntityAlreadyMarkedForRemovalError` | `ENTITY_ALREADY_MARKED_FOR_REMOVAL` | `markForRemoval` is called more than once |
+| `InvalidEntityIdError` | `INVALID_ENTITY_ID` | `EntityId.create` gets an empty or blank value |
 
-Both extend the abstract `EntityLifecycleError`, a `BaseError` (`@enardo/errors`) whose `code` is typed `EntityLifecycleErrorCode`, narrowed by each subclass to its own literal and whose `details` is the `{ entityType, entityId }` object, also exposed as `context`, for structured logging.
+`InvalidEntityIdError` is a `BaseError` (`@enardo/errors`): recognize it with `isBaseErrorLike` and its `code`.
 
-```ts
-import {
-  EntityNotMutableError,
-  EntityAlreadyMarkedForRemovalError,
-} from "@enardo/entities";
+Misusing the lifecycle of an aggregate throws a native `Error`, with no `code`: a second `markForRemoval` (`Cannot mark user user-1 for removal: it already is`) and any mutation of a removed aggregate (`Cannot mutate user user-1: it is marked for removal`). Only a bug reaches them, so there is nothing to branch on; check `isMarkedForRemoval()` first. The message names the entity for a person to read: don't parse it.
 
-try {
-  user.markForRemoval();
-  user.markForRemoval(); // throws
-} catch (err) {
-  if (err instanceof EntityAlreadyMarkedForRemovalError) {
-    console.error(err.code, err.context);
-    // "ENTITY_ALREADY_MARKED_FOR_REMOVAL" { entityType: "user", entityId: EntityId }
-  }
-}
-```
+---
+
+## Upgrading from 1.x
+
+- `EntityNotMutableError`, `EntityAlreadyMarkedForRemovalError`, `EntityLifecycleError`, `EntityLifecycleErrorCode` and `EntityLifecycleErrorContext` are gone, and so is the protected `buildLifecycleErrorContext()`: a use of them fails to compile. A subclass reads `modelName` and `id` itself.
+- Both errors are now a native `Error`. A comparison with the old `code` (`ENTITY_NOT_MUTABLE`, `ENTITY_ALREADY_MARKED_FOR_REMOVAL`) still compiles and is never true, and `JSON.stringify` of the error gives `{}`.
+- `2.0.0` depends on `@enardo/errors` `^1.2.0`. If another package of the app allows `1.0.0`, the app gets two copies of it, and an `instanceof BaseError` of one misses an `InvalidEntityIdError` of the other: keep one copy.
 
 ---
 
