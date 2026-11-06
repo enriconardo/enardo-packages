@@ -53,7 +53,7 @@ A package whose `src/` runs in browsers and on Node checks `src/` as each runtim
 
 What they miss, which lint rules on imports and globals cover in part:
 
-- every Node global, from the browser program, after a `/// <reference types="node" />` in `src/`: `@types/node` is installed, so the reference resolves;
+- every Node global, from the browser program, after a `/// <reference types="node" />` in `src/`: `@types/node` is installed, so the reference resolves (and the DOM, from the Node program, after a `/// <reference lib="dom" />`). A lint rule reports the directive;
 - the names `@types/node` declares that Node 24 lacks without a flag (`EventSource`, Web Storage), from the Node program.
 
 `runtime-node.json` needs `@types/node` installed in the package: without it, `tsc` fails with TS2688. They check `src/` as written, not the declarations the build emits.
