@@ -292,21 +292,23 @@ export class TrackingRepository<
    * the domain clears later would otherwise leave the snapshot and never be
    * unset.
    *
-   * When toRecords throws, the snapshot is the stored records whole and the
+   * When toRecords or a key function throws, the snapshot is the stored records whole and the
    * error comes back on the commit that maps the entity, if any: a load must
    * not fail where it did not.
    */
   #snapshotOf(records: TRecords, entity: TDomain): TRecords {
     const stored = toSnapshot(records);
-    let mapped: TRecords;
 
     try {
-      mapped = this.#recordsOf(entity);
+      return restrictToMappedFields(
+        stored,
+        this.#recordsOf(entity),
+        this.dataStore.recordKeys,
+      );
     } catch {
+      // toRecords, or a key function on a stored record that breaks its type.
       return stored;
     }
-
-    return restrictToMappedFields(stored, mapped, this.dataStore.recordKeys);
   }
 
   /** Inserts every record, with no version to check: nothing was read. */

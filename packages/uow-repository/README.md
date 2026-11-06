@@ -287,7 +287,7 @@ Records hold data: primitives, plain objects, arrays, `Map`, `Set`, `Date`, `Reg
 
 ### Mapper rules
 
-- **Round-trip.** `toRecords(toDomain(records))` must reproduce the records the store returns: the same keys, and for the fields it returns, top-level values that are deeply equal. Fields set to `undefined` and the order of records don't matter. Otherwise every entity you only read looks edited and is written again on each commit. What is compared is the fields `toRecords` returns, with the values the store holds for them. A field it never returns is never written, so a field the store or another writer sets on its own (`createdAt`, `__v`) needs no place in the entity. A field the store reads back but never writes itself, such as a child's link to its aggregate, is still the mapper's to return. Defaults, trimming and lossy conversions (dates that lose information) still show as a write on the first commit after a load, until they are stored. A top-level field is compared whole: a nested field `toDomain` drops, or another writer adds, is lost on the first commit after a load, even in a use case that only reads.
+- **Round-trip.** `toRecords(toDomain(records))` must reproduce the records the store returns: the same keys, and for the fields it returns, top-level values that are deeply equal. Fields set to `undefined` and the order of records don't matter. Otherwise every entity you only read looks edited and is written again on each commit. What is compared is the fields `toRecords` returns, with the values the store holds for them. A field it never returns is never written (unless `toRecords` fails on the entity at load and the use case repairs it: the commit then unsets every field the mapper does not return), so a field the store or another writer sets on its own (`createdAt`, `__v`) needs no place in the entity. A field the store reads back but never writes itself, such as a child's link to its aggregate, is still the mapper's to return. Defaults, trimming and lossy conversions (dates that lose information) still show as a write on the first commit after a load, until they are stored. A top-level field is compared whole: a nested field `toDomain` drops, or another writer adds, is lost on the first commit after a load, even in a use case that only reads.
 - **Stable identity.** `identity(entity)` must return the same value for the whole life of the entity.
 - **One conversion for the identity.** When the store holds the identity in another form, `toStoredId` and `toRecords` must agree: write the conversion once and call it from both.
 
@@ -547,7 +547,7 @@ src/
   repository.ts       TrackingRepository, Repository: reads, tracking, flush planning
   unit-of-work.ts     TransactionalUnitOfWork, FlushUnit, UnitOfWorkParticipant
   change-tracker.ts   identity map and entity states
-  record-set.ts       record set types, diffRecordSets (internal)
+  record-set.ts       record set types, diffRecordSets, restrictToMappedFields (internal)
   snapshot.ts         toSnapshot, copyData (internal): deep copies that keep class instances
   identity-key.ts     identityKeyOf
   retry-on-conflict.ts  retryOnConflict

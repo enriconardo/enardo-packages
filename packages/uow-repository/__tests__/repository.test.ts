@@ -1342,6 +1342,41 @@ describe("TrackingRepository", () => {
       expect(apply).not.toHaveBeenCalled();
     });
 
+    it("loads and removes an aggregate whose stored record the key function cannot read", async () => {
+      const stored = stampedGroup();
+      // A stored child the mapper filters out, and whose key cannot be read.
+      stored.members.push({
+        _id: "legacy",
+        groupId: "g-1",
+        leftAt: new Date(0),
+      } as unknown as StampedMemberRecord);
+      const deleteRecords = vi.fn<StampedGroupStore["delete"]>(
+        async () => undefined,
+      );
+      const { unitOfWork, repository, transaction } = createSetup(
+        softDeletingGroupMapper,
+        {
+          groups: (group) => group._id,
+          members: (member) => member.userId.toUpperCase(),
+        },
+        {
+          findById: async () => versioned(structuredClone(stored), 3),
+          delete: deleteRecords,
+        },
+      );
+
+      await unitOfWork.execute(async () => {
+        const group = await repository.findById("g-1");
+        await repository.remove(group!);
+      });
+
+      expect(deleteRecords).toHaveBeenCalledExactlyOnceWith(
+        "g-1",
+        3,
+        transaction,
+      );
+    });
+
     it("loads a record set missing a collection, and fails the commit with the native TypeError of the previous side", async () => {
       const stored = {
         groups: stampedGroup().groups,

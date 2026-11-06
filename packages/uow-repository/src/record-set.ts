@@ -44,6 +44,10 @@ export interface RecordUpdate<TRecord> {
 export interface CollectionChanges<TRecord> {
   readonly inserted: readonly TRecord[];
   readonly updated: readonly RecordUpdate<TRecord>[];
+  /**
+   * Records to delete. Delete by the record key: a record the domain removed
+   * after the load holds only the fields the mapper returns.
+   */
   readonly deleted: readonly TRecord[];
 }
 
@@ -121,9 +125,11 @@ export function isEmptyChangeSet<TRecords extends RecordSet<TRecords>>(
  *   the fields of the mapped records with that key.
  * - A stored record whose key the mapped side lacks stays whole, so it is
  *   deleted by the diff.
- * - It never throws, whatever the sides hold: a collection that either side
+ * - It adds no failure of its own, whatever the sides hold: a collection that either side
  *   lacks, or holds as something other than an array, is left as stored for the
- *   diff to report. Records are grouped by key without the duplicate check.
+ *   diff to report. Records are grouped by key without the duplicate check. A
+ *   key function that throws on a record still throws: the caller falls back to
+ *   the stored records.
  *
  * It copies nothing deeper than the records it restricts: both sides must be
  * snapshots.

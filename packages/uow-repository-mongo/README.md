@@ -220,7 +220,7 @@ await db.collection("items").createIndex({ sku: 1 }, { unique: true });
 - **Without it on a root,** two `add()`s of one key in two units of work both commit, and two documents hold the key. `findById` silently finds one of them, and an update changes only that one. If the two share a child key, every later commit that loaded the aggregate fails with a native `Error`, even in a use case that only reads.
 - **Without it on a child,** two aggregates can hold the same key. Each one still writes only its own records, but the [core package](../uow-repository/README.md#records-and-record-keys) asks for a key that is unique within its collection.
 
-The documents still have an `_id`. When the mapper leaves it out, the store leaves the document's `_id` alone.
+The documents still have an `_id`. When the mapper leaves it out, the store leaves the document's `_id` alone, unless `toRecords` failed on the aggregate at load and the use case repaired it: that commit unsets `_id` too, and the server refuses it (code 66).
 
 ### Identities
 
