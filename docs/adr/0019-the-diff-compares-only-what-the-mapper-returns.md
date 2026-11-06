@@ -15,7 +15,7 @@ The mapper is written by hand and declares no fields, so the repository learns w
 1. **The snapshot holds, of each stored record, only the top-level fields that `toRecords(toDomain(records))` returns for the record with the same key, with the values the store returned.** The field set is taken at load, before any edit.
 2. **A field the mapper never returns is never written** by a diff, in any data store.
 3. **A field the mapper returns is compared with what the store holds**, so a default, a normalization or a lossy conversion in the mapper is written, as before.
-4. **Records:** as the spec of this decision settles (a stored record the mapper does not return).
+4. **Records are matched as before.** A stored record whose key the mapper does not return stays in the snapshot whole, so it is deleted; a key the mapper changes is a delete plus an insert. Only fields are restricted.
 
 ## Consequences
 
@@ -28,4 +28,5 @@ The mapper is written by hand and declares no fields, so the repository learns w
 
 - **The snapshot as `toRecords(toDomain(records))`.** It never writes an unmapped field either, but it also stops writing a default or a normalization, which apps use as a lazy migration, and a lossy mapper would no longer show.
 - **The data store hides its bookkeeping fields**, such as Mongo leaving `_id` out of what it reads under a custom `idField`. It covers one field per store, and breaks the mappers that read it.
+- **Leaving alone a stored record the mapper does not return**, as for a field. A key the mapper returns in another form than the store's, which the core's own tests did, would then be inserted beside the stored record instead of replacing it.
 - **Keeping the round trip as a rule of the mapper.** The loss is silent, and every app must list the store's fields in its entities.

@@ -28,8 +28,8 @@ The core's README makes the round trip a rule of the mapper (*Mapper rules*, *Ro
   - a child `toDomain` filters out → `deleted: [that child]`;
   - a child whose key `toDomain` changes → `deleted` the old key, `inserted` the new one;
   - a `toRecords` that throws → `findById` resolves, the commit rejects with the mapper's error.
-- B applied provisionally in `#track` (restricted as *Changes* says), both suites → two tests fail, every other passes (115 in the core, 49 in the adapter):
-  - core, `repository.test.ts:469`, "fails the unit of work … two records with one key, even if nothing changed": its fixture stores the duplicate under `_id: "g-1:u-2"`, while `memberRecord` (`:1097`) keys it `["g-1","u-2"]`. Under B the stored duplicates match no record the mapper returns, so they leave the snapshot, and the error names the `next` side instead of `previous`;
+- B applied provisionally in `#track`, with a stored record the mapper does not return left out of the snapshot, both suites → two tests fail, every other passes (115 in the core, 49 in the adapter):
+  - core, `repository.test.ts:469`, "fails the unit of work … two records with one key, even if nothing changed": its fixture stores the duplicate under `_id: "g-1:u-2"`, while `memberRecord` (`:1097`) keys it `["g-1","u-2"]`. Left out of the snapshot, the stored duplicates no longer reach the check, and the error names the `next` side instead of `previous`. A mapper returning a key in another form than the store's is that easy to write, which led to decision 2. Under decision 2 the stored duplicates stay in the snapshot whole, so this test is unchanged (not probed with the final rule: the implementation runs it);
   - adapter, `custom-id-field.test.ts:229`, "fails every commit … when the mapper leaves `_id` out": the commit succeeds.
 - The diff, the key functions and the duplicate check to reuse → `packages/uow-repository/src/record-set.ts` (`diffRecordSets`, `recordsOf`, `indexByKey`).
 - `pnpm view` on the registry → `@enardo/uow-repository` and `@enardo/uow-repository-mongo` are published at `0.1.0` only: `0.2.0` of both is unpublished and takes the change as it is, with no new version.
@@ -41,7 +41,8 @@ The core's README makes the round trip a rule of the mapper (*Mapper rules*, *Ro
    - Kept: a field the mapper never returns is never written; a field it returns is compared with what the store holds, so defaults, normalizations and lossy conversions are written as today, and the README's round-trip test still catches them.
    - Not taken, A: the snapshot is `toRecords(toDomain(records))` itself. It also stops writing a default or a normalization, which an app may rely on as a lazy migration, and the round-trip test would always pass.
    - Not taken: the Mongo store keeping `_id` out of what it reads. It covers `_id` only, and breaks the mappers that keep `_id`, as that README asks today.
-2. **A stored record the mapper does not return is left alone.** It leaves the snapshot, so it is never deleted by a diff. A record the mapper returns and the store did not hold is inserted on the first commit, as today. The user's choice; see *Open questions*.
+2. **Records behave as today.** A stored record whose key the mapper does not return stays in the snapshot whole, so it is deleted on the next commit, and a key the mapper changes is still a delete plus an insert. A record the mapper returns and the store did not hold is inserted on the first commit. Only the fields of a record the mapper returns are restricted. The user's choice, at the question that the probe of the core raised.
+   - Not taken: leaving such a record alone, which would keep a child `toDomain` filters out (a soft-deleted one). A key the mapper returns in another form than the store's (the core's own fixture; an `ObjectId` read back as a string) would then be inserted beside the stored record on the first commit: a second document on Mongo, then a duplicate key or two entities for one member.
 3. **The field set is taken at load**, from the entity `toDomain` just built, before any edit. Taken at commit from the edited entity, an optional field the domain cleared would leave the snapshot and never be unset.
 4. **Fields are matched per record key, at the top level**, the level the diff compares. Stored records that share a key all take the fields of the mapper's records with that key, so the duplicate check still fires on the `previous` side.
 5. **No new version.** Both packages are at an unpublished `0.2.0`; their `Upgrading from 0.1` sections gain the change.
@@ -49,18 +50,18 @@ The core's README makes the round trip a rule of the mapper (*Mapper rules*, *Ro
 
 ## Open questions
 
-1. **Decision 2 against a key the mapper changes.** The core's probe above shows how easily a mapper returns a key in another form than the store's: the test fixture does it. Under decision 2, such a record leaves the snapshot, so the first commit inserts the mapper's record beside the stored one instead of replacing it (today: delete and insert). On Mongo that is a second child document, and the next load fails with the duplicate check, or two entities hold one member. The same holds for an `ObjectId` read back as a string. My view: keep today's behavior at the record level (a stored record the mapper does not return stays in the snapshot whole, and is deleted), and restrict only the fields of the records the mapper returns. The README's *Stable* rule already describes a key change as a delete plus an insert; a child that `toDomain` filters out stays deleted, which the README would say. If the user keeps decision 2, test case 9 pins the insert, and the README warns of it under *Stable*.
+None.
 
 ## Changes
 
 ### `@enardo/uow-repository`
 
-- `src/record-set.ts`: an internal function, not exported from `src/index.ts`, that takes the stored record set, the mapped one and the record keys, and returns the stored records restricted to the fields of the mapped record with the same key (decision 4), leaving out a stored record whose key the mapper does not return (decision 2). It reads collections through `recordsOf`, so a missing collection throws the `TypeError` it throws today, and copies nothing itself: it runs on snapshots.
+- `src/record-set.ts`: an internal function, not exported from `src/index.ts`, that takes the stored record set, the mapped one and the record keys, and returns the stored records, each restricted to the fields of the mapped records with the same key (decision 4), and a stored record whose key the mapped side lacks whole (decision 2). It reads collections through `recordsOf`, so a missing collection throws the `TypeError` it throws today, and copies nothing itself: it runs on snapshots.
 - `src/repository.ts`, `#track`: the snapshot is that function applied to `toSnapshot(records)` and `#recordsOf(entity)`. `findById`, `findAll` and `findOneBy` all go through it. The doc comments of the snapshot and of `#findUnsavedChanges` say what is compared.
 - A `toRecords` that throws now rejects the read that loaded the entity, instead of its commit. A read through the repository is meant for a unit of work, which mapped every loaded entity on commit already, so no use case that succeeded today fails now.
 - `README.md`:
   - *Mapper rules*, *Round-trip*: the fields `toRecords` returns must reproduce what the store holds for them; a field it never returns is never written, so store-managed fields need no place in the entity. Defaults, trimming and lossy conversions still show as a write on every commit until they are stored.
-  - *Records and record keys*, *Stable*: what a key change does under decision 2 (or under the open question's answer); a record the mapper does not return is left alone.
+  - *Records and record keys*: a stored record the mapper does not return is deleted on the next commit, so a child `toDomain` filters out (a soft-deleted one) belongs in the entity; and *Stable* gains the common cause of a key change, a key the mapper returns in another form than the store's.
   - *What gets written*, *Change detection*: what the snapshot holds.
   - *Upgrading from 0.1*: a paragraph on the change. An app that removed a field by leaving it out of `toRecords` now keeps it in the store: it removes it with a migration of the stored documents, since a field `toRecords` returns as `undefined` is absent from both sides of the diff.
 
@@ -85,10 +86,10 @@ Core cases run with the fake store of `repository.test.ts`; the store returns, t
 5. A field missing from the store that `toDomain` defaults → `set` holds it on the first commit; a second unit of work over the stored result writes nothing.
 6. A name `toDomain` trims → `set` holds the trimmed value (decision 1, against A).
 7. `findAll` and `findOneBy` (through a subclass) on case 1's record → no write.
-8. The existing duplicate test (`repository.test.ts:469`), with its duplicates stored under the key the mapper returns (`memberRecord`) → the `previous`-side message, with that key; `apply` not called. Its expected message changes with the key, and the comment on the quotes goes.
-9. A child `toDomain` filters out, not edited → no write (decision 2). A child whose key `toDomain` changes → `inserted` the new key, nothing `deleted` (decision 2; if the open question goes the other way, `deleted` the old key and `inserted` the new one, and the filtered child is `deleted`).
+8. Two stored children under the key the mapper returns (`memberRecord`), each with a field the mapper ignores, not edited → the unit of work rejects with the `previous`-side message naming that key, `apply` not called (decision 4). The existing duplicate test (`repository.test.ts:469`), whose stored key the mapper does not return, passes unchanged.
+9. A child `toDomain` filters out, not edited → one `apply` with that child `deleted`, whole. A child whose key `toDomain` changes → the old key `deleted` and the new one `inserted` (decision 2).
 10. A `toRecords` that throws → `findById` rejects with that error, and the unit of work rejects with it, `apply` not called.
-11. The restricting function, directly: stored records with extra fields and a mapped record set with fewer → the stored values of the mapped fields only, and a stored record whose key the mapped side lacks left out; a collection missing from the stored side → a `TypeError` naming that collection.
+11. The restricting function, directly: stored records with extra fields and a mapped record set with fewer → the stored values of the mapped fields only, and a stored record whose key the mapped side lacks kept whole; a collection missing from the stored side → a `TypeError` naming that collection.
 
 Adapter cases run on the replica set, through `TrackingRepository` and `TransactionalUnitOfWork`.
 
@@ -98,7 +99,7 @@ Adapter cases run on the replica set, through `TrackingRepository` and `Transact
 
 ## Risks
 
-`medium`: data correctness. Under decision 1, the writes are a subset of today's: only the `unset` of a field the mapper never returns goes. Decision 2 also drops the delete of a stored record the mapper does not return, and turns a key change into an insert (*Open questions*). What shows a mistake: cases 4 to 6 for a snapshot built like A or at commit, case 8 for duplicates that leave the check, case 1 against a fix of `_id` alone.
+`medium`: data correctness. The writes become a subset of today's: only the `unset` of a field the mapper never returns goes, and records are written as today (decision 2). What shows a mistake: cases 4 to 6 for a snapshot built like A or at commit, case 8 and the unchanged duplicate test for duplicates that leave the check, case 9 for stored records left out of the snapshot, case 1 against a fix of `_id` alone.
 
 ## Out of scope
 
@@ -109,7 +110,7 @@ Adapter cases run on the replica set, through `TrackingRepository` and `Transact
 ## Plan
 
 1. This spec and ADR 0019 (`proposed`), the first commit.
-2. Test-first: the `test-author` writes cases 1 to 14 from this spec; they fail on the current code for the expected reason (cases 8 and 12 change existing tests, as this spec says).
+2. Test-first: the `test-author` writes cases 1 to 14 from this spec. Those that pin the new behavior fail on the current code for the expected reason; cases 5, 6, 8 (on its `previous` side), 9 and 10's commit already hold today and guard the change (case 12 rewrites an existing test, as this spec says).
 3. The restricting function and `#track`, with the doc comments: the core and the adapter suites green.
 4. The two READMEs.
 5. The backlog item removed; at the merge, ADR 0019 `accepted` and this spec `done`.
