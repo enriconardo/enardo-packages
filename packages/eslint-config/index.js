@@ -114,11 +114,26 @@ function createConfig({
  * @param {string} rootDir The package directory: pass `import.meta.dirname`.
  */
 export function node(rootDir) {
-  return createConfig({
-    rootDir,
-    files: ["**/*.ts"],
-    globals: globals.node,
-  });
+  return defineConfig(
+    createConfig({
+      rootDir,
+      files: ["**/*.ts"],
+      globals: globals.node,
+    }),
+    {
+      // A `/// <reference lib="…" />` widens the `lib` of the whole program
+      // past the preset's (the DOM, in a Node package), and nothing else
+      // reports it. A package widens `lib` in its own tsconfig.json, with a
+      // comment. The message is the plugin's and cannot be set.
+      files: ["src/**/*.ts"],
+      rules: {
+        "@typescript-eslint/triple-slash-reference": [
+          "error",
+          { lib: "never" },
+        ],
+      },
+    },
+  );
 }
 
 /**
@@ -146,6 +161,10 @@ export function react(rootDir) {
  * `undici`; no global that one runtime lacks, also through `globalThis`,
  * and none that Node 24 lacks though `@types/node` declares it.
  *
+ * No `/// <reference types="…" />` or `lib` in `src/` either: one opens a
+ * runtime's types to the whole program of the other, and the emitted
+ * declarations drop it.
+ *
  * A package's two runtime typechecks (browser and Node) catch the rest.
  * `undici` is restricted here for its message, and because, installed, it
  * would pull `@types/node` into the browser program through its types,
@@ -158,6 +177,14 @@ export function runtimeNeutral(rootDir) {
   return defineConfig(node(rootDir), {
     files: ["src/**/*.ts"],
     rules: {
+      // `node()` sets `lib`; `types` is added here, and the options are
+      // restated because an entry replaces a rule's options. A `types`
+      // reference opens Node's types to the whole browser program, past
+      // `types: []`. The message is the plugin's: widen in tsconfig.json.
+      "@typescript-eslint/triple-slash-reference": [
+        "error",
+        { lib: "never", types: "never" },
+      ],
       "no-restricted-imports": [
         "error",
         {
