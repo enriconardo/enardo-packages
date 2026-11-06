@@ -26,7 +26,7 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0016](0016-passwords-argon2id-on-node-crypto.md) | Passwords are hashed with Argon2id on `node:crypto`, in one package | accepted |
 | [0017](0017-types-take-no-i-prefix.md) | Types take no `I` prefix, and a contract takes the plain name | accepted |
 | [0018](0018-where-the-refused-value-comes-from.md) | Where a refused value comes from decides between a `BaseError` and a native error | accepted |
-| [0019](0019-the-diff-compares-only-what-the-mapper-returns.md) | The diff compares only the fields the mapper returns, with the values the store read | proposed |
+| [0019](0019-the-diff-compares-only-what-the-mapper-returns.md) | The diff compares only the fields the mapper returns, with the values the store read | accepted |
 
 ## Template
 

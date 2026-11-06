@@ -1,6 +1,6 @@
 # 0019. The diff compares only the fields the mapper returns, with the values the store read
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-06
 - Spec: docs/specs/2026-11-06-unmapped-fields-kept.md
 
