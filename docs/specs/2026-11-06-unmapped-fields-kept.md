@@ -1,5 +1,5 @@
 ---
-status: draft
+status: done
 type: fix
 tier: L
 implementer: sonnet/medium
