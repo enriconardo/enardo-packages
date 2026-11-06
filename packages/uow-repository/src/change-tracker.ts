@@ -4,7 +4,7 @@ export type EntityState = "new" | "clean" | "removed" | "replaced";
 /**
  * Combines identity tracking, lifecycle state, and what was read when the
  * entity was loaded: the snapshot of its records (restricted to the fields the
- * mapper returns) and the stored version. Both
+ * mapper returns, when `toRecords` maps the loaded entity) and the stored version. Both
  * are undefined for an entity that was never loaded.
  */
 export interface TrackedEntity<TId, TEntity, TRecords, TVersion> {
