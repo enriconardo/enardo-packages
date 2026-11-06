@@ -224,9 +224,82 @@ describe("a custom idField", () => {
         "s of second",
       ]);
     });
+
+    it("leaves a child's `_id` alone when the mapper leaves it out, and writes the edit", async () => {
+      interface BareItemRecords {
+        orders: [{ _id: ObjectId; ref: string; note: string }];
+        items: { sku: string; orderRef: string; label: string }[];
+      }
+
+      const bareItemMapper: Mapper<Order, BareItemRecords, string> = {
+        toDomain: ({ orders: [record], items }) => ({
+          documentId: record._id,
+          ref: record.ref,
+          note: record.note,
+          // The entity needs no item `_id`: the mapper never returns it.
+          items: items.map((item) => ({
+            documentId: new ObjectId(),
+            sku: item.sku,
+            label: item.label,
+          })),
+        }),
+        toRecords: (order) => ({
+          orders: [{ _id: order.documentId, ref: order.ref, note: order.note }],
+          items: order.items.map((item) => ({
+            sku: item.sku,
+            orderRef: order.ref,
+            label: item.label,
+          })),
+        }),
+        identity: (order) => order.ref,
+      };
+      const store = new MongoDataStore<BareItemRecords, string>({
+        client,
+        collections: {
+          orders: {
+            collection: db.collection("orders"),
+            root: true,
+            idField: "ref",
+          },
+          items: {
+            collection: db.collection("items"),
+            aggregateIdField: "orderRef",
+            idField: "sku",
+          },
+        },
+      });
+      const bareUseCase = async (
+        run: (
+          orders: TrackingRepository<
+            Order,
+            BareItemRecords,
+            string,
+            MongoTransaction
+          >,
+        ) => Promise<unknown>,
+      ): Promise<unknown> => {
+        const orders = new TrackingRepository(store, bareItemMapper);
+        const unitOfWork = new TransactionalUnitOfWork<MongoTransaction>(
+          transactionManager,
+        );
+        unitOfWork.register(orders);
+        return unitOfWork.execute(() => run(orders));
+      };
+      await bareUseCase((orders) => orders.add(order("A-1", "first", ["s"])));
+      const { _id } = (await db.collection("items").findOne({ sku: "s" }))!;
+
+      await bareUseCase(async (orders) => {
+        const loaded = await orders.findById("A-1");
+        loaded!.items[0]!.label = "changed";
+      });
+
+      expect(await db.collection("items").find().toArray()).toEqual([
+        { _id, sku: "s", orderRef: "A-1", label: "changed" },
+      ]);
+    });
   });
 
-  it("fails every commit that loaded the aggregate when the mapper leaves `_id` out", async () => {
+  it("leaves the root's `_id` alone when the mapper leaves it out, reading and editing alike", async () => {
     interface BareRecords {
       orders: [{ ref: string; note: string }];
     }
@@ -268,10 +341,21 @@ describe("a custom idField", () => {
       return unitOfWork.execute(() => run(orders));
     };
     await bareUseCase((orders) => orders.add({ ref: "A-1", note: "first" }));
+    const { _id } = (await db.collection("orders").findOne({ ref: "A-1" }))!;
 
-    // The server's `_id` reaches the snapshot, and the diff unsets it: code 66.
-    await expect(
-      bareUseCase((orders) => orders.findById("A-1")),
-    ).rejects.toMatchObject({ code: 66 });
+    await bareUseCase((orders) => orders.findById("A-1"));
+
+    expect(await db.collection("orders").find().toArray()).toEqual([
+      { _id, ref: "A-1", note: "first", _version: 1 },
+    ]);
+
+    await bareUseCase(async (orders) => {
+      const loaded = await orders.findById("A-1");
+      loaded!.note = "changed";
+    });
+
+    expect(await db.collection("orders").find().toArray()).toEqual([
+      { _id, ref: "A-1", note: "changed", _version: 2 },
+    ]);
   });
 });

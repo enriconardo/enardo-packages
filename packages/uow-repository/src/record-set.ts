@@ -28,7 +28,11 @@ export type RecordKeys<TRecords extends RecordSet<TRecords>> = {
 
 /** A record that both sides hold, with the top-level fields that differ. */
 export interface RecordUpdate<TRecord> {
-  /** The record as `next` holds it, to read its identity from or to write whole. */
+  /**
+   * The record as `next` holds it, to read its identity from. It lacks the
+   * fields the mapper does not return, so a store that writes it whole removes
+   * them: a store applies `set` and `unset` instead.
+   */
   readonly record: TRecord;
   /** Top-level fields whose value was added or changed, with the new value. */
   readonly set: Partial<TRecord>;
@@ -40,6 +44,10 @@ export interface RecordUpdate<TRecord> {
 export interface CollectionChanges<TRecord> {
   readonly inserted: readonly TRecord[];
   readonly updated: readonly RecordUpdate<TRecord>[];
+  /**
+   * Records to delete. Delete by the record key: a record the domain removed
+   * after the load holds only the fields the mapper returns.
+   */
   readonly deleted: readonly TRecord[];
 }
 
@@ -106,6 +114,64 @@ export function isEmptyChangeSet<TRecords extends RecordSet<TRecords>>(
     ({ inserted, updated, deleted }) =>
       inserted.length === 0 && updated.length === 0 && deleted.length === 0,
   );
+}
+
+/**
+ * Restricts the stored records to the top-level fields the mapped records
+ * return, so a diff compares only what the mapper owns, with the values the
+ * store read.
+ *
+ * - Fields are matched per record key: stored records that share a key all take
+ *   the fields of the mapped records with that key.
+ * - A stored record whose key the mapped side lacks stays whole, so it is
+ *   deleted by the diff.
+ * - It adds no failure of its own, whatever the sides hold: a collection that either side
+ *   lacks, or holds as something other than an array, is left as stored for the
+ *   diff to report. Records are grouped by key without the duplicate check. A
+ *   key function that throws on a record still throws: the caller falls back to
+ *   the stored records.
+ *
+ * It copies nothing deeper than the records it restricts: both sides must be
+ * snapshots.
+ */
+export function restrictToMappedFields<TRecords extends RecordSet<TRecords>>(
+  stored: TRecords,
+  mapped: TRecords,
+  recordKeys: RecordKeys<TRecords>,
+): TRecords {
+  const result: AnyRecord = { ...(stored as AnyRecord) };
+
+  for (const [collection, keyOf] of Object.entries(recordKeys) as [
+    string,
+    KeyFunction,
+  ][]) {
+    const storedRecords = result[collection];
+    const mappedRecords = (mapped as AnyRecord)[collection];
+
+    if (!Array.isArray(storedRecords) || !Array.isArray(mappedRecords)) {
+      continue;
+    }
+
+    const fieldsByKey = new Map<string, Set<string>>();
+
+    for (const record of mappedRecords as AnyRecord[]) {
+      const key = keyOf(record);
+      const fields = fieldsByKey.get(key) ?? new Set<string>();
+      for (const field of Object.keys(record)) fields.add(field);
+      fieldsByKey.set(key, fields);
+    }
+
+    result[collection] = (storedRecords as AnyRecord[]).map((record) => {
+      const fields = fieldsByKey.get(keyOf(record));
+      if (fields === undefined) return record;
+
+      return Object.fromEntries(
+        Object.entries(record).filter(([field]) => fields.has(field)),
+      );
+    });
+  }
+
+  return result as TRecords;
 }
 
 /** Reads a described collection; an undefined record set holds no records. */

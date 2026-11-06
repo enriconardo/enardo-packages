@@ -260,6 +260,36 @@ describe("TrackingRepository over MongoDB", () => {
     ]);
   });
 
+  it("keeps a root field the mapper ignores, on a read and on an edit", async () => {
+    const keyboard = product();
+    await addProduct(keyboard);
+    const _id = new ObjectId(keyboard.id);
+    // A field another writer sets, which the entity has no place for.
+    const createdAt = new Date("2026-02-01T00:00:00Z");
+    await db.collection("products").updateOne({ _id }, { $set: { createdAt } });
+    const stored = await db.collection("products").findOne({ _id });
+
+    const reading = createContext();
+    await reading.unitOfWork.execute(async () => {
+      await reading.products.findById(_id);
+    });
+
+    expect(await db.collection("products").findOne({ _id })).toEqual(stored);
+    expect(stored).toMatchObject({ createdAt, _version: 1 });
+
+    const editing = createContext();
+    await editing.unitOfWork.execute(async () => {
+      const loaded = await editing.products.findById(_id);
+      loaded!.name = "Keyboard Pro";
+    });
+
+    expect(await db.collection("products").findOne({ _id })).toEqual({
+      ...stored,
+      name: "Keyboard Pro",
+      _version: 2,
+    });
+  });
+
   it("replaces an aggregate removed and added again in one unit of work, restarting at version 1", async () => {
     const climbers = group([owner()]);
     await addGroup(climbers);

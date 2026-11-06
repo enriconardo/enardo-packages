@@ -276,8 +276,10 @@ const recordKeys: RecordKeys<GroupRecords> = {
 `recordKeys` belongs to the `DataStore`, and it tells the diff how to match records. Each record key must be:
 
 - **Unique within its collection.** Otherwise every commit fails with a native `Error`, even in use cases that only read.
-- **Stable.** A record whose key changes is written as a delete plus an insert.
+- **Stable.** A record whose key changes is written as a delete plus an insert. A common cause is a key the mapper returns in another form than the store's (an `ObjectId` read back as a string): the stored record is deleted and the mapper's is inserted.
 - **Known before the record is written.** Use ids your application assigns, or natural keys. An id the database generates on insert never reaches the snapshot.
+
+A stored record whose key the mapper does not return is deleted on the next commit, so a child `toDomain` filters out (a soft-deleted one) belongs in the entity.
 
 List every collection in `recordKeys`. A listed collection that a record set lacks fails with a `TypeError`. A collection you don't list is never compared, so its changes are silently not written.
 
@@ -285,7 +287,7 @@ Records hold data: primitives, plain objects, arrays, `Map`, `Set`, `Date`, `Reg
 
 ### Mapper rules
 
-- **Round-trip.** `toRecords(toDomain(records))` must reproduce the records the store returns: the same keys, and top-level fields that are deeply equal. Fields set to `undefined` and the order of records don't matter. Otherwise every entity you only read looks edited and is written again on each commit. Common causes are fields the store manages that the entity doesn't carry (`__v`, `createdAt`), defaults or trimming in `toDomain`, and date conversions that lose information.
+- **Round-trip.** `toRecords(toDomain(records))` must reproduce the records the store returns: the same keys, and for the fields it returns, top-level values that are deeply equal. Fields set to `undefined` and the order of records don't matter. Otherwise every entity you only read looks edited and is written again on each commit. What is compared is the fields `toRecords` returns, with the values the store holds for them. A field it never returns is never written (unless `toRecords` fails on the entity at load and the use case repairs it: the commit then unsets every field the mapper does not return), so a field the store or another writer sets on its own (`createdAt`, `__v`) needs no place in the entity. A field the store reads back but never writes itself, such as a child's link to its aggregate, is still the mapper's to return. Defaults, trimming and lossy conversions (dates that lose information) still show as a write on the first commit after a load, until they are stored. A top-level field is compared whole: a nested field `toDomain` drops, or another writer adds, is lost on the first commit after a load, even in a use case that only reads.
 - **Stable identity.** `identity(entity)` must return the same value for the whole life of the entity.
 - **One conversion for the identity.** When the store holds the identity in another form, `toStoredId` and `toRecords` must agree: write the conversion once and call it from both.
 
@@ -307,7 +309,7 @@ The repository relies on these rules, and the compiler can't check them:
 - **Read all collections of one aggregate from one consistent state**, with a single query or a session with snapshot isolation. Otherwise a mix of two versions can be written back. Reads get no transaction context, so they run outside the unit of work's transaction.
 - **Return fresh objects.** Database drivers already do. An in-memory store must copy, which is why the quick start calls `structuredClone`.
 - **Pass the context to every write** (`apply`, `delete`), so the write joins the transaction.
-- **`apply` works field by field.** For each collection it inserts `inserted`, deletes `deleted`, and for each entry in `updated` sets the fields in `set` and removes the fields in `unset`. Order writes across collections as your schema needs, for example parents before children on insert.
+- **`apply` works field by field.** For each collection it inserts `inserted`, deletes `deleted`, and for each entry in `updated` sets the fields in `set` and removes the fields in `unset`. Never write `record` whole: it lacks the fields the mapper does not return. Order writes across collections as your schema needs, for example parents before children on insert.
 - **`delete(id)` removes every record of the aggregate** in every collection, found by identity. The aggregate may never have been loaded.
 - **Identities arrive in the stored form.** `findById`, `apply` and `delete` receive the identity already converted by the mapper's `toStoredId`, so a store never converts identities itself.
 - **Return the version beside the records, never inside them**, for example by stripping a `version` field from the document. The mapper must not see it.
@@ -406,7 +408,7 @@ Prefer a serialized tuple to string concatenation: `` `${accountId}:${orderNumbe
 | `add` an identity that is already new or loaded | nothing: `add` rejects with a native `Error` | none |
 
 - **Reads.** `findById` returns the tracked instance without querying the store when the identity is already tracked. `findAll` always queries the store, but returns the tracked instances for identities it already knows, drops removed entities, and appends added ones. A tracked identity keeps the version of its first read, because its in-memory state is based on that read.
-- **Change detection.** A snapshot is a deep copy with `undefined` fields dropped. Class instances, such as an `ObjectId`, are kept rather than copied, so they reach the store with their prototype. On commit, every loaded entity is mapped again and compared with its snapshot: records by key, and top-level fields with `isDeepStrictEqual`. Each check maps, copies and compares every loaded entity. `hasPendingChanges()` runs the same comparison and is useful for "unsaved changes" warnings.
+- **Change detection.** A snapshot is a deep copy with `undefined` fields dropped, and holding, of each stored record, only the fields the mapper returns for the entity as loaded, with the values the store returned. A stored record the mapper does not return is kept whole, and so is every record when `toRecords` fails on the entity at load. Class instances, such as an `ObjectId`, are kept rather than copied, so they reach the store with their prototype. On commit, every loaded entity is mapped again and compared with its snapshot: records by key, and top-level fields with `isDeepStrictEqual`. Each check maps, copies and compares every loaded entity. `hasPendingChanges()` runs the same comparison and is useful for "unsaved changes" warnings.
 - **Write order.** Repositories run in registration order. Within a repository, writes run in the order identities were first tracked, not grouped by kind. If a unique index or foreign key depends on the order, load or remove the old entity before adding the new one.
 
 ### Concurrent use cases
@@ -495,6 +497,8 @@ The messages of the record sets name the side at fault: `previous` is the snapsh
 
 ## Upgrading from 0.1
 
+A field `toRecords` never returns is no longer compared, so it is no longer unset on commit. An app that removed a field by leaving it out of `toRecords` now keeps it in the store: remove it with a migration of the stored documents, since a field `toRecords` returns as `undefined` is absent from both sides of the diff.
+
 `UnitOfWorkAlreadyUsedError`, `UnsupportedIdentityError`, `InvalidRecordSetError`, `DuplicateRecordKeyError` and `DuplicateEntityError` are removed, with their codes (`UOW_ALREADY_USED`, `UNSUPPORTED_IDENTITY`, `INVALID_RECORD_SET`, `DUPLICATE_RECORD_KEY`, `DUPLICATE_ENTITY`). Each misuse now throws a native error with the same message. A caller that read a `code` fixes the cause instead: the call, the mapper, the aggregate's invariant or the stored data.
 
 The `I` prefix is gone, and the contracts take the plain names, so the classes take a qualifier:
@@ -543,7 +547,7 @@ src/
   repository.ts       TrackingRepository, Repository: reads, tracking, flush planning
   unit-of-work.ts     TransactionalUnitOfWork, FlushUnit, UnitOfWorkParticipant
   change-tracker.ts   identity map and entity states
-  record-set.ts       record set types, diffRecordSets (internal)
+  record-set.ts       record set types, diffRecordSets, restrictToMappedFields (internal)
   snapshot.ts         toSnapshot, copyData (internal): deep copies that keep class instances
   identity-key.ts     identityKeyOf
   retry-on-conflict.ts  retryOnConflict

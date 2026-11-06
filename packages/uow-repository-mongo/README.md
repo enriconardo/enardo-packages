@@ -176,7 +176,7 @@ Each entry of `collections` is one of:
 | Root | `collection`, `root: true`, `idField?` | Holds exactly one record per aggregate, found by `idField` (default `_id`) equal to the aggregate's identity. It carries the version. |
 | Child | `collection`, `aggregateIdField`, `idField?` | Holds any number of records per aggregate, found by `aggregateIdField` equal to the aggregate's identity. `idField` (default `_id`) identifies a record within the collection. |
 
-Exactly one entry must be the root, or the constructor throws a native `Error`. The store keys records by their `idField` value in extended JSON, so two equal `ObjectId` instances match. An `idField` other than `_id` needs a unique index and a mapper that keeps `_id`: see [A custom `idField`](#a-custom-idfield). The store holds no state: create it once and share it.
+Exactly one entry must be the root, or the constructor throws a native `Error`. The store keys records by their `idField` value in extended JSON, so two equal `ObjectId` instances match. An `idField` other than `_id` needs a unique index: see [A custom `idField`](#a-custom-idfield). The store holds no state: create it once and share it.
 
 ### Aggregates in one collection
 
@@ -203,6 +203,7 @@ const groupStore = new MongoDataStore<GroupRecords, ObjectId>({
 
 - **Reads.** Every read loads the root documents first and then the children of those roots only, in one snapshot session (`{ snapshot: true }`), so all collections come from the same point in time. An aggregate held in a single collection is read without a session. Child documents whose aggregate has no root document are never read.
 - **Writes.** `apply` checks and increments the version on the root document first, even when only members changed. Then it writes each child collection in one ordered `bulkWrite`: deletes, then inserts, then updates. Deletes and updates of a child are filtered by both its `idField` and `aggregateIdField`, so they never touch another aggregate's records.
+- **The child link.** The mapper returns each child's `aggregateIdField`: the store inserts a record as it is, and a child without it is never read back.
 - **Record ids.** Give every child record an id your application assigns, such as `new ObjectId()` created in the mapper or the domain. A record key must be known before the record is written.
 - **Index the child link.** Create an index on each `aggregateIdField`, for example `members.createIndex({ groupId: 1 })`. Every read and delete filters on it.
 
@@ -219,7 +220,7 @@ await db.collection("items").createIndex({ sku: 1 }, { unique: true });
 - **Without it on a root,** two `add()`s of one key in two units of work both commit, and two documents hold the key. `findById` silently finds one of them, and an update changes only that one. If the two share a child key, every later commit that loaded the aggregate fails with a native `Error`, even in a use case that only reads.
 - **Without it on a child,** two aggregates can hold the same key. Each one still writes only its own records, but the [core package](../uow-repository/README.md#records-and-record-keys) asks for a key that is unique within its collection.
 
-**The mapper keeps `_id`.** The documents still have an `_id`, and it reaches the snapshot when an aggregate loads. A mapper whose `toRecords` leaves it out asks to unset it, so every commit that loaded the aggregate fails with the server's error (code 66), even in a use case that only reads. Assign `_id` before the first write, keep it in the entity, and return it from both `toDomain` and `toRecords`.
+The documents still have an `_id`. When the mapper leaves it out, the store leaves the document's `_id` alone, unless `toRecords` failed on the aggregate at load and the use case repaired it: that commit unsets `_id` too, and the server refuses it (code 66). Either carry `_id` in the mapper, or repair the aggregate with `remove` and then `add`.
 
 ### Identities
 
@@ -307,7 +308,7 @@ The package adds no error class. A misuse throws a native error, with no `code`:
 
 `InvalidDataStoreOptionsError` and `MissingCollectionChangesError` are removed, with their codes (`INVALID_DATA_STORE_OPTIONS`, `MISSING_COLLECTION_CHANGES`). Each misuse now throws a native error with the same message. A caller that read a `code` fixes the cause instead: the mappings or the change set.
 
-`@enardo/uow-repository` `^0.2.0` is now a peer dependency, not a dependency: install it beside this package. Its own changes are in its [upgrade note](../uow-repository/README.md#upgrading-from-01): the classes are now `TrackingRepository` and `TransactionalUnitOfWork`. The context type `IMongoTransaction` of `@enardo/transaction-manager-mongo` is now `MongoTransaction`.
+`@enardo/uow-repository` `^0.2.0` is now a peer dependency, not a dependency: install it beside this package. A field the mapper never returns is no longer unset on commit, and a custom `idField` no longer needs the mapper to carry `_id`: see the core's note. Its own changes are in its [upgrade note](../uow-repository/README.md#upgrading-from-01): the classes are now `TrackingRepository` and `TransactionalUnitOfWork`. The context type `IMongoTransaction` of `@enardo/transaction-manager-mongo` is now `MongoTransaction`.
 
 ## Contributing
 
@@ -348,7 +349,7 @@ __tests__/
   public-api.test.ts            the exports of the entry point
   mongo-data-store.test.ts      the DataStore contract, called directly
   repository-with-mongo.test.ts TrackingRepository and TransactionalUnitOfWork end to end
-  custom-id-field.test.ts       what a custom idField needs: the unique index, the mapper's `_id`
+  custom-id-field.test.ts       what a custom idField needs: the unique index, the mapper without `_id`
 ```
 
 ### Conventions
