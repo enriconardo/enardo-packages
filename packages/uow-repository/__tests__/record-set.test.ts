@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   diffRecordSets,
   isEmptyChangeSet,
+  restrictToMappedFields,
   type RecordKeys,
 } from "~/record-set";
 import { expectNativeError, thrownBy } from "./support/native-errors";
@@ -20,6 +21,7 @@ interface MemberDoc {
   groupId: string;
   userId: string;
   role: "owner" | "member";
+  joinedAt?: Date;
 }
 
 /** A group stored across two collections: one record for the group, one per member. */
@@ -322,6 +324,76 @@ describe("diffRecordSets", () => {
         'Collection "members" of the previous record set holds more than one record with key "g-1:u-2".',
       );
     });
+  });
+});
+
+describe("restrictToMappedFields", () => {
+  it("keeps the stored values of the fields the mapped records hold, and a record the mapped side lacks whole", () => {
+    const stored: GroupRecords = {
+      groups: [{ _id: "g-1", name: "Climbers", createdAt: new Date(0) }],
+      members: [
+        { ...member("u-1", "owner"), joinedAt: new Date(1) },
+        { ...member("u-2"), joinedAt: new Date(2) },
+      ],
+    };
+    const mapped: GroupRecords = {
+      groups: [{ _id: "g-1", name: "Boulderers", nickname: "The climbers" }],
+      members: [member("u-1", "member")],
+    };
+
+    const restricted = restrictToMappedFields(stored, mapped, groupKeys);
+
+    expect(restricted.groups).toEqual([{ _id: "g-1", name: "Climbers" }]);
+    expect(restricted.members).toHaveLength(2);
+    expect(restricted.members).toEqual(
+      expect.arrayContaining([
+        member("u-1", "owner"),
+        { ...member("u-2"), joinedAt: new Date(2) },
+      ]),
+    );
+    expect(restricted.members).not.toContainEqual(
+      expect.objectContaining({ userId: "u-1", joinedAt: new Date(1) }),
+    );
+  });
+
+  it("keeps every stored record sharing a key, each restricted, without throwing", () => {
+    const stored: GroupRecords = {
+      groups: [{ _id: "g-1", name: "Climbers" }],
+      members: [
+        { ...member("u-2"), joinedAt: new Date(1) },
+        { ...member("u-2"), joinedAt: new Date(2) },
+      ],
+    };
+    const mapped: GroupRecords = {
+      groups: [{ _id: "g-1", name: "Climbers" }],
+      members: [member("u-2")],
+    };
+
+    const restricted = restrictToMappedFields(stored, mapped, groupKeys);
+
+    expect(restricted.members).toEqual([member("u-2"), member("u-2")]);
+  });
+
+  it("leaves as stored, without throwing, a collection either side lacks or holds as something other than an array", () => {
+    const stored = {
+      groups: [{ _id: "g-1", name: "Climbers", createdAt: new Date(0) }],
+      members: "g-1:u-1",
+    } as unknown as GroupRecords;
+    const mapped = {
+      groups: [{ _id: "g-1", name: "Climbers" }],
+    } as unknown as GroupRecords;
+
+    const restricted = restrictToMappedFields(stored, mapped, groupKeys);
+
+    expect(restricted.groups).toEqual([{ _id: "g-1", name: "Climbers" }]);
+    expect(restricted.members).toBe("g-1:u-1");
+    expect(
+      restrictToMappedFields(
+        { groups: groupRecords().groups } as unknown as GroupRecords,
+        groupRecords(),
+        groupKeys,
+      ).members,
+    ).toBeUndefined();
   });
 });
 

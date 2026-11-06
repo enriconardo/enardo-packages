@@ -6,6 +6,7 @@ import type { Mapper } from "./mapper";
 import {
   diffRecordSets,
   isEmptyChangeSet,
+  restrictToMappedFields,
   type ChangeSet,
   type RecordSet,
 } from "./record-set";
@@ -236,7 +237,11 @@ export class TrackingRepository<
     this.changeTracker.clear();
   }
 
-  /** Diffs a clean entity against its snapshot, returning undefined when nothing changed. */
+  /**
+   * Diffs a clean entity against its snapshot, returning undefined when nothing
+   * changed. The snapshot holds the stored values of the fields the mapper
+   * returns, so only those are compared (see #snapshotOf).
+   */
   #findUnsavedChanges(
     tracked: TrackedEntity<TId, TDomain, TRecords, TVersion>,
   ): ChangeSet<TRecords> | undefined {
@@ -263,14 +268,45 @@ export class TrackingRepository<
   #track({ records, version }: VersionedRecords<TRecords, TVersion>): TDomain {
     const entity = this.mapper.toDomain(records);
     const id = this.mapper.identity(entity);
+    const identityKey = this.#getIdentityKey(id);
+    // The tracker keeps the first snapshot of an identity: map back only the
+    // records of an identity tracked for the first time.
+    const snapshot =
+      this.changeTracker.get(identityKey) !== undefined
+        ? toSnapshot(records)
+        : this.#snapshotOf(records, entity);
     const tracked = this.changeTracker.track(
-      this.#getIdentityKey(id),
+      identityKey,
       id,
       entity,
-      toSnapshot(records),
+      snapshot,
       version,
     );
     return tracked.entity;
+  }
+
+  /**
+   * The stored records restricted to the fields the mapper returns for the
+   * entity just built, before any edit: a field the mapper never returns is
+   * never compared, hence never written. Taken at load, since an optional field
+   * the domain clears later would otherwise leave the snapshot and never be
+   * unset.
+   *
+   * When toRecords throws, the snapshot is the stored records whole and the
+   * error comes back on the commit that maps the entity, if any: a load must
+   * not fail where it did not.
+   */
+  #snapshotOf(records: TRecords, entity: TDomain): TRecords {
+    const stored = toSnapshot(records);
+    let mapped: TRecords;
+
+    try {
+      mapped = this.#recordsOf(entity);
+    } catch {
+      return stored;
+    }
+
+    return restrictToMappedFields(stored, mapped, this.dataStore.recordKeys);
   }
 
   /** Inserts every record, with no version to check: nothing was read. */

@@ -938,6 +938,457 @@ describe("TrackingRepository", () => {
       );
     });
   });
+
+  describe("fields the mapper does not return", () => {
+    it("writes nothing for a root field the mapper ignores when nothing was edited", async () => {
+      const { unitOfWork, repository, apply } = createStampedSetup(
+        stampedGroup({ createdAt: new Date(0) }),
+      );
+
+      await unitOfWork.execute(async () => {
+        await repository.findById("g-1");
+      });
+
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("writes only the edited field, never unsetting a root field the mapper ignores", async () => {
+      const { unitOfWork, repository, apply, transaction } = createStampedSetup(
+        stampedGroup({ createdAt: new Date(0) }),
+      );
+
+      await unitOfWork.execute(async () => {
+        const group = await repository.findById("g-1");
+        group!.name = "Boulderers";
+      });
+
+      expect(apply).toHaveBeenCalledExactlyOnceWith(
+        {
+          id: "g-1",
+          expectedVersion: 1,
+          changes: {
+            groups: {
+              inserted: [],
+              updated: [
+                {
+                  record: { _id: "g-1", name: "Boulderers" },
+                  set: { name: "Boulderers" },
+                  unset: [],
+                },
+              ],
+              deleted: [],
+            },
+            members: { inserted: [], updated: [], deleted: [] },
+          },
+        },
+        transaction,
+      );
+    });
+
+    it("writes nothing for a child field the mapper ignores when nothing was edited", async () => {
+      const stored = stampedGroup();
+      stored.members[1] = {
+        ...memberRecord("g-1", "u-2", "member"),
+        joinedAt: new Date(0),
+      };
+      const { unitOfWork, repository, apply } = createStampedSetup(stored);
+
+      await unitOfWork.execute(async () => {
+        await repository.findById("g-1");
+      });
+
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("unsets an optional field the mapper returns at load and the domain then clears", async () => {
+      const apply = vi.fn<
+        DataStore<DraftRecords, string, Transaction>["apply"]
+      >(async () => undefined);
+      const { unitOfWork, repository, transaction } = createSetup(
+        omittingDraftMapper,
+        draftKeys,
+        {
+          findById: async () =>
+            versioned<DraftRecords>({
+              drafts: [{ id: "d-1", nickname: "Nick" }],
+            }),
+          apply,
+        },
+      );
+
+      await unitOfWork.execute(async () => {
+        const draft = await repository.findById("d-1");
+        draft!.nickname = undefined;
+      });
+
+      expect(apply).toHaveBeenCalledExactlyOnceWith(
+        {
+          id: "d-1",
+          expectedVersion: 1,
+          changes: {
+            drafts: {
+              inserted: [],
+              updated: [
+                { record: { id: "d-1" }, set: {}, unset: ["nickname"] },
+              ],
+              deleted: [],
+            },
+          },
+        },
+        transaction,
+      );
+    });
+
+    it("writes a default toDomain fills in for a field the store lacks, then nothing once it is stored", async () => {
+      let stored: PricedRecord = { id: "x-1" };
+      const apply = vi.fn<
+        DataStore<PricedRecords, string, Transaction>["apply"]
+      >(async ({ changes }) => {
+        // The case writes only `set`: the store keeps what it sets.
+        for (const { set } of changes.priced.updated) {
+          stored = { ...stored, ...set };
+        }
+      });
+      const { unitOfWork, repository, transaction, transactionManager } =
+        createSetup(pricedMapper, pricedKeys, {
+          findById: async () =>
+            versioned<PricedRecords>({ priced: [structuredClone(stored)] }),
+          apply,
+        });
+
+      await unitOfWork.execute(async () => {
+        await repository.findById("x-1");
+      });
+
+      expect(apply).toHaveBeenCalledExactlyOnceWith(
+        {
+          id: "x-1",
+          expectedVersion: 1,
+          changes: {
+            priced: {
+              inserted: [],
+              updated: [
+                {
+                  record: { id: "x-1", currency: "EUR" },
+                  set: { currency: "EUR" },
+                  unset: [],
+                },
+              ],
+              deleted: [],
+            },
+          },
+        },
+        transaction,
+      );
+
+      apply.mockClear();
+      const nextUnitOfWork = new TransactionalUnitOfWork(transactionManager);
+      nextUnitOfWork.register(repository);
+      await nextUnitOfWork.execute(async () => {
+        await repository.findById("x-1");
+      });
+
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("writes the value toDomain normalizes, compared with the stored one", async () => {
+      const apply = vi.fn<ProductStore["apply"]>(async () => undefined);
+      const { unitOfWork, repository, transaction } = createSetup(
+        trimmingProductMapper,
+        productKeys,
+        {
+          findById: async () =>
+            versioned<ProductRecords>({
+              products: [{ productId: "p-1", productName: "  N  " }],
+            }),
+          apply,
+        },
+      );
+
+      await unitOfWork.execute(async () => {
+        await repository.findById("p-1");
+      });
+
+      expect(apply).toHaveBeenCalledExactlyOnceWith(
+        {
+          id: "p-1",
+          expectedVersion: 1,
+          changes: {
+            products: {
+              inserted: [],
+              updated: [
+                {
+                  record: { productId: "p-1", productName: "N" },
+                  set: { productName: "N" },
+                  unset: [],
+                },
+              ],
+              deleted: [],
+            },
+          },
+        },
+        transaction,
+      );
+    });
+
+    it("writes nothing for a field the mapper ignores on an aggregate findAll loaded", async () => {
+      const { unitOfWork, repository, apply } = createStampedSetup(
+        stampedGroup({ createdAt: new Date(0) }),
+      );
+
+      await unitOfWork.execute(async () => {
+        expect(await repository.findAll()).toHaveLength(1);
+      });
+
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("writes nothing for a field the mapper ignores on an aggregate a custom query loaded", async () => {
+      const apply = vi.fn<StampedGroupStore["apply"]>(async () => undefined);
+      const transaction: Transaction = { id: "transaction-1" };
+      const stored = stampedGroup({ createdAt: new Date(0) });
+      const repository = new StampedGroupsByName(
+        {
+          recordKeys: stampedGroupKeys,
+          findById: async () => null,
+          findAll: async () => [],
+          apply,
+          delete: async () => undefined,
+        },
+        stored,
+      );
+      const unitOfWork = new TransactionalUnitOfWork({
+        async runInTransaction(work) {
+          return work(transaction);
+        },
+      });
+      unitOfWork.register(repository);
+
+      await unitOfWork.execute(async () => {
+        expect(await repository.findByName("Climbers")).not.toBeNull();
+      });
+
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("still fails the unit of work on two stored children under a key the mapper returns, each with a field it ignores", async () => {
+      const stored = stampedGroup();
+      stored.members = [
+        memberRecord("g-1", "u-1", "owner"),
+        { ...memberRecord("g-1", "u-2", "member"), joinedAt: new Date(0) },
+        { ...memberRecord("g-1", "u-2", "member"), joinedAt: new Date(1) },
+      ];
+      const { unitOfWork, repository, apply } = createStampedSetup(stored);
+
+      const error = await reasonOf(
+        unitOfWork.execute(async () => {
+          await repository.findById("g-1");
+        }),
+      );
+
+      expectNativeError(
+        error,
+        Error,
+        'Collection "members" of the previous record set holds more than one record with key "["g-1","u-2"]".',
+      );
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("deletes a stored child toDomain filters out, handing over the whole record", async () => {
+      const left = {
+        ...memberRecord("g-1", "u-2", "member"),
+        leftAt: new Date(0),
+      };
+      const stored = stampedGroup();
+      stored.members[1] = left;
+      const { unitOfWork, repository, apply, transaction } = createStampedSetup(
+        stored,
+        softDeletingGroupMapper,
+      );
+
+      await unitOfWork.execute(async () => {
+        await repository.findById("g-1");
+      });
+
+      expect(apply).toHaveBeenCalledExactlyOnceWith(
+        {
+          id: "g-1",
+          expectedVersion: 1,
+          changes: {
+            groups: { inserted: [], updated: [], deleted: [] },
+            members: { inserted: [], updated: [], deleted: [left] },
+          },
+        },
+        transaction,
+      );
+    });
+
+    it("deletes a stored child under its old key and inserts it under the key the mapper returns", async () => {
+      const stale = { ...memberRecord("g-1", "u-2", "member"), _id: "g-1:u-2" };
+      const stored = stampedGroup();
+      stored.members[1] = stale;
+      const { unitOfWork, repository, apply, transaction } =
+        createStampedSetup(stored);
+
+      await unitOfWork.execute(async () => {
+        await repository.findById("g-1");
+      });
+
+      expect(apply).toHaveBeenCalledExactlyOnceWith(
+        {
+          id: "g-1",
+          expectedVersion: 1,
+          changes: {
+            groups: { inserted: [], updated: [], deleted: [] },
+            members: {
+              inserted: [memberRecord("g-1", "u-2", "member")],
+              updated: [],
+              deleted: [stale],
+            },
+          },
+        },
+        transaction,
+      );
+    });
+
+    describe("a toRecords that throws on the loaded entity", () => {
+      const failure = new Error("cannot map an unnamed group");
+      const unmappable = () =>
+        stampedGroup({ name: "", legacy: "from version 1" });
+
+      it("lets the entity be removed, deleting it against the version read", async () => {
+        const { unitOfWork, repository, apply, deleteRecords, transaction } =
+          createStampedSetup(unmappable(), strictGroupMapper(failure), 3);
+
+        await unitOfWork.execute(async () => {
+          const group = await repository.findById("g-1");
+          await repository.remove(group!);
+        });
+
+        expect(deleteRecords).toHaveBeenCalledExactlyOnceWith(
+          "g-1",
+          3,
+          transaction,
+        );
+        expect(apply).not.toHaveBeenCalled();
+      });
+
+      it("fails the unit of work with the mapper's error when the entity is left alone", async () => {
+        const { unitOfWork, repository, apply } = createStampedSetup(
+          unmappable(),
+          strictGroupMapper(failure),
+        );
+        let loaded: Group | null = null;
+
+        await expect(
+          unitOfWork.execute(async () => {
+            loaded = await repository.findById("g-1");
+          }),
+        ).rejects.toBe(failure);
+
+        expect(loaded).not.toBeNull();
+        expect(apply).not.toHaveBeenCalled();
+      });
+
+      it("unsets a stored field the mapper ignores once the entity is repaired", async () => {
+        const { unitOfWork, repository, apply, transaction } =
+          createStampedSetup(unmappable(), strictGroupMapper(failure));
+
+        await unitOfWork.execute(async () => {
+          const group = await repository.findById("g-1");
+          group!.name = "Climbers";
+        });
+
+        expect(apply).toHaveBeenCalledExactlyOnceWith(
+          {
+            id: "g-1",
+            expectedVersion: 1,
+            changes: {
+              groups: {
+                inserted: [],
+                updated: [
+                  {
+                    record: { _id: "g-1", name: "Climbers" },
+                    set: { name: "Climbers" },
+                    unset: ["legacy"],
+                  },
+                ],
+                deleted: [],
+              },
+              members: { inserted: [], updated: [], deleted: [] },
+            },
+          },
+          transaction,
+        );
+      });
+    });
+
+    it("lets an aggregate whose stored children share a key be loaded and removed", async () => {
+      const stored = stampedGroup();
+      stored.members.push(memberRecord("g-1", "u-2", "member"));
+      const { unitOfWork, repository, apply, deleteRecords, transaction } =
+        createStampedSetup(stored, stampedGroupMapper, 3);
+
+      await unitOfWork.execute(async () => {
+        const group = await repository.findById("g-1");
+        await repository.remove(group!);
+      });
+
+      expect(deleteRecords).toHaveBeenCalledExactlyOnceWith(
+        "g-1",
+        3,
+        transaction,
+      );
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("loads a record set missing a collection, and fails the commit with the native TypeError of the previous side", async () => {
+      const stored = {
+        groups: stampedGroup().groups,
+      } as unknown as StampedGroupRecords;
+      const { unitOfWork, repository, apply } = createStampedSetup(
+        stored,
+        lenientGroupMapper,
+      );
+      let loaded: Group | null = null;
+
+      const error = await reasonOf(
+        unitOfWork.execute(async () => {
+          loaded = await repository.findById("g-1");
+        }),
+      );
+
+      expect(loaded).not.toBeNull();
+      expectNativeError(
+        error,
+        TypeError,
+        'Collection "members" of the previous record set is not an array of records.',
+      );
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("never maps back the fresh records findAll returns for an identity already tracked", async () => {
+      const failure = new Error("cannot map an unnamed group");
+      const toRecords = vi.fn(strictGroupMapper(failure).toRecords);
+      const { repository } = createSetup(
+        { ...strictGroupMapper(failure), toRecords },
+        stampedGroupKeys,
+        {
+          findById: async () => versioned(stampedGroup()),
+          findAll: async () => [versioned(stampedGroup({ name: "" }), 2)],
+        },
+      );
+
+      const tracked = await repository.findById("g-1");
+      const found = await repository.findAll();
+
+      expect(found).toHaveLength(1);
+      expect(found[0]).toBe(tracked);
+      for (const [group] of toRecords.mock.calls) {
+        expect(group).toBe(tracked);
+      }
+    });
+  });
 });
 
 /**
@@ -1232,4 +1683,195 @@ const ticketMapper: Mapper<Ticket, TicketRecords, string> = {
 
 const ticketKeys: RecordKeys<TicketRecords> = {
   tickets: (record) => record._id.toHexString(),
+};
+
+/** A group record as a store holds it, with fields the mapper never returns. */
+interface StampedGroupRecord extends GroupRecord {
+  createdAt?: Date;
+  legacy?: string;
+}
+
+/** A member record as a store holds it, with fields the mapper never returns. */
+interface StampedMemberRecord extends MemberRecord {
+  joinedAt?: Date;
+  leftAt?: Date;
+}
+
+interface StampedGroupRecords {
+  groups: [StampedGroupRecord];
+  members: StampedMemberRecord[];
+}
+
+type StampedGroupStore = DataStore<StampedGroupRecords, string, Transaction>;
+
+/** Group g-1, owned by u-1, with u-2 as a member, its group record holding `fields`. */
+function stampedGroup(
+  fields: Partial<StampedGroupRecord> = {},
+): StampedGroupRecords {
+  return {
+    groups: [{ _id: "g-1", name: "Climbers", ...fields }],
+    members: [
+      memberRecord("g-1", "u-1", "owner"),
+      memberRecord("g-1", "u-2", "member"),
+    ],
+  };
+}
+
+/** Wires a group repository over a store holding `stored` at `version`. */
+function createStampedSetup(
+  stored: StampedGroupRecords,
+  mapper: Mapper<Group, StampedGroupRecords, string> = stampedGroupMapper,
+  version = 1,
+) {
+  const apply = vi.fn<StampedGroupStore["apply"]>(async () => undefined);
+  const deleteRecords = vi.fn<StampedGroupStore["delete"]>(
+    async () => undefined,
+  );
+  const setup = createSetup(mapper, stampedGroupKeys, {
+    findById: async () => versioned(structuredClone(stored), version),
+    findAll: async () => [versioned(structuredClone(stored), version)],
+    apply,
+    delete: deleteRecords,
+  });
+
+  return { ...setup, apply, deleteRecords };
+}
+
+/** Finds the group by name with a query of its own, as an adapter's repository would. */
+class StampedGroupsByName extends TrackingRepository<
+  Group,
+  StampedGroupRecords,
+  string,
+  Transaction
+> {
+  constructor(
+    dataStore: StampedGroupStore,
+    private readonly stored: StampedGroupRecords,
+  ) {
+    super(dataStore, stampedGroupMapper);
+  }
+
+  findByName(name: string): Promise<Group | null> {
+    return this.findOneBy(async () =>
+      this.stored.groups[0].name === name
+        ? versioned(structuredClone(this.stored))
+        : null,
+    );
+  }
+}
+
+/** Returns only the fields of `GroupRecords`: the stamped ones are the store's. */
+const stampedGroupMapper: Mapper<Group, StampedGroupRecords, string> = {
+  toDomain({ groups: [group], members }) {
+    return {
+      id: group._id,
+      name: group.name,
+      members: members.map(({ userId, role }) => ({ userId, role })),
+    };
+  },
+  toRecords(group) {
+    return {
+      groups: [{ _id: group.id, name: group.name }],
+      members: group.members.map(({ userId, role }) =>
+        memberRecord(group.id, userId, role),
+      ),
+    };
+  },
+  identity(group) {
+    return group.id;
+  },
+};
+
+/** Leaves the members who left out of the entity, as a soft delete would. */
+const softDeletingGroupMapper: Mapper<Group, StampedGroupRecords, string> = {
+  ...stampedGroupMapper,
+  toDomain(records) {
+    return stampedGroupMapper.toDomain({
+      ...records,
+      members: records.members.filter(({ leftAt }) => leftAt === undefined),
+    });
+  },
+};
+
+/** Reads a record set without members as a group without members. */
+const lenientGroupMapper: Mapper<Group, StampedGroupRecords, string> = {
+  ...stampedGroupMapper,
+  toDomain({ groups, members }) {
+    return stampedGroupMapper.toDomain({
+      groups,
+      // Only a cast gets the missing collection past the types.
+      members: Array.isArray(members) ? members : [],
+    });
+  },
+};
+
+/** Refuses to map a group without a name, with `failure`. */
+function strictGroupMapper(
+  failure: Error,
+): Mapper<Group, StampedGroupRecords, string> {
+  return {
+    ...stampedGroupMapper,
+    toRecords(group) {
+      if (group.name === "") throw failure;
+      return stampedGroupMapper.toRecords(group);
+    },
+  };
+}
+
+const stampedGroupKeys: RecordKeys<StampedGroupRecords> = {
+  groups: (group) => group._id,
+  members: (member) => member._id,
+};
+
+/** Leaves the optional field out of the record, rather than as undefined, once it is cleared. */
+const omittingDraftMapper: Mapper<Draft, DraftRecords, string> = {
+  ...draftMapper,
+  toRecords(draft) {
+    return {
+      drafts: [
+        draft.nickname === undefined
+          ? { id: draft.id }
+          : { id: draft.id, nickname: draft.nickname },
+      ],
+    };
+  },
+};
+
+interface Priced {
+  id: string;
+  currency: string;
+}
+
+interface PricedRecord {
+  id: string;
+  currency?: string;
+}
+
+interface PricedRecords {
+  priced: [PricedRecord];
+}
+
+/** Defaults a currency the store lacks, as a lazy migration would. */
+const pricedMapper: Mapper<Priced, PricedRecords, string> = {
+  toDomain({ priced: [record] }) {
+    return { id: record.id, currency: record.currency ?? "EUR" };
+  },
+  toRecords(priced) {
+    return { priced: [{ id: priced.id, currency: priced.currency }] };
+  },
+  identity(priced) {
+    return priced.id;
+  },
+};
+
+const pricedKeys: RecordKeys<PricedRecords> = {
+  priced: (record) => record.id,
+};
+
+/** Trims the stored name, as a normalizing mapper would. */
+const trimmingProductMapper: Mapper<Product, ProductRecords, string> = {
+  ...productMapper,
+  toDomain({ products: [record] }) {
+    return { id: record.productId, name: record.productName.trim() };
+  },
 };
