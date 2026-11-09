@@ -72,6 +72,8 @@ A copy of 1.0.0 has no brand. While packages that allow 1.0.0 are in your tree, 
 
 `JSON.stringify` calls it by itself, so it also applies to an error nested inside another object.
 
+An override of `toJSON()` controls the form of an error only when that error is the one serialized: the `cause` chain and the `errors` are walked by the rules above, and the `toJSON()` of an `Error` in them is not called. So an override is no way to keep a value out of the logs once another error can wrap this one, and `util.inspect` never calls it either: leave the value out in the constructor, as *Accept a `cause`* says.
+
 **Never send it in an HTTP response**: it carries `details` and the stack.
 
 ## Contributing
