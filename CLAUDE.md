@@ -20,7 +20,7 @@ Workspaces are declared in `pnpm-workspace.yaml`; internal dependencies use `wor
 
 ## Development environment
 
-Every command that touches `node_modules` runs in the `dev` container. The host runs the rest (the editor, git, Claude Code), and package commands go through `./dev.sh exec` (`./dev.sh exec pnpm --filter @enardo/uow-repository test`).
+Every command that touches `node_modules` runs in the `dev` container. The host runs the rest (the editor, git, Claude Code), and package commands go through `./dev.sh exec` (`./dev.sh exec pnpm --filter @enardo/logger test`).
 
 ```
 ./dev.sh up [-d]             # start the dev container and test browsers; no -d: a shell
@@ -33,7 +33,7 @@ Every command that touches `node_modules` runs in the `dev` container. The host 
 
 - **Never run `pnpm` on the host.** `mongodb-memory-server` is a native module: installs from two environments into one `node_modules` break it. Recovery: `./dev.sh clean`, then `./dev.sh exec pnpm install`. The one exception is the registry, from outside the repo (the `publish` skill).
 - **Never `npm i` in the dev container**, which can move files of `node_modules`: a probe that needs a package outside the lockfile runs in a throwaway container (the `spec` skill, *Probing*).
-- The repo is mounted at `/workspaces/enardo-packages` in the container. Browser tests run in the `playwright` service: see [docker/README.md](docker/README.md), which also says what the containers never mount.
+- The repo is mounted at `/workspaces/enardo-packages` in the container; browser tests run in the `playwright` service ([docker/README.md](docker/README.md), with what the containers never mount).
 
 ## Tooling & commands
 
@@ -82,6 +82,8 @@ Packages are published through the `publish` skill, each publish approved by the
 - A test written first fails for the expected reason, and asserts what identifies it (the class, `code`, `details`): `rejects.toThrow(undefined)` accepts any error.
 
 ## Workflow
+
+**Pilot**: a task started by `/overload` follows that plugin, not this section.
 
 At intake the main agent, on Opus, gives the `spec` skill's brief and proposes a tier; the user confirms or changes it. A question or discussion is no task until it leads to a change. A task that turns out bigger changes tier, and the user is told.
 
