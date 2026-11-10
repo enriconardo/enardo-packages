@@ -2,7 +2,7 @@
 
 branch: feature/uow-repository/collect-domain-events
 tier: L
-phase: l/chunk-1/commit
+phase: l/chunk-2/commit
 base: 8756612
 started: 2026-11-10T14:18:21Z
 review_rounds: 1
@@ -85,3 +85,5 @@ At brainstorm the human reframed it: the tool is meant for a DDD architecture, n
 - 2026-11-10T14:39:40Z chunk 1 step review 1: no code finding; test finding: 'forgets the events of a replaced instance on clear' passes without clearing the map (spec line 38 agrees with the finding), back to the test-author
 - 2026-11-10T14:41:06Z chunk 1 red check on suite 3 (src stashed): same 23 TypeError failures, covered by the skip of escalation 1
 - 2026-11-10T14:42:28Z chunk 1 step review 2: ok
+- 2026-11-10T14:48:13Z chunk 2 red check on suite 4: valid red; 7 new tests pass already (type-level, case 13, public-api), for the step reviewer
+- 2026-11-10T14:51:19Z chunk 2 step review 1: ok (mutations confirm the 7 tests green at the red check)

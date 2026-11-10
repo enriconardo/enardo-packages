@@ -20,5 +20,6 @@ export type { RetryOnConflictOptions } from "./retry-on-conflict";
 export type {
   FlushUnit,
   UnitOfWork,
+  TransactionalUnitOfWorkOptions,
   UnitOfWorkParticipant,
 } from "./unit-of-work";
