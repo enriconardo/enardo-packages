@@ -2,7 +2,7 @@
 
 branch: feature/entities/lean-aggregate-core
 tier: L
-phase: l/chunk-2/commit
+phase: l/chunk-3/commit
 base: 3a9eb21
 started: 2026-11-10T11:07:11Z
 review_rounds: 0
@@ -93,3 +93,4 @@ A new major, 3.0.0, with a lean core:
 - 2026-11-10T12:00:35Z lesson candidate (workflow): red-check.sh/junit.py should skip recorded files whose last record deletes them
 - 2026-11-10T12:04:34Z chunk 2 step review round 1: code ok; test finding on case 11 (checks the test's own constructor, not Entity's); spec agrees with reviewer -> back to test-author
 - 2026-11-10T12:05:29Z chunk 2: suite 4 (case 11 fixed); red check's only problem is the deleted deep-freeze.test.ts (tooling gap); all else passes with the code in place; case 11 proven by the reviewer's Partial mutant -> step review round 2
+- 2026-11-10T12:07:24Z chunk 3: suite 5 (index.test); red check: index test red on AssertionError; only problem the deleted deep-freeze.test.ts (tooling gap) -> taken as valid red

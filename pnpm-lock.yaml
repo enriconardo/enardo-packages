@@ -214,9 +214,6 @@ importers:
       '@enardo/errors':
         specifier: workspace:^
         version: link:../errors
-      '@enardo/events':
-        specifier: workspace:^
-        version: link:../events
     devDependencies:
       '@enardo/eslint-config':
         specifier: workspace:^

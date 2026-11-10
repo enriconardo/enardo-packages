@@ -1,6 +1,6 @@
 {
   "name": "@enardo/entities",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "An Entity Package",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
@@ -31,8 +31,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@enardo/errors": "workspace:^",
-    "@enardo/events": "workspace:^"
+    "@enardo/errors": "workspace:^"
   },
   "devDependencies": {
     "@enardo/eslint-config": "workspace:^",

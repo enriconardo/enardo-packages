@@ -351,7 +351,7 @@ Package:
   - New: `packages/entities/__tests__/entity.test.ts`.
   - Deleted: `packages/entities/src/utils/`, `packages/entities/__tests__/deep-freeze.test.ts`.
   - It holds 16 cases, one over the threshold. The old `AggregateRoot` extends `Entity<TAttributes>`, so the two classes change in one commit.
-- [ ] 3. The 3.0.0 surface (test-first). Case 21.
+- [x] 3. The 3.0.0 surface (test-first). Case 21.
   - `packages/entities/src/index.ts` and `packages/entities/__tests__/index.test.ts` change.
   - `packages/entities/src/entity-id.vo.ts` and `packages/entities/__tests__/entity-id.vo.test.ts` are deleted.
   - In `packages/entities/package.json`, `version` becomes `3.0.0` and `@enardo/events` goes. `pnpm-lock.yaml` is updated with `./dev.sh exec pnpm install`.
