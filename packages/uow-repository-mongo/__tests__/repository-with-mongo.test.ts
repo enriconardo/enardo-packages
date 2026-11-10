@@ -155,12 +155,12 @@ describe("TrackingRepository over MongoDB", () => {
     const groups = new TrackingRepository(
       createGroupStore(client, db),
       groupMapper,
-      hexKey,
+      { identityKey: hexKey },
     );
     const products = new TrackingRepository(
       createProductStore(client, db),
       productMapper,
-      hexKey,
+      { identityKey: hexKey },
     );
     unitOfWork.register(groups);
     unitOfWork.register(products);

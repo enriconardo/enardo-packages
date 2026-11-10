@@ -15,7 +15,7 @@ export type {
   RecordSet,
   RecordUpdate,
 } from "./record-set";
-export type { Repository } from "./repository";
+export type { Repository, TrackingRepositoryOptions } from "./repository";
 export type { RetryOnConflictOptions } from "./retry-on-conflict";
 export type {
   FlushUnit,

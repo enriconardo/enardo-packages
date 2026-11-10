@@ -12,10 +12,16 @@ export interface FlushUnit<TContext extends Transaction = Transaction> {
 /** Buffers persistence changes for the lifetime of a unit of work. */
 export interface UnitOfWorkParticipant<
   TContext extends Transaction = Transaction,
+  TEvent = never,
 > {
   planFlush(): readonly FlushUnit<TContext>[];
   /** Reports whether planFlush would yield anything, without building it. */
   hasPendingChanges(): boolean;
+  /**
+   * Takes the domain events of the aggregates the participant tracks,
+   * emptying their queues. Optional: a participant with no events omits it.
+   */
+  pullEvents?(): readonly TEvent[];
   clear(): void;
 }
 

@@ -51,6 +51,14 @@ export interface Repository<TDomain, TId> {
   remove(entity: TDomain): Promise<void>;
 }
 
+/** Options of a {@link TrackingRepository}. */
+export interface TrackingRepositoryOptions<TDomain, TId, TEvent = never> {
+  /** Derives a stable change-tracker key for composite identities. */
+  identityKey?: ((id: TId) => string) | undefined;
+  /** Takes the domain events an aggregate raised, emptying its queue. */
+  pullEvents?: ((aggregate: TDomain) => readonly TEvent[]) | undefined;
+}
+
 /**
  * Maps records to domain entities and tracks those entities within a unit of
  * work.
@@ -66,8 +74,9 @@ export class TrackingRepository<
   TContext extends Transaction,
   TVersion extends NonNullable<unknown> = number,
   TStoredId = TId,
+  TEvent = never,
 >
-  implements Repository<TDomain, TId>, UnitOfWorkParticipant<TContext>
+  implements Repository<TDomain, TId>, UnitOfWorkParticipant<TContext, TEvent>
 {
   readonly changeTracker = new ChangeTracker<
     TId,
@@ -75,6 +84,12 @@ export class TrackingRepository<
     TRecords,
     TVersion
   >();
+
+  /**
+   * Events of the instances an add replaced, by identity key: the tracker
+   * drops those instances, so their events are taken at the add.
+   */
+  readonly #replacedEvents = new Map<string, TEvent[]>();
 
   constructor(
     private readonly dataStore: DataStore<
@@ -84,8 +99,11 @@ export class TrackingRepository<
       TVersion
     >,
     private readonly mapper: Mapper<TDomain, TRecords, TId, TStoredId>,
-    /** Derives a stable change-tracker key for composite identities. */
-    private readonly identityKey?: ((id: TId) => string) | undefined,
+    private readonly options: TrackingRepositoryOptions<
+      TDomain,
+      TId,
+      TEvent
+    > = {},
   ) {}
 
   async findById(id: TId): Promise<TDomain | null> {
@@ -167,7 +185,20 @@ export class TrackingRepository<
 
   async add(entity: TDomain): Promise<void> {
     const id = this.mapper.identity(entity);
-    this.changeTracker.add(this.#getIdentityKey(id), id, entity);
+    const key = this.#getIdentityKey(id);
+    const pullEvents = this.options.pullEvents;
+    const replaced = this.changeTracker.get(key);
+
+    if (pullEvents !== undefined && replaced?.state === "removed") {
+      const events = pullEvents(replaced.entity);
+      if (events.length > 0) {
+        const kept = this.#replacedEvents.get(key) ?? [];
+        kept.push(...events);
+        this.#replacedEvents.set(key, kept);
+      }
+    }
+
+    this.changeTracker.add(key, id, entity);
   }
 
   async remove(entity: TDomain): Promise<void> {
@@ -233,8 +264,29 @@ export class TrackingRepository<
     return false;
   }
 
+  /**
+   * Takes the events of every tracked aggregate, in tracking order and queue
+   * order; those of an instance an add replaced come before the added one's.
+   * An aggregate added and removed gives none: it never reached the store.
+   */
+  pullEvents(): readonly TEvent[] {
+    const pullEvents = this.options.pullEvents;
+    if (pullEvents === undefined) return [];
+
+    const events: TEvent[] = [];
+
+    for (const [key, tracked] of this.changeTracker.entries()) {
+      events.push(...(this.#replacedEvents.get(key) ?? []));
+      events.push(...pullEvents(tracked.entity));
+    }
+
+    this.#replacedEvents.clear();
+    return events;
+  }
+
   clear(): void {
     this.changeTracker.clear();
+    this.#replacedEvents.clear();
   }
 
   /**
@@ -406,6 +458,6 @@ export class TrackingRepository<
   }
 
   #getIdentityKey(id: TId): string {
-    return this.identityKey?.(id) ?? identityKeyOf(id);
+    return this.options.identityKey?.(id) ?? identityKeyOf(id);
   }
 }

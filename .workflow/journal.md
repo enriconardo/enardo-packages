@@ -2,12 +2,12 @@
 
 branch: feature/uow-repository/collect-domain-events
 tier: L
-phase: l/checkpoint
+phase: l/chunk-1/commit
 base: 8756612
 started: 2026-11-10T14:18:21Z
-review_rounds: 0
+review_rounds: 1
 verify_red_streak: 0
-escalations: 0
+escalations: 1
 
 spec: docs/specs/2026-11-10-collect-domain-events.md
 
@@ -62,9 +62,13 @@ At brainstorm the human reframed it: the tool is meant for a DDD architecture, n
 
 ## Open findings
 
+- chunk 1 red check skipped (escalation 1, user's choice): 22 new tests fail with TypeError (old positional constructor, missing pullEvents), not on an assertion or NotImplemented; a signature change cannot be stubbed by appending. Goes in chunk 1's commit body.
+
 ## Lesson candidates
 
 ## Backlog candidates
+
+- workflow: red check rejects tests of a breaking signature change of an existing constructor (TypeError), which no appended stub can turn into NotImplemented; an exception or a stub step for that case.
 
 ## Log
 
@@ -74,3 +78,10 @@ At brainstorm the human reframed it: the tool is meant for a DDD architecture, n
 - 2026-11-10T14:23:49Z spec review 1: holds, 7 minor objections accepted and fixed (hook not required by types: claim dropped, runtime check kept; replace pulled in TrackingRepository.add with private map, appended; decision 4 restated; need anticipated; hasPendingChanges JSDoc; subclass cost; docs, pullEvents error, sync hook, mongo outbox e2e test added)
 - 2026-11-10T14:23:56Z backlog candidate: the EventContext.session doubt of @enardo/events links to ADR 0021 (inside the transaction = outbox)
 - 2026-11-10T14:27:46Z checkpoint 1: user approved the spec and ADR 0021 ('approvo 1) e 2)'), and the backlog link of the EventContext.session doubt to ADR 0021
+- 2026-11-10T14:32:00Z chunk 1 red check round 1: not a valid red (22 tests fail with TypeError, no stubs for the new surface); back to the test-author
+- 2026-11-10T14:34:13Z escalation 1 (chunk 1 red check): user chose skip, red accepted as is; noted for the commit body and as a backlog candidate
+- 2026-11-10T14:35:58Z chunk 1: implementer reported repository.test.ts 'passes the identity through to the store without copying it' still passes identityKey positionally; spec case 14 disagrees with the test, back to the test-author
+- 2026-11-10T14:37:50Z chunk 1 red check on suite 2: run with src stashed (the code was already in the tree), same TypeError red as suite 1 plus the fixed test; covered by the skip of escalation 1
+- 2026-11-10T14:39:40Z chunk 1 step review 1: no code finding; test finding: 'forgets the events of a replaced instance on clear' passes without clearing the map (spec line 38 agrees with the finding), back to the test-author
+- 2026-11-10T14:41:06Z chunk 1 red check on suite 3 (src stashed): same 23 TypeError failures, covered by the skip of escalation 1
+- 2026-11-10T14:42:28Z chunk 1 step review 2: ok
