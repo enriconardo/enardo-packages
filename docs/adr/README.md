@@ -19,8 +19,9 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0014](0014-a-package-logs-only-what-its-caller-cannot-see.md) | A package logs only what its caller cannot see, at `debug` or `warn`, and takes no `logger` without a log point | accepted |
 | [0016](0016-passwords-argon2id-on-node-crypto.md) | Passwords are hashed with Argon2id on `node:crypto`, in one package | accepted |
 | [0017](0017-types-take-no-i-prefix.md) | Types take no `I` prefix, and a contract takes the plain name | accepted |
-| [0018](0018-where-the-refused-value-comes-from.md) | Where a refused value comes from decides between a `BaseError` and a native error | accepted |
+| [0018](0018-where-the-refused-value-comes-from.md) | Where a refused value comes from decides between a `BaseError` and a native error | accepted; its `ENTITY_*` row has no subject since `@enardo/entities` 3.0.0 (ADR 0020) |
 | [0019](0019-the-diff-compares-only-what-the-mapper-returns.md) | The diff compares only the fields the mapper returns, with the values the store read | accepted |
+| [0020](0020-an-aggregate-raises-only-its-domain-events.md) | An aggregate raises only the domain events its class declares; what changed in the store is reported by the unit of work | accepted |
 
 ## Template
 

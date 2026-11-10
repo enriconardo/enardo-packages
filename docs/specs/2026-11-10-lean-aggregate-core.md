@@ -355,7 +355,7 @@ Package:
   - `packages/entities/src/index.ts` and `packages/entities/__tests__/index.test.ts` change.
   - `packages/entities/src/entity-id.vo.ts` and `packages/entities/__tests__/entity-id.vo.test.ts` are deleted.
   - In `packages/entities/package.json`, `version` becomes `3.0.0` and `@enardo/events` goes. `pnpm-lock.yaml` is updated with `./dev.sh exec pnpm install`.
-- [ ] 4. Docs for 3.0.0 (no test-first). No cases.
+- [x] 4. Docs for 3.0.0 (no test-first). No cases.
   - `packages/entities/README.md`, `packages/uow-repository-mongo/README.md`, `packages/eslint-config/README.md` (*Known limit*).
   - `docs/adr/README.md` (the 0020 row, and 0018's status), and `docs/adr/0018-where-the-refused-value-comes-from.md` (status only).
   - ADR 0020 is committed with this spec.

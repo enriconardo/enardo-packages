@@ -54,7 +54,7 @@ A package's own typechecks of `src/` as each runtime sees it catch the rest, and
 
 ## Known limit
 
-`no-unnecessary-type-assertion` reports casts that steer generic inference, such as `Aggregate.rehydrate({ … } as Attributes)`. Its autofix removes them and breaks the build. Write explicit type arguments instead (`Aggregate.rehydrate<Attributes, Aggregate>({ … })`), and never apply that autofix without running `typecheck` afterwards.
+`no-unnecessary-type-assertion` reports casts that steer generic inference, such as `build({ … } as Options)`. Its autofix removes them and breaks the build. Write explicit type arguments instead (`build<Options>({ … })`), and never apply that autofix without running `typecheck` afterwards.
 
 ## Overrides
 

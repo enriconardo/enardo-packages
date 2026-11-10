@@ -230,12 +230,12 @@ The documents still have an `_id`. When the mapper leaves it out, the store leav
 const products = new TrackingRepository(productStore, productMapper, (id) => id.toHexString());
 ```
 
-`TId` of the store is always the identity as the documents hold it. When the domain has an identity of its own, such as a value object, the mapper converts it with `toStoredId`, and the repository hands the store the converted value (see [Stored identities](../uow-repository/README.md#stored-identities)). Every filter on an id field, including the `aggregateIdField` of child collections, uses that value, and so does `ConcurrencyConflictError`:
+`TId` of the store is always the identity as the documents hold it. When the domain has an identity of its own, such as a value object (`UserId` below), the mapper converts it with `toStoredId`, and the repository hands the store the converted value (see [Stored identities](../uow-repository/README.md#stored-identities)). Every filter on an id field, including the `aggregateIdField` of child collections, uses that value, and so does `ConcurrencyConflictError`:
 
 ```ts
-const toStoredId = (id: EntityId) => new ObjectId(id.toString());
+const toStoredId = (id: UserId) => new ObjectId(id.toString());
 
-const userMapper: Mapper<User, UserRecords, EntityId, ObjectId> = {
+const userMapper: Mapper<User, UserRecords, UserId, ObjectId> = {
   // toDomain, and toRecords writing `_id: toStoredId(user.id)`
   identity: (user) => user.id,
   toStoredId,
