@@ -408,9 +408,8 @@ Prefer a serialized tuple to string concatenation: `` `${accountId}:${orderNumbe
 | change an entity you loaded | `apply` with only the changed records and fields, or no write at all if nothing changed | the version read |
 | `remove(entity)` after loading it | `delete` | the version read |
 | `remove(entity)` without loading it | `delete` | `undefined`: the delete is unconditional |
-| `remove` and then `add` the same identity | `delete`, then `apply` with every record in `inserted` | the version read (if loaded) for `delete`, `undefined` for `apply` |
 | `add` and then `remove` the same entity | no write | none |
-| `add` an identity that is already new or loaded | nothing: `add` rejects with a native `Error` | none |
+| `add` an identity that is already new, loaded or removed | nothing: `add` rejects with a native `Error` | none |
 
 - **Reads.** `findById` returns the tracked instance without querying the store when the identity is already tracked. `findAll` always queries the store, but returns the tracked instances for identities it already knows, drops removed entities, and appends added ones. A tracked identity keeps the version of its first read, because its in-memory state is based on that read.
 - **Change detection.** A snapshot is a deep copy with `undefined` fields dropped, and holding, of each stored record, only the fields the mapper returns for the entity as loaded, with the values the store returned. A stored record the mapper does not return is kept whole, and so is every record when `toRecords` fails on the entity at load. Class instances, such as an `ObjectId`, are kept rather than copied, so they reach the store with their prototype. On commit, every loaded entity is mapped again and compared with its snapshot: records by key, and top-level fields with `isDeepStrictEqual`. Each check maps, copies and compares every loaded entity. `hasPendingChanges()` runs the same comparison and is useful for "unsaved changes" warnings.
