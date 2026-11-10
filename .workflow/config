@@ -1,7 +1,7 @@
 version      = 1
 exec         = ./dev.sh exec
 verify       = pnpm verify
-main         = chore/repo/overload-trial
+main         = main
 branch       = <type>/<scope>/<description>
 types        = feature, fix, hotfix, refactor, test, docs, chore
 commit       = [<scope>] <type>: <summary>
