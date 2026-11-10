@@ -15,7 +15,7 @@ In the order approved.
   - It replaces the `<model>.created/updated/deleted` events of `@enardo/entities`, with data the store confirms and one notification per entity, so nothing is left to merge.
   - From the analysis of `@enardo/entities` on `docs/repo/entities-events-backlog` (2026-11-10).
 - **`feature/events/drop-mergeable-event`: `MergeableEvent` and `isMergeableEvent` leave `@enardo/events`.** Tier L, a new major. After `feature/entities/lean-aggregate-core`.
-  - The only use of `MergeableEvent` is the merge of the `updated` events of `@enardo/entities`, which leaves with that branch: domain events are facts, and are never merged. `isMergeableEvent` has none: `entities` keeps a private copy. `Event`, `EventBus`, `EventHandler`, `EventContext` and `SyncEventBus` stay, as the contract of dispatch.
+  - Neither has a use left: the only one, the merge of the `updated` events of `@enardo/entities`, left with `feature/entities/lean-aggregate-core` (3.0.0, which no longer depends on `@enardo/events`). Domain events are facts, and are never merged. `Event`, `EventBus`, `EventHandler`, `EventContext` and `SyncEventBus` stay, as the contract of dispatch.
   - From the analysis of `@enardo/entities` on `docs/repo/entities-events-backlog` (2026-11-10).
 - **Three doubts on the dispatch of `@enardo/events`**, to analyze before a change. Tier to decide with the analysis.
   - `subscribe(eventName, handler)` does not tie the name to the handler's event type: a handler of one event subscribes to another and compiles.

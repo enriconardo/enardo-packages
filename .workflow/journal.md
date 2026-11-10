@@ -2,10 +2,10 @@
 
 branch: feature/entities/lean-aggregate-core
 tier: L
-phase: close/review
+phase: close/write
 base: 3a9eb21
 started: 2026-11-10T11:07:11Z
-review_rounds: 1
+review_rounds: 2
 verify_red_streak: 0
 escalations: 0
 
@@ -97,3 +97,6 @@ A new major, 3.0.0, with a lean core:
 - 2026-11-10T12:15:11Z chunk 4 step review round 1: changes required (README names @enardo/events; 1.x/2.x reading order reversed; equals direction; Gone list missing TS2314 forms and _fields; nested freeze not under still-compile) -> implementer
 - 2026-11-10T12:19:43Z review round 1 on f66fe65: 1 blocking (JSDoc missing on Entity/AggregateRoot public and protected members) -> step-implementer; suggestions: README Object.keys holds for the base only (folded into the fix), setAttributes undefined on absent optional key, case 11 via super vs spec wording
 - 2026-11-10T12:19:43Z backlog candidates (code-reviewer): stale backlog lines (:18 'entities keeps a private copy' of isMergeableEvent, :46 EntityId.create); equatable.ts, entity.ts, aggregate-root.ts lack a role suffix
+- 2026-11-10T12:21:27Z review round 2 on ed164ab: 0 blocking (ready)
+- 2026-11-10T12:23:14Z lesson-critic: 1 revise (accepted: brand convention in Code conventions), 2 keep, 3 keep (plugin red-check.sh)
+- 2026-11-10T13:14:43Z close checkpoint, human: backlog 1 'ok se si tratta solo di rimodulare voci esistenti'; backlog 2 'non importa, non aggiungerlo'; lessons 1 no, 2 no, 3 'riporto la tua obiezione a chi di dovere'; 'poi procedi'

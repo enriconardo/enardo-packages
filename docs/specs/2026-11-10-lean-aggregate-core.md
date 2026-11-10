@@ -1,5 +1,5 @@
 ---
-status: approved
+status: done
 branch: feature/entities/lean-aggregate-core
 ---
 
