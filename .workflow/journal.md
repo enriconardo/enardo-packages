@@ -2,10 +2,10 @@
 
 branch: feature/uow-repository/collect-domain-events
 tier: L
-phase: close/review
+phase: close/write
 base: 8756612
 started: 2026-11-10T14:18:21Z
-review_rounds: 4
+review_rounds: 5
 verify_red_streak: 0
 escalations: 2
 
@@ -112,3 +112,5 @@ At brainstorm the human reframed it: the tool is meant for a DDD architecture, n
 - 2026-11-10T15:55:31Z chunk 5 red check on suite 8: valid red
 - 2026-11-10T15:58:12Z chunk 5 step review 1: ok
 - 2026-11-10T15:59:20Z review round on c2fd751: 2 blocking (README replace leftovers: core What gets written table :411-412; mongo :224 'repair with remove and then add'); mongo one judged single-answer: drop the alternative (two units of work are not atomic)
+- 2026-11-10T16:00:33Z review round on 54f8174: 0 blocking; suggestion: rejectionOf duplicated in two test files
+- 2026-11-10T16:03:41Z checkpoint 3: user gave the go ('via'); no lessons, no backlog items (rejectionOf candidate not kept)
