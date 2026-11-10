@@ -5,7 +5,7 @@ tier: S
 phase: s/implement
 base: b48b750
 started: 2026-11-10T09:50:22Z
-review_rounds: 0
+review_rounds: 1
 verify_red_streak: 0
 escalations: 0
 
@@ -35,3 +35,4 @@ Constraints: docs only, `docs/backlog.md`.
 
 - 2026-11-10T09:50:22Z opened on b48b750 of chore/repo/overload-trial
 - 2026-11-10T09:50:25Z tier S confirmed; no ADR (user); all four backlog items approved, to Queued
+- 2026-11-10T09:53:15Z review round 1 on 86fb043: 1 blocking (attribute bag not recorded)
