@@ -1,5 +1,5 @@
 /** State of an entity tracked during one unit of work. */
-export type EntityState = "new" | "clean" | "removed" | "replaced";
+export type EntityState = "new" | "clean" | "removed";
 
 /**
  * Combines identity tracking, lifecycle state, and what was read when the
@@ -54,7 +54,7 @@ export class ChangeTracker<TId, TEntity, TRecords, TVersion> {
     this.entities.delete(key);
   }
 
-  /** @throws {Error} The identity is already tracked as new, clean or replaced. */
+  /** @throws {Error} The identity is already tracked as new, clean or removed. */
   add(key: string, id: TId, entity: TEntity): void {
     const tracked = this.entities.get(key);
 
@@ -66,13 +66,6 @@ export class ChangeTracker<TId, TEntity, TRecords, TVersion> {
         snapshot: undefined,
         version: undefined,
       });
-      return;
-    }
-
-    if (tracked.state === "removed") {
-      // The version read before the removal stays: the replace deletes against it.
-      tracked.entity = entity;
-      tracked.state = "replaced";
       return;
     }
 

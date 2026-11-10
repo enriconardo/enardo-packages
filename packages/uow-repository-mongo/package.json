@@ -1,6 +1,6 @@
 {
   "name": "@enardo/uow-repository-mongo",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MongoDB data store and transaction manager for @enardo/uow-repository.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",

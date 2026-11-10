@@ -1,6 +1,7 @@
 import { BaseError, isBaseErrorLike } from "@enardo/errors";
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { EntityId, InvalidEntityIdError } from "~/index";
+import { Id } from "~/id.vo";
+import { InvalidEntityIdError } from "~/index";
 import type { InvalidEntityIdDetails } from "~/index";
 
 describe("InvalidEntityIdError", () => {
@@ -34,11 +35,11 @@ describe("InvalidEntityIdError code", () => {
   });
 });
 
-describe("EntityId.create on a blank value", () => {
+describe("Id.create on a blank value", () => {
   it("throws an InvalidEntityIdError with the code INVALID_ENTITY_ID, recognized by isBaseErrorLike", () => {
     let error: unknown;
     try {
-      EntityId.create(" ");
+      Id.create(" ");
     } catch (caught) {
       error = caught;
     }

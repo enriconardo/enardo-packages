@@ -34,6 +34,7 @@ import {
   type GroupRecords,
   type ProductRecords,
 } from "./support/fixtures";
+import { expectNativeError } from "./support/native-errors";
 
 interface Product {
   id: string;
@@ -155,12 +156,12 @@ describe("TrackingRepository over MongoDB", () => {
     const groups = new TrackingRepository(
       createGroupStore(client, db),
       groupMapper,
-      hexKey,
+      { identityKey: hexKey },
     );
     const products = new TrackingRepository(
       createProductStore(client, db),
       productMapper,
-      hexKey,
+      { identityKey: hexKey },
     );
     unitOfWork.register(groups);
     unitOfWork.register(products);
@@ -290,26 +291,31 @@ describe("TrackingRepository over MongoDB", () => {
     });
   });
 
-  it("replaces an aggregate removed and added again in one unit of work, restarting at version 1", async () => {
+  it("rejects adding back an aggregate removed in the same unit of work, and only deletes it", async () => {
     const climbers = group([owner()]);
     await addGroup(climbers);
-    const replacement = { ...climbers, name: "Hikers", members: [owner()] };
+    writes = [];
     const { unitOfWork, groups } = createContext();
+    let error: unknown;
 
     await unitOfWork.execute(async () => {
       const loaded = await groups.findById(new ObjectId(climbers.id));
       await groups.remove(loaded!);
-      await groups.add(replacement);
+      error = await rejectionOf(
+        groups.add({ ...climbers, name: "Hikers", members: [owner()] }),
+      );
     });
 
-    expect(await db.collection("groups").find().toArray()).toEqual([
-      { _id: new ObjectId(climbers.id), name: "Hikers", _version: 1 },
-    ]);
-    expect(await db.collection("members").find().toArray()).toEqual([
-      expect.objectContaining({
-        _id: new ObjectId(replacement.members[0]!.id),
-      }),
-    ]);
+    expectNativeError(
+      error,
+      Error,
+      `An entity with identity "${climbers.id}" is already tracked.`,
+    );
+    expect(await db.collection("groups").countDocuments()).toBe(0);
+    expect(await db.collection("members").countDocuments()).toBe(0);
+    expect(writes.map(({ commandName }) => commandName)).not.toContain(
+      "insert",
+    );
   });
 
   it("rolls back the writes of every repository when a later write fails", async () => {
@@ -434,4 +440,14 @@ function describeWrite({ commandName, command }: CommandStartedEvent) {
     collection: command[commandName] as string,
     [commandName]: statements,
   };
+}
+
+/**
+ * What `promise` rejects with. Fails with an assertion when `promise`
+ * resolves, so a test written before its behavior is red on an assertion.
+ */
+async function rejectionOf(promise: Promise<unknown>): Promise<unknown> {
+  const [outcome] = await Promise.allSettled([promise]);
+  expect(outcome?.status, "the call's outcome").toBe("rejected");
+  return (outcome as PromiseRejectedResult).reason;
 }

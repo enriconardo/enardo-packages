@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-11-06
-- Spec: docs/specs/2026-11-06-unmapped-fields-kept.md
+- Spec: `git show 3dedb3e:docs/specs/2026-11-06-unmapped-fields-kept.md` (removed from the tree)
 
 ## Context
 

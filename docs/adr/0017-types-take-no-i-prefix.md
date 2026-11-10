@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-11-05
-- Spec: `docs/specs/2026-11-05-drop-i-prefix.md`
+- Spec: `git show 3dedb3e:docs/specs/2026-11-05-drop-i-prefix.md` (removed from the tree)
 
 ## Context
 

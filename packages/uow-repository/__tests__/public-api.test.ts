@@ -4,7 +4,9 @@ import * as entryPoint from "~/index";
 import type {
   Repository,
   TrackingRepository,
+  TrackingRepositoryOptions,
   TransactionalUnitOfWork,
+  TransactionalUnitOfWorkOptions,
   UnitOfWork,
 } from "~/index";
 // @ts-expect-error renamed to Repository
@@ -17,6 +19,9 @@ interface Item {
 }
 interface ItemRecords {
   items: { id: string }[];
+}
+interface ItemEvent {
+  type: string;
 }
 
 describe("entry point", () => {
@@ -47,5 +52,31 @@ describe("entry point", () => {
     // a name the module does not export resolves to `any`.
     expectTypeOf<IRepository>().toBeAny();
     expectTypeOf<IUnitOfWork>().toBeAny();
+  });
+
+  it("exports the options types of the repository and the unit of work", () => {
+    // A name the module does not export resolves to `any`, with an error
+    // `typecheck` reports.
+    expectTypeOf<
+      TrackingRepositoryOptions<Item, string, ItemEvent>
+    >().not.toBeAny();
+    expectTypeOf<
+      TransactionalUnitOfWorkOptions<Transaction, ItemEvent>
+    >().not.toBeAny();
+    expectTypeOf<
+      NonNullable<
+        TrackingRepositoryOptions<Item, string, ItemEvent>["pullEvents"]
+      >
+    >().toEqualTypeOf<(aggregate: Item) => readonly ItemEvent[]>();
+    expectTypeOf<
+      NonNullable<
+        TransactionalUnitOfWorkOptions<Transaction, ItemEvent>["onEvents"]
+      >
+    >().toEqualTypeOf<
+      (
+        events: readonly ItemEvent[],
+        context: Transaction,
+      ) => void | Promise<void>
+    >();
   });
 });
