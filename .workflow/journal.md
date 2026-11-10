@@ -2,12 +2,12 @@
 
 branch: feature/uow-repository/collect-domain-events
 tier: L
-phase: l/chunk-2/commit
+phase: l/chunk-3/commit
 base: 8756612
 started: 2026-11-10T14:18:21Z
 review_rounds: 1
 verify_red_streak: 0
-escalations: 1
+escalations: 2
 
 spec: docs/specs/2026-11-10-collect-domain-events.md
 
@@ -63,10 +63,13 @@ At brainstorm the human reframed it: the tool is meant for a DDD architecture, n
 ## Open findings
 
 - chunk 1 red check skipped (escalation 1, user's choice): 22 new tests fail with TypeError (old positional constructor, missing pullEvents), not on an assertion or NotImplemented; a signature change cannot be stubbed by appending. Goes in chunk 1's commit body.
+- chunk 3 red check skipped (escalation 2, user's choice): the 3 tests of case 19 pass already, the chunk has no src change. Goes in chunk 3's commit body.
 
 ## Lesson candidates
 
 ## Backlog candidates
+
+- workflow: the split marked chunk 3 test-first though it changes no src/ (its behavior comes from earlier chunks), so no red was possible; such a chunk should be marked tests-after.
 
 - workflow: red check rejects tests of a breaking signature change of an existing constructor (TypeError), which no appended stub can turn into NotImplemented; an exception or a stub step for that case.
 
@@ -87,3 +90,6 @@ At brainstorm the human reframed it: the tool is meant for a DDD architecture, n
 - 2026-11-10T14:42:28Z chunk 1 step review 2: ok
 - 2026-11-10T14:48:13Z chunk 2 red check on suite 4: valid red; 7 new tests pass already (type-level, case 13, public-api), for the step reviewer
 - 2026-11-10T14:51:19Z chunk 2 step review 1: ok (mutations confirm the 7 tests green at the red check)
+- 2026-11-10T14:53:38Z chunk 3 red check: not valid, the 3 tests of case 19 pass already (the chunk has no src change; chunks 1-2 provide the behavior); escalation 2
+- 2026-11-10T14:56:38Z escalation 2 (chunk 3 red check): user chose skip, green tests accepted; no implementer; step reviewer mutation-checks the 3 tests
+- 2026-11-10T14:59:21Z chunk 3 step review 1: ok (mutations confirm the 3 outbox tests)
