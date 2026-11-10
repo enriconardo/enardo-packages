@@ -481,7 +481,7 @@ const products = new TrackingRepository(productStore, productMapper, {
 });
 
 const unitOfWork = new TransactionalUnitOfWork(transactionManager, {
-  onEvents: async (events, ctx) => {
+  onEvents: async (events: readonly ProductEvent[], ctx) => {
     // ctx is the transaction: write the events with it, for example into an outbox table.
     await outbox.insert(events, ctx);
   },
@@ -498,7 +498,7 @@ unitOfWork.register(products);
 - **`hasPendingChanges()`** counts only the store writes the repositories plan: reading an aggregate's queue empties it, so events are not counted.
 - **The hook may be synchronous.** The unit of work awaits the result either way.
 
-Both classes take the event type as their last type argument, `TEvent`, which defaults to `never`. TypeScript infers no type argument once you give one, so a unit of work that names its context (as the Mongo adapter's does) names `TEvent` too, and `register` refuses a repository whose events are not part of it:
+Both classes take the event type as their last type argument, `TEvent`, which defaults to `never`. TypeScript infers `TEvent` only from an annotated `events` parameter of `onEvents` (as above); otherwise it falls back to `never` and `register` refuses the repository, so give both type arguments. It infers no type argument once you give one, so a unit of work that names its context (as the Mongo adapter's does) names `TEvent` too, and `register` refuses a repository whose events are not part of it:
 
 ```ts
 const unitOfWork = new TransactionalUnitOfWork<Transaction, ProductEvent>(transactionManager, {

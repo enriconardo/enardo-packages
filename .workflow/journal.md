@@ -2,10 +2,10 @@
 
 branch: feature/uow-repository/collect-domain-events
 tier: L
-phase: l/chunk-4/commit
+phase: close/review
 base: 8756612
 started: 2026-11-10T14:18:21Z
-review_rounds: 1
+review_rounds: 2
 verify_red_streak: 0
 escalations: 2
 
@@ -64,10 +64,13 @@ At brainstorm the human reframed it: the tool is meant for a DDD architecture, n
 
 - chunk 1 red check skipped (escalation 1, user's choice): 22 new tests fail with TypeError (old positional constructor, missing pullEvents), not on an assertion or NotImplemented; a signature change cannot be stubbed by appending. Goes in chunk 1's commit body.
 - chunk 3 red check skipped (escalation 2, user's choice): the 3 tests of case 19 pass already, the chunk has no src change. Goes in chunk 3's commit body.
+- code-reviewer (round 1), needs judgment: remove, add, remove of one identity hands over the second instance's events, though it was added then removed (Decision 9 says no event); case 6 (remove/add/remove/add -> three instances' events) hands them over too. The spec points both ways; the code follows case 6.
 
 ## Lesson candidates
 
 ## Backlog candidates
+
+- code-reviewer: an error of the app's pullEvents on a replaced identity throws from TrackingRepository.add (it pulls there), not from the commit's planning as the spec says; execute still rejects and no transaction opens. Document it in the README's Failures bullet, or defer the call.
 
 - workflow: the split marked chunk 3 test-first though it changes no src/ (its behavior comes from earlier chunks), so no red was possible; such a chunk should be marked tests-after.
 
@@ -94,3 +97,5 @@ At brainstorm the human reframed it: the tool is meant for a DDD architecture, n
 - 2026-11-10T14:56:38Z escalation 2 (chunk 3 red check): user chose skip, green tests accepted; no implementer; step reviewer mutation-checks the 3 tests
 - 2026-11-10T14:59:21Z chunk 3 step review 1: ok (mutations confirm the 3 outbox tests)
 - 2026-11-10T15:06:35Z chunk 4 step review 1: ok
+- 2026-11-10T15:06:47Z all 4 chunks committed; branch verify green
+- 2026-11-10T15:08:36Z review round 1 on afd8845: 1 blocking (README Domain events example does not compile: TEvent not inferred from an unannotated onEvents)
