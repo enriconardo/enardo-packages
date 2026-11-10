@@ -2,7 +2,7 @@
 
 branch: feature/uow-repository/collect-domain-events
 tier: L
-phase: close/checkpoint
+phase: l/chunk-5/commit
 base: 8756612
 started: 2026-11-10T14:18:21Z
 review_rounds: 3
@@ -107,3 +107,7 @@ At brainstorm the human reframed it: the tool is meant for a DDD architecture, n
 - 2026-11-10T15:11:24Z lessons: 1 proposed, critic revise (widened to every README example a commit changes, compiled in the dev container), accepted
 - 2026-11-10T15:44:57Z checkpoint 2: user accepted onEvents inside the transaction (documented); asked to remove the replace ('il replace stia complicando le cose inutilmente... vorrei toglierlo'): chunk 5; backlog 1 dropped (moot), 2 dropped (too heavy), workflow defects 3-4 go to workflow-overload, 5 already committed; lesson dropped (too heavy)
 - 2026-11-10T15:47:29Z checkpoint 2: user approved the spec amendment (chunk 5, Decision 11, cases 20-21): 'procedi'
+- 2026-11-10T15:50:48Z chunk 5 red check round 1: not valid, 6 tests fail on reasonOf's plain Error, not an assertion; back to the test-author
+- 2026-11-10T15:55:05Z chunk 5: suite.sh latest() kept the support files mapped to record 7 after they were reverted to HEAD; user chose to delete record 7 only (was d31ceddd40d1c5029e0c6001b57adeb2fb080799)
+- 2026-11-10T15:55:31Z chunk 5 red check on suite 8: valid red
+- 2026-11-10T15:58:12Z chunk 5 step review 1: ok

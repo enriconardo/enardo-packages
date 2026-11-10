@@ -491,7 +491,7 @@ unitOfWork.register(products);
 
 - **When.** At commit, before the transaction opens, the unit of work pulls the events of every participant, in registration order. Inside the transaction it runs the writes, then calls `onEvents(events, ctx)` once, when there is at least one event. A commit with events and no write still opens a transaction.
 - **Which aggregates.** Every aggregate the repository tracks: new, loaded and unchanged, changed or removed. An aggregate may raise an event with no change of persisted state. One added and then removed in the same unit of work gives no event, since it never reached the store.
-- **Order.** Tracking order, as for the writes, and within an aggregate the order of its queue. When an identity is removed and then added again, the events of the removed instance come before those of the added one.
+- **Order.** Tracking order, as for the writes, and within an aggregate the order of its queue.
 - **Retries.** The events are pulled once, before the transaction, so a transaction the transaction manager runs again hands `onEvents` the same events. A use case retried with `retryOnConflict` runs again on fresh aggregates.
 - **Failures.** An error of `onEvents` rolls the transaction back, and `execute()` rethrows it. An error of `pullEvents` fails the commit before any transaction opens.
 - **No hook.** If events are collected and the unit of work has no `onEvents`, the commit throws an `Error` before the transaction opens, rather than dropping them.
@@ -549,7 +549,7 @@ A misuse is a fault in the caller's code, which it fixes rather than handles: it
 | `TypeError`  | An identity isn't a `string`, `number`, `bigint` or `boolean`, and no `identityKey` was given   |
 | `TypeError`  | A record set lacks a collection listed in `recordKeys`, or the collection isn't an array        |
 | `Error`      | Two records of one collection share a key                                                       |
-| `Error`      | `add()` targets an identity already tracked as new, clean or replaced (the promise rejects)     |
+| `Error`      | `add()` targets an identity already tracked as new, clean or removed (the promise rejects)     |
 | `RangeError` | `retryOnConflict` gets a bad `attempts`                                                         |
 
 The messages of the record sets name the side at fault: `previous` is the snapshot, `next` the records the mapper produced.
@@ -565,7 +565,9 @@ new TrackingRepository(store, mapper, (id) => id.value);
 new TrackingRepository(store, mapper, { identityKey: (id) => id.value });
 ```
 
-Nothing else breaks. `pullEvents` and `onEvents` are optional and add the type parameter `TEvent`, which defaults to `never`; see [Domain events](#domain-events). A participant of your own needs no change: its `pullEvents` member is optional.
+`add` of an identity removed in the same unit of work no longer replaces it: it rejects with an `Error`, as over a new or clean one. Remove-then-add (a delete, then an insert, restarting the version at 1) is gone, `FlushUnit.kind` loses `"replace"` and `EntityState` loses `"replaced"`. Update the loaded entity instead.
+
+`pullEvents` and `onEvents` are optional and add the type parameter `TEvent`, which defaults to `never`; see [Domain events](#domain-events). A participant of your own needs no change: its `pullEvents` member is optional.
 
 ## Upgrading from 0.1
 

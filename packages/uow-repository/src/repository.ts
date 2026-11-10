@@ -38,7 +38,7 @@ export interface Repository<TDomain, TId> {
    * Tracks `entity` as new, to be inserted on the next flush.
    *
    * @param entity - The entity to add. Its identity must not already be
-   * tracked as new, clean or replaced, or the returned promise rejects with an `Error`.
+   * tracked as new, clean or removed, or the returned promise rejects with an `Error`.
    */
   add(entity: TDomain): Promise<void>;
   /**
@@ -84,12 +84,6 @@ export class TrackingRepository<
     TRecords,
     TVersion
   >();
-
-  /**
-   * Events of the instances an add replaced, by identity key: the tracker
-   * drops those instances, so their events are taken at the add.
-   */
-  readonly #replacedEvents = new Map<string, TEvent[]>();
 
   constructor(
     private readonly dataStore: DataStore<
@@ -145,9 +139,9 @@ export class TrackingRepository<
       entities.set(key, entity);
     }
 
-    // Include newly tracked or replaced entities in the final result.
+    // Include newly tracked entities in the final result.
     for (const [key, tracked] of this.changeTracker.entries()) {
-      if (tracked.state === "new" || tracked.state === "replaced") {
+      if (tracked.state === "new") {
         entities.set(key, tracked.entity);
       }
     }
@@ -186,18 +180,6 @@ export class TrackingRepository<
   async add(entity: TDomain): Promise<void> {
     const id = this.mapper.identity(entity);
     const key = this.#getIdentityKey(id);
-    const pullEvents = this.options.pullEvents;
-    const replaced = this.changeTracker.get(key);
-
-    if (pullEvents !== undefined && replaced?.state === "removed") {
-      const events = pullEvents(replaced.entity);
-      if (events.length > 0) {
-        const kept = this.#replacedEvents.get(key) ?? [];
-        kept.push(...events);
-        this.#replacedEvents.set(key, kept);
-      }
-    }
-
     this.changeTracker.add(key, id, entity);
   }
 
@@ -217,16 +199,6 @@ export class TrackingRepository<
         }
         case "new": {
           units.push(this.#createInsertUnit(tracked.id, tracked.entity));
-          break;
-        }
-        case "replaced": {
-          units.push(
-            this.#createReplaceUnit(
-              tracked.id,
-              tracked.version,
-              tracked.entity,
-            ),
-          );
           break;
         }
         case "clean": {
@@ -266,7 +238,7 @@ export class TrackingRepository<
 
   /**
    * Takes the events of every tracked aggregate, in tracking order and queue
-   * order; those of an instance an add replaced come before the added one's.
+   * order.
    * An aggregate added and removed gives none: it never reached the store.
    */
   pullEvents(): readonly TEvent[] {
@@ -275,18 +247,15 @@ export class TrackingRepository<
 
     const events: TEvent[] = [];
 
-    for (const [key, tracked] of this.changeTracker.entries()) {
-      events.push(...(this.#replacedEvents.get(key) ?? []));
+    for (const [, tracked] of this.changeTracker.entries()) {
       events.push(...pullEvents(tracked.entity));
     }
 
-    this.#replacedEvents.clear();
     return events;
   }
 
   clear(): void {
     this.changeTracker.clear();
-    this.#replacedEvents.clear();
   }
 
   /**
@@ -405,23 +374,6 @@ export class TrackingRepository<
     return {
       kind: "delete",
       run: async (ctx) => this.dataStore.delete(storedId, expectedVersion, ctx),
-    };
-  }
-
-  /** Deletes against the version read before the removal, then inserts with none. */
-  #createReplaceUnit(
-    id: TId,
-    expectedVersion: TVersion | undefined,
-    entity: TDomain,
-  ): FlushUnit<TContext> {
-    const storedId = this.#storedId(id);
-    const insert = this.#createInsertUnit(id, entity);
-    return {
-      kind: "replace",
-      run: async (ctx) => {
-        await this.dataStore.delete(storedId, expectedVersion, ctx);
-        await insert.run(ctx);
-      },
     };
   }
 

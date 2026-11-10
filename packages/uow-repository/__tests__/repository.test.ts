@@ -397,55 +397,6 @@ describe("TrackingRepository", () => {
       expect(repository.planFlush()).toEqual([]);
     });
 
-    it("replaces an entity by deleting it, then inserting all of its records, in one unit", async () => {
-      const { unitOfWork, repository, apply, deleteRecords, transaction } =
-        createGroupSetup();
-      const calls: string[] = [];
-      deleteRecords.mockImplementation(async () => {
-        calls.push("delete");
-      });
-      apply.mockImplementation(async () => {
-        calls.push("apply");
-      });
-
-      await unitOfWork.execute(async () => {
-        const group = await repository.findById("g-1");
-        await repository.remove(group!);
-        await repository.add({
-          id: "g-1",
-          name: "Climbers",
-          members: [{ userId: "u-3", role: "owner" }],
-        });
-
-        expect(repository.planFlush().map(({ kind }) => kind)).toEqual([
-          "replace",
-        ]);
-      });
-
-      expect(calls).toEqual(["delete", "apply"]);
-      // The delete checks the version that was read; the insert has none to check.
-      expect(deleteRecords).toHaveBeenCalledWith("g-1", 1, transaction);
-      expect(apply).toHaveBeenCalledWith(
-        {
-          id: "g-1",
-          expectedVersion: undefined,
-          changes: {
-            groups: {
-              inserted: [{ _id: "g-1", name: "Climbers" }],
-              updated: [],
-              deleted: [],
-            },
-            members: {
-              inserted: [memberRecord("g-1", "u-3", "owner")],
-              updated: [],
-              deleted: [],
-            },
-          },
-        },
-        transaction,
-      );
-    });
-
     it("hands the store its own copy of the changes on every run, so a retried unit writes them unchanged", async () => {
       const { repository, apply, transaction } = createGroupSetup();
       const received: MemberRecord[][] = [];
@@ -566,6 +517,119 @@ describe("TrackingRepository", () => {
       );
       expect(apply).not.toHaveBeenCalled();
       expect(deleteRecords).not.toHaveBeenCalled();
+    });
+
+    it("rejects adding back an identity removed after loading with a native Error, and only deletes it", async () => {
+      const apply = vi.fn<ProductStore["apply"]>(async () => undefined);
+      const deleteRecords = vi.fn<ProductStore["delete"]>(
+        async () => undefined,
+      );
+      const { unitOfWork, repository, transaction } = createSetup(
+        productMapper,
+        productKeys,
+        {
+          findById: async () =>
+            versioned<ProductRecords>(
+              { products: [{ productId: "p-1", productName: "Keyboard" }] },
+              4,
+            ),
+          apply,
+          delete: deleteRecords,
+        },
+      );
+      let error: unknown;
+      let kinds: string[] = [];
+
+      await unitOfWork.execute(async () => {
+        const loaded = await repository.findById("p-1");
+        await repository.remove(loaded!);
+        error = await rejectionOf(repository.add({ id: "p-1", name: "Mouse" }));
+        kinds = repository.planFlush().map(({ kind }) => kind);
+      });
+
+      expectNativeError(
+        error,
+        Error,
+        'An entity with identity "string:p-1" is already tracked.',
+      );
+      // The rejected add tracks nothing new: the identity stays removed.
+      expect(kinds).toEqual(["delete"]);
+      expect(deleteRecords).toHaveBeenCalledExactlyOnceWith(
+        "p-1",
+        4,
+        transaction,
+      );
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("rejects adding back an identity removed without loading with a native Error, and only deletes it", async () => {
+      const apply = vi.fn<ProductStore["apply"]>(async () => undefined);
+      const deleteRecords = vi.fn<ProductStore["delete"]>(
+        async () => undefined,
+      );
+      const { unitOfWork, repository, transaction } = createSetup(
+        productMapper,
+        productKeys,
+        { apply, delete: deleteRecords },
+      );
+      let error: unknown;
+      let kinds: string[] = [];
+
+      await unitOfWork.execute(async () => {
+        await repository.remove({ id: "p-1", name: "Keyboard" });
+        error = await rejectionOf(repository.add({ id: "p-1", name: "Mouse" }));
+        kinds = repository.planFlush().map(({ kind }) => kind);
+      });
+
+      expectNativeError(
+        error,
+        Error,
+        'An entity with identity "string:p-1" is already tracked.',
+      );
+      expect(kinds).toEqual(["delete"]);
+      expect(deleteRecords).toHaveBeenCalledExactlyOnceWith(
+        "p-1",
+        undefined,
+        transaction,
+      );
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("rejects adding back a removed identity under the stored form, deleting it only", async () => {
+      const calls: string[] = [];
+      const { unitOfWork, repository } = createSetup(
+        {
+          ...productMapper,
+          toStoredId: (id) => `stored:${id}`,
+        },
+        productKeys,
+        {
+          findById: async () =>
+            versioned<ProductRecords>({
+              products: [{ productId: "p-1", productName: "Keyboard" }],
+            }),
+          apply: async ({ id }) => {
+            calls.push(`apply ${String(id)}`);
+          },
+          delete: async (id) => {
+            calls.push(`delete ${String(id)}`);
+          },
+        },
+      );
+      let error: unknown;
+
+      await unitOfWork.execute(async () => {
+        const product = await repository.findById("p-1");
+        await repository.remove(product!);
+        error = await rejectionOf(repository.add({ id: "p-1", name: "Mouse" }));
+      });
+
+      expectNativeError(
+        error,
+        Error,
+        'An entity with identity "string:p-1" is already tracked.',
+      );
+      expect(calls).toEqual(["delete stored:p-1"]);
     });
   });
 
@@ -758,31 +822,6 @@ describe("TrackingRepository", () => {
         ["stored:p-3", 3, transaction],
         ["stored:p-4", undefined, transaction],
       ]);
-    });
-
-    it("hands both writes of a replace the stored form of the identity", async () => {
-      const calls: string[] = [];
-      const { unitOfWork, repository } = createSetup(
-        storedProductMapper,
-        productKeys,
-        {
-          findById: async () => storedProduct("p-1"),
-          apply: async ({ id }) => {
-            calls.push(`apply ${String(id)}`);
-          },
-          delete: async (id) => {
-            calls.push(`delete ${String(id)}`);
-          },
-        },
-      );
-
-      await unitOfWork.execute(async () => {
-        const product = await repository.findById("p-1");
-        await repository.remove(product!);
-        await repository.add({ id: "p-1", name: "Mouse" });
-      });
-
-      expect(calls).toEqual(["delete stored:p-1", "apply stored:p-1"]);
     });
 
     it("converts identities while planning, so a failing conversion opens no transaction", async () => {
@@ -2080,67 +2119,63 @@ describe("TrackingRepository domain events", () => {
     ]);
   });
 
-  it("hands over the removed instance's events, then the added one's, for a replaced identity", async () => {
-    const { repository } = createAccountSetup({
-      "a-1": storedAccount("a-1", "Ada"),
-    });
+  it.each([
+    { removal: "after loading it", loaded: true, expectedVersion: 3 },
+    {
+      removal: "without loading it",
+      loaded: false,
+      expectedVersion: undefined,
+    },
+  ])(
+    "rejects adding back an identity removed $removal, and the commit deletes it and hands over the removed aggregate's events only",
+    async ({ loaded, expectedVersion }) => {
+      const { repository, apply, deleteRecords } = createAccountSetup({
+        "a-1": storedAccount("a-1", "Ada"),
+      });
+      const onEvents = vi.fn<
+        (events: readonly AccountEvent[], context: Transaction) => void
+      >(() => undefined);
+      const unitOfWork = new TransactionalUnitOfWork<Transaction, AccountEvent>(
+        {
+          async runInTransaction(work) {
+            return work(context);
+          },
+        },
+        { onEvents },
+      );
+      unitOfWork.register(repository);
+      const added = newAccount("a-1", "Grace");
+      added.queue.push(accountEvent("opened", "a-1"));
+      let error: unknown;
 
-    const removed = await repository.findById("a-1");
-    removed!.queue.push(accountEvent("closed", "a-1"));
-    await repository.remove(removed!);
-    const added = newAccount("a-1", "Grace");
-    added.queue.push(accountEvent("opened", "a-1"));
-    await repository.add(added);
+      await unitOfWork.execute(async () => {
+        const removed = loaded
+          ? (await repository.findById("a-1"))!
+          : newAccount("a-1", "Ada");
+        removed.queue.push(accountEvent("closed", "a-1"));
+        await repository.remove(removed);
+        error = await rejectionOf(repository.add(added));
+      });
 
-    // The removed instance leaves tracking at the add, so its events are taken there.
-    expect(removed!.queue).toEqual([]);
-    expect(repository.pullEvents()).toEqual([
-      accountEvent("closed", "a-1"),
-      accountEvent("opened", "a-1"),
-    ]);
-  });
-
-  it("hands over the events of the three instances of an identity removed and added twice, in that order", async () => {
-    const { repository } = createAccountSetup({
-      "a-1": storedAccount("a-1", "Ada"),
-    });
-
-    const loaded = await repository.findById("a-1");
-    loaded!.queue.push(accountEvent("closed", "a-1"));
-    await repository.remove(loaded!);
-    const second = newAccount("a-1", "Grace");
-    second.queue.push(accountEvent("reopened", "a-1"));
-    await repository.add(second);
-    await repository.remove(second);
-    const third = newAccount("a-1", "Edsger");
-    third.queue.push(accountEvent("opened", "a-1"));
-    await repository.add(third);
-
-    expect(repository.pullEvents()).toEqual([
-      accountEvent("closed", "a-1"),
-      accountEvent("reopened", "a-1"),
-      accountEvent("opened", "a-1"),
-    ]);
-  });
-
-  it("forgets the events of a replaced instance on clear", async () => {
-    const { repository } = createAccountSetup({
-      "a-1": storedAccount("a-1", "Ada"),
-    });
-
-    const removed = await repository.findById("a-1");
-    removed!.queue.push(accountEvent("closed", "a-1"));
-    await repository.remove(removed!);
-    await repository.add(newAccount("a-1", "Grace"));
-    repository.clear();
-
-    // The same identity, tracked again after clear, must not bring back the
-    // replaced instance's events.
-    const reloaded = await repository.findById("a-1");
-    reloaded!.queue.push(accountEvent("viewed", "a-1"));
-
-    expect(repository.pullEvents()).toEqual([accountEvent("viewed", "a-1")]);
-  });
+      expectNativeError(
+        error,
+        Error,
+        'An entity with identity "string:a-1" is already tracked.',
+      );
+      expect(deleteRecords).toHaveBeenCalledExactlyOnceWith(
+        "a-1",
+        expectedVersion,
+        context,
+      );
+      expect(apply).not.toHaveBeenCalled();
+      expect(onEvents).toHaveBeenCalledExactlyOnceWith(
+        [accountEvent("closed", "a-1")],
+        context,
+      );
+      // The rejected instance was never tracked, so its queue is untouched.
+      expect(added.queue).toEqual([accountEvent("opened", "a-1")]);
+    },
+  );
 
   it("hands over no event of an aggregate added and then removed, and leaves its queue as it is", async () => {
     const { repository, pullEvents } = createAccountSetup();
@@ -2273,4 +2308,14 @@ function createAccountSetup(
   });
 
   return { repository, apply, deleteRecords, pullEvents };
+}
+
+/**
+ * What `promise` rejects with. Fails with an assertion when `promise`
+ * resolves, so a test written before its behavior is red on an assertion.
+ */
+async function rejectionOf(promise: Promise<unknown>): Promise<unknown> {
+  const [outcome] = await Promise.allSettled([promise]);
+  expect(outcome?.status, "the call's outcome").toBe("rejected");
+  return (outcome as PromiseRejectedResult).reason;
 }

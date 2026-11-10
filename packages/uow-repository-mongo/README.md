@@ -326,7 +326,6 @@ A relay that reads the outbox and publishes is the app's.
 
 - **Custom finders return one aggregate.** `TrackingRepository` tracks query results through `findOneBy` only. Lists that a write depends on have to be loaded one aggregate at a time.
 - **The root record keeps its id.** On an update, only the root record's `$set` and `$unset` are written. A mapper that changes the root's `_id` for the same identity loses that change.
-- **A replace restarts the version.** `remove` followed by `add` of the same identity writes version 1 again. A use case that read version 1 before several later updates could then pass the check. This needs a long-running use case, and is unlikely with one unit of work per request.
 - **No standalone server.** Transactions and snapshot reads need a replica set or a sharded cluster.
 
 ### Errors
@@ -335,7 +334,7 @@ The package adds no error class. A misuse throws a native error, with no `code`:
 
 ## Upgrading from 0.2
 
-`@enardo/uow-repository` `^0.3.0` is now the peer dependency. Its `TrackingRepository` takes an options object as its third argument, so a positional `identityKey` becomes `{ identityKey }`: see the core's [upgrade note](../uow-repository/README.md#upgrading-from-02). The package's own code does not change.
+`@enardo/uow-repository` `^0.3.0` is now the peer dependency. Its `TrackingRepository` takes an options object as its third argument, so a positional `identityKey` becomes `{ identityKey }`: see the core's [upgrade note](../uow-repository/README.md#upgrading-from-02). `add` of an identity removed in the same unit of work no longer replaces it and rejects with an `Error`; update the loaded aggregate instead. The package's own code does not change.
 
 ## Upgrading from 0.1
 

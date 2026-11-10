@@ -5,7 +5,7 @@ import type {
 
 /** A persistence write, planned before its transaction starts. */
 export interface FlushUnit<TContext extends Transaction = Transaction> {
-  readonly kind: "insert" | "update" | "replace" | "delete";
+  readonly kind: "insert" | "update" | "delete";
   run(context: TContext): Promise<void>;
 }
 
