@@ -2,7 +2,7 @@
 
 branch: feature/entities/lean-aggregate-core
 tier: L
-phase: l/chunk-4/commit
+phase: l/chunk-5/commit
 base: 3a9eb21
 started: 2026-11-10T11:07:11Z
 review_rounds: 0

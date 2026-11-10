@@ -359,4 +359,4 @@ Package:
   - `packages/entities/README.md`, `packages/uow-repository-mongo/README.md`, `packages/eslint-config/README.md` (*Known limit*).
   - `docs/adr/README.md` (the 0020 row, and 0018's status), and `docs/adr/0018-where-the-refused-value-comes-from.md` (status only).
   - ADR 0020 is committed with this spec.
-- [ ] 5. The item leaves the backlog (no test-first): `docs/backlog.md`. No cases.
+- [x] 5. The item leaves the backlog (no test-first): `docs/backlog.md`. No cases.
