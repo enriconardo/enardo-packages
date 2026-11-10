@@ -9,12 +9,12 @@ describe("EntityId", () => {
   });
 
   it("rejects an empty string", () => {
-    expect(() => EntityId.create("")).toThrow("EntityId cannot be empty");
+    expect(() => EntityId.create("")).toThrow("An entity id cannot be empty");
   });
 
   it("rejects a whitespace-only string", () => {
     expect(() => EntityId.create("   \n\t")).toThrow(
-      "EntityId cannot be empty",
+      "An entity id cannot be empty",
     );
   });
 

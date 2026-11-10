@@ -341,7 +341,7 @@ Package:
 
 ## Chunks
 
-- [ ] 1. Typed `Id` and `Equatable` (test-first). Cases 1–4.
+- [x] 1. Typed `Id` and `Equatable` (test-first). Cases 1–4.
   - New: `packages/entities/src/equatable.ts`, `packages/entities/src/id.vo.ts`, `packages/entities/__tests__/id.vo.test.ts`.
   - Changed: `packages/entities/src/errors/invalid-entity-id.error.ts` (message only), and `packages/entities/__tests__/invalid-entity-id.error.test.ts` (`Id.create` in place of `EntityId.create`).
   - `__tests__/entity-id.vo.test.ts:12,17` take the new message, since `EntityId` shares the error until chunk 3 deletes both.
