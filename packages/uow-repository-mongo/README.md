@@ -12,13 +12,14 @@ const productStore = new MongoDataStore<ProductRecords, ObjectId>({
 const transactionManager = new MongoTransactionManager(client);
 ```
 
-> Published to the `@enardo` registry, version 0.2.0: the API can still change. MongoDB transactions need a replica set or a sharded cluster, even a single-node replica set. A standalone server doesn't work.
+> Published to the `@enardo` registry, version 0.3.0: the API can still change. MongoDB transactions need a replica set or a sharded cluster, even a single-node replica set. A standalone server doesn't work.
 
 ## Contents
 
 - [What it provides](#what-it-provides)
 - [Quick start](#quick-start)
 - [Configuration and usage](#configuration-and-usage)
+- [Upgrading from 0.2](#upgrading-from-02)
 - [Upgrading from 0.1](#upgrading-from-01)
 - [Contributing](#contributing)
 
@@ -105,9 +106,9 @@ const transactionManager = new MongoTransactionManager(client);
 // 4. One unit of work, with its repositories, per use case.
 function createContext() {
   // An ObjectId isn't a primitive identity, so the repository needs a key for it.
-  const products = new TrackingRepository(productStore, productMapper, (id) =>
-    id.toHexString(),
-  );
+  const products = new TrackingRepository(productStore, productMapper, {
+    identityKey: (id) => id.toHexString(),
+  });
   const unitOfWork = new TransactionalUnitOfWork<MongoTransaction>(transactionManager);
   unitOfWork.register(products);
   return { products, unitOfWork };
@@ -224,10 +225,12 @@ The documents still have an `_id`. When the mapper leaves it out, the store leav
 
 ### Identities
 
-`TrackingRepository` derives change-tracker keys only from `string`, `number`, `bigint` and `boolean` identities. When the root's `_id` is an `ObjectId`, pass it as the identity and give the repository a key function:
+`TrackingRepository` derives change-tracker keys only from `string`, `number`, `bigint` and `boolean` identities. When the root's `_id` is an `ObjectId`, pass it as the identity and give the repository an `identityKey` option:
 
 ```ts
-const products = new TrackingRepository(productStore, productMapper, (id) => id.toHexString());
+const products = new TrackingRepository(productStore, productMapper, {
+  identityKey: (id) => id.toHexString(),
+});
 ```
 
 `TId` of the store is always the identity as the documents hold it. When the domain has an identity of its own, such as a value object (`UserId` below), the mapper converts it with `toStoredId`, and the repository hands the store the converted value (see [Stored identities](../uow-repository/README.md#stored-identities)). Every filter on an id field, including the `aggregateIdField` of child collections, uses that value, and so does `ConcurrencyConflictError`:
@@ -244,7 +247,9 @@ const userStore = new MongoDataStore<UserRecords, ObjectId>({
   client,
   collections: { users: { collection: db.collection("users"), root: true } },
 });
-const users = new TrackingRepository(userStore, userMapper, (id) => id.toString());
+const users = new TrackingRepository(userStore, userMapper, {
+  identityKey: (id) => id.toString(),
+});
 ```
 
 The mapper can keep `ObjectId` out of the entity, as the quick start does with hex strings. Records keep `ObjectId`, `Decimal128`, `Long` and other BSON values as they are: the core package copies class instances by reference, so they reach the driver with their prototype.
@@ -293,6 +298,30 @@ Driver errors, such as a duplicate key (code 11000) from a unique index, reach t
 
 Run the unit of work with `MongoTransactionManager` from [`@enardo/transaction-manager-mongo`](../transaction-manager-mongo/README.md), and declare its context on the unit of work: `new TransactionalUnitOfWork<MongoTransaction>(transactionManager)`. Every write of the store passes the transaction's session, so the writes of all repositories commit or roll back together. That package's README covers the transaction options and retries.
 
+### An outbox
+
+The unit of work hands the aggregates' domain events to `onEvents` inside the transaction, with the transaction's context. Insert them into an outbox collection with its session, and they commit or roll back with the aggregate's write. Because the context is named, name the event type too (see [Domain events](../uow-repository/README.md#domain-events)):
+
+```ts
+const outbox = db.collection<{ event: ProductEvent }>("outbox");
+
+const products = new TrackingRepository(productStore, productMapper, {
+  identityKey: (id) => id.toHexString(),
+  pullEvents: (product) => product.pullEvents(),
+});
+const unitOfWork = new TransactionalUnitOfWork<MongoTransaction, ProductEvent>(transactionManager, {
+  onEvents: async (events, { session }) => {
+    await outbox.insertMany(
+      events.map((event) => ({ event })),
+      { session },
+    );
+  },
+});
+unitOfWork.register(products);
+```
+
+A relay that reads the outbox and publishes is the app's.
+
 ### Limits
 
 - **Custom finders return one aggregate.** `TrackingRepository` tracks query results through `findOneBy` only. Lists that a write depends on have to be loaded one aggregate at a time.
@@ -304,11 +333,15 @@ Run the unit of work with `MongoTransactionManager` from [`@enardo/transaction-m
 
 The package adds no error class. A misuse throws a native error, with no `code`: the constructor throws an `Error` when the collections name no root, or more than one; `apply` throws a `TypeError` when a change set has no entry for a mapped collection, since a `ChangeSet` must carry every collection, even those with nothing to write. The core errors, such as `ConcurrencyConflictError`, are described in the [core README](../uow-repository/README.md#errors).
 
+## Upgrading from 0.2
+
+`@enardo/uow-repository` `^0.3.0` is now the peer dependency. Its `TrackingRepository` takes an options object as its third argument, so a positional `identityKey` becomes `{ identityKey }`: see the core's [upgrade note](../uow-repository/README.md#upgrading-from-02). The package's own code does not change.
+
 ## Upgrading from 0.1
 
 `InvalidDataStoreOptionsError` and `MissingCollectionChangesError` are removed, with their codes (`INVALID_DATA_STORE_OPTIONS`, `MISSING_COLLECTION_CHANGES`). Each misuse now throws a native error with the same message. A caller that read a `code` fixes the cause instead: the mappings or the change set.
 
-`@enardo/uow-repository` `^0.2.0` is now a peer dependency, not a dependency: install it beside this package. A field the mapper never returns is no longer unset on commit, and a custom `idField` no longer needs the mapper to carry `_id`: see the core's note. Its own changes are in its [upgrade note](../uow-repository/README.md#upgrading-from-01): the classes are now `TrackingRepository` and `TransactionalUnitOfWork`. The context type `IMongoTransaction` of `@enardo/transaction-manager-mongo` is now `MongoTransaction`.
+`@enardo/uow-repository` is now a peer dependency, not a dependency: install it beside this package. A field the mapper never returns is no longer unset on commit, and a custom `idField` no longer needs the mapper to carry `_id`: see the core's note. Its own changes are in its [upgrade note](../uow-repository/README.md#upgrading-from-01): the classes are now `TrackingRepository` and `TransactionalUnitOfWork`. The context type `IMongoTransaction` of `@enardo/transaction-manager-mongo` is now `MongoTransaction`.
 
 ## Contributing
 

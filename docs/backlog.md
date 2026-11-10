@@ -10,10 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, ope
 
 In the order approved.
 
-- **`feature/uow-repository/commit-change-set`: the change set of a commit, for change notifications.** Tier L.
-  - The change tracker already knows which entities are new, changed and removed, and which fields change (the diff of the mapper's output, ADR 0019): at commit it exposes them, with no dependency on `@enardo/events`. The app, or an outbox, turns them into events. The record-level `ChangeSet` it already exports (`record-set.ts`) is the starting point: the branch decides whether it serves as it is or an entity-level view goes beside it, under another name.
-  - It replaces the `<model>.created/updated/deleted` events of `@enardo/entities`, with data the store confirms and one notification per entity, so nothing is left to merge.
-  - From the analysis of `@enardo/entities` on `docs/repo/entities-events-backlog` (2026-11-10).
 - **`feature/events/drop-mergeable-event`: `MergeableEvent` and `isMergeableEvent` leave `@enardo/events`.** Tier L, a new major. After `feature/entities/lean-aggregate-core`.
   - Neither has a use left: the only one, the merge of the `updated` events of `@enardo/entities`, left with `feature/entities/lean-aggregate-core` (3.0.0, which no longer depends on `@enardo/events`). Domain events are facts, and are never merged. `Event`, `EventBus`, `EventHandler`, `EventContext` and `SyncEventBus` stay, as the contract of dispatch.
   - From the analysis of `@enardo/entities` on `docs/repo/entities-events-backlog` (2026-11-10).
@@ -43,6 +39,7 @@ In the order approved.
 
 ## Dropped
 
+- **`feature/uow-repository/commit-change-set`: the change set of a commit, for change notifications** (2026-11-10). The unit of work collects the aggregates' domain events instead (ADR 0021). Created/updated/deleted notifications carry no intent, duplicate the store's change streams and the domain events, expose the record schema across the aggregate's boundary, and have no consumer: `cambusa` reads no lifecycle event. A reduced notification `{ name, id, change, version }` has the same objections but the schema. From the analysis of `@enardo/entities` on `docs/repo/entities-events-backlog` (2026-11-10), and the spec `docs/specs/2026-11-10-collect-domain-events.md`, decision 1.
 - **`INVALID_ENTITY_ID` of `@enardo/entities`, against ADR 0012 point 6** (2026-11-05). It stays a `BaseError`: `cambusa` calls `EntityId.create` on the parameters of a request, so the value comes from outside, and an app can map the `code` as it does its other value objects' (ADR 0018). From the spec of `fix/email-nodemailer/native-misuse-errors` (2026-11-05).
 - **Does `isBaseErrorLike` still earn its place, when apps compare `code` with an allowlist (ADR 0012 point 7)?** (2026-11-05) Yes. The brand is the only namespace of the codes, which ADR 0012 point 4 leaves unprefixed: without it, a foreign error with a generic `code` (`NOT_FOUND`, `CONFLICT`) that an allowlist holds passes as an error of the ecosystem, and `cambusa`'s handler would answer it without logging. The guard is a few lines, and the brand stays on `BaseError` while published `cqrs` and `uow-repository` check it, so removing the export saves little and costs a major of `@enardo/errors`. `cambusa` is no evidence either way: it resolves `@enardo/errors@1.0.0`, which has no brand. The practice agrees: Node documents `code` as the stable identifier, Fastify prefixes it, axios and LiveKit brand. From the discussion at checkpoint 1 of `fix/uow-repository/native-misuse-errors` (2026-11-02).
 
