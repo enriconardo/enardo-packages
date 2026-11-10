@@ -1,6 +1,6 @@
 # Architecture decision records
 
-Decisions that apply beyond a single task: why the monorepo works the way it does. Specs (`docs/specs/`) record how one task was done and are frozen after merge; an ADR records a decision that later tasks must respect or deliberately overturn.
+Decisions that apply beyond a single task: why the monorepo works the way it does. Specs (`.workflow/specs/`) record how one task was done and are frozen after merge; an ADR records a decision that later tasks must respect or deliberately overturn.
 
 An ADR is never edited after it is accepted, except for its status. To change a decision, write a new ADR that supersedes it, and set the old one's status to `superseded by NNNN`.
 
@@ -31,7 +31,7 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 
 - Status: proposed | accepted | superseded by NNNN
 - Date: YYYY-MM-DD
-- Spec: docs/specs/<the task that led to it>, if any
+- Spec: .workflow/specs/<the task that led to it>, if any
 
 ## Context
 

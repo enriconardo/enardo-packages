@@ -2,7 +2,7 @@
 
 - Status: accepted; point 3 superseded by 0021
 - Date: 2026-11-10
-- Spec: docs/specs/2026-11-10-lean-aggregate-core.md
+- Spec: `git show 3dedb3e:docs/specs/2026-11-10-lean-aggregate-core.md` (removed from the tree)
 
 ## Context
 

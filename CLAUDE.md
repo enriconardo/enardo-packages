@@ -11,9 +11,9 @@ packages/eslint-config      ESLint presets (node, react, runtimeNeutral)
 packages/vitest-config      vitest presets (the browser test project, the Mongo replica set)
 docker/                     dev container, test browsers, compose stack (./dev.sh; docker/README.md)
 scripts/                    workflow scripts
-docs/specs/                 task specs
 docs/adr/                   architecture decision records
 .workflow/backlog.md        work queued or to evaluate, in order
+.workflow/specs/            task specs
 ```
 
 Workspaces are declared in `pnpm-workspace.yaml`; internal dependencies use `workspace:^`. Shared dev tooling takes its version from the `catalog:` there: a package references `"catalog:"`, never a range of its own.

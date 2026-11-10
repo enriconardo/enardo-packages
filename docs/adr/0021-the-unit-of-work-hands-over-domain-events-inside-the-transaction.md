@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-11-10
-- Spec: docs/specs/2026-11-10-collect-domain-events.md
+- Spec: `git show 3dedb3e:docs/specs/2026-11-10-collect-domain-events.md` (removed from the tree)
 
 ## Context
 

@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-11-03
-- Spec: `docs/specs/2026-11-03-argon2id-single-package.md`
+- Spec: `git show 3dedb3e:docs/specs/2026-11-03-argon2id-single-package.md` (removed from the tree)
 
 ## Context
 
