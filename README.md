@@ -25,4 +25,4 @@ Reusable TypeScript infrastructure packages (`@enardo/*`), published to a privat
 
 ## Conventions
 
-[CLAUDE.md](CLAUDE.md) holds the repo's conventions and workflow, for people and agents alike: the layout, branch names (`<type>/<scope>/<description>`, started with `scripts/task-start.sh`), commit messages (`[<scope>] <type>: <summary>`), the code and test conventions, and how a task goes from spec to merge.
+[CLAUDE.md](CLAUDE.md) holds the repo's conventions and workflow, for people and agents alike: the layout, branch names (`<type>/<scope>/<description>`), commit messages (`[<scope>] <type>: <summary>`), the code and test conventions, and where tasks run: Workflow Overload (`/overload`).

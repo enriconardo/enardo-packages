@@ -1,6 +1,6 @@
 # Backlog
 
-Work that is queued or proposed but not started. Each item becomes a branch, which follows the workflow of its tier (*Workflow* in the root `CLAUDE.md`).
+Work that is queued or proposed but not started. Each item becomes a branch, opened with `/overload`.
 
 - **Adding items.** An item enters *To evaluate* when a review or an analysis finds it. It moves to *Queued* when the user approves it.
 - **Removing items.** A branch removes its own item, in a commit of its own before the merge, so the item leaves this file with the merge: the spec and the git history keep the record. A dropped item moves to *Dropped*, with the reason.
@@ -10,8 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, whi
 
 In the order approved.
 
-- **Review the `lesson-critic`'s log once it holds 25 lessons.** Count the verdicts that changed a lesson, that the form alone would not have given and that the user did not take back, the user's overrides, and the cost (`docs/lesson-critic-log.md`). The user keeps, changes or drops the agent; fewer than 3 such verdicts in 25 lessons is only a suggestion to drop it. From the spec of `chore/repo/learn-rule-critic` (2026-10-28), decision 8.
-
 ## To evaluate
 
 - **pnpm 12** (12.15.0 on 2026-10-23), deferred while 11 gets fixes: nothing here needs it yet. Tier L. Found in a throwaway clone:
@@ -20,7 +18,6 @@ In the order approved.
   - every fresh container downloads a 58 MB native binary, and each install runs a supply-chain check over the network (about 5 s);
   - `verify:all` and `pack` manifests match 11; turbo's key does not hold the pnpm version, so the checks run with `--force`.
   - From the intake of `chore/repo/upgrade-pnpm-11-28` and its `critic` run (2026-10-23).
-- **The M trigger of the `critic` is worded for the main agent to judge.** "A decision comes from a discussion with the user" covers, read as written, every M spec with a decision taken with the user, as the template defines *Decisions*; the main agent, whom ADR 0007 deems unable to tell when it has drifted, decides which qualify. Options: a condition it does not judge, such as the user saying at intake whether the spec gets a run, or every M spec with a decision marked as the user's. From the `critic`'s run on the spec of `chore/repo/evaluate-critic` (2026-10-22).
 - **No test runs a browser's own `fetch`.**
   - Every test of `@enardo/http-client` that runs in a browser stubs `fetchImpl`. What only a real `fetch` does in a browser stays untested there: CORS, a stream body and `duplex`, redirects, its rejections. Node's `fetch` is tested against local servers.
   - A page would need a server it can reach: Vitest's own, or one in the dev container exposed through Playwright's `exposeNetwork`.
