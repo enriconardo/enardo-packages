@@ -38,7 +38,7 @@ export interface Repository<TDomain, TId> {
    * Tracks `entity` as new, to be inserted on the next flush.
    *
    * @param entity - The entity to add. Its identity must not already be
-   * tracked as new, clean or replaced, or the returned promise rejects with an `Error`.
+   * tracked as new, clean or removed, or the returned promise rejects with an `Error`.
    */
   add(entity: TDomain): Promise<void>;
   /**
@@ -49,6 +49,14 @@ export interface Repository<TDomain, TId> {
    * @param entity - The entity to remove.
    */
   remove(entity: TDomain): Promise<void>;
+}
+
+/** Options of a {@link TrackingRepository}. */
+export interface TrackingRepositoryOptions<TDomain, TId, TEvent = never> {
+  /** Derives a stable change-tracker key for composite identities. */
+  identityKey?: ((id: TId) => string) | undefined;
+  /** Takes the domain events an aggregate raised, emptying its queue. */
+  pullEvents?: ((aggregate: TDomain) => readonly TEvent[]) | undefined;
 }
 
 /**
@@ -66,8 +74,9 @@ export class TrackingRepository<
   TContext extends Transaction,
   TVersion extends NonNullable<unknown> = number,
   TStoredId = TId,
+  TEvent = never,
 >
-  implements Repository<TDomain, TId>, UnitOfWorkParticipant<TContext>
+  implements Repository<TDomain, TId>, UnitOfWorkParticipant<TContext, TEvent>
 {
   readonly changeTracker = new ChangeTracker<
     TId,
@@ -84,8 +93,11 @@ export class TrackingRepository<
       TVersion
     >,
     private readonly mapper: Mapper<TDomain, TRecords, TId, TStoredId>,
-    /** Derives a stable change-tracker key for composite identities. */
-    private readonly identityKey?: ((id: TId) => string) | undefined,
+    private readonly options: TrackingRepositoryOptions<
+      TDomain,
+      TId,
+      TEvent
+    > = {},
   ) {}
 
   async findById(id: TId): Promise<TDomain | null> {
@@ -127,9 +139,9 @@ export class TrackingRepository<
       entities.set(key, entity);
     }
 
-    // Include newly tracked or replaced entities in the final result.
+    // Include newly tracked entities in the final result.
     for (const [key, tracked] of this.changeTracker.entries()) {
-      if (tracked.state === "new" || tracked.state === "replaced") {
+      if (tracked.state === "new") {
         entities.set(key, tracked.entity);
       }
     }
@@ -167,7 +179,8 @@ export class TrackingRepository<
 
   async add(entity: TDomain): Promise<void> {
     const id = this.mapper.identity(entity);
-    this.changeTracker.add(this.#getIdentityKey(id), id, entity);
+    const key = this.#getIdentityKey(id);
+    this.changeTracker.add(key, id, entity);
   }
 
   async remove(entity: TDomain): Promise<void> {
@@ -186,16 +199,6 @@ export class TrackingRepository<
         }
         case "new": {
           units.push(this.#createInsertUnit(tracked.id, tracked.entity));
-          break;
-        }
-        case "replaced": {
-          units.push(
-            this.#createReplaceUnit(
-              tracked.id,
-              tracked.version,
-              tracked.entity,
-            ),
-          );
           break;
         }
         case "clean": {
@@ -231,6 +234,24 @@ export class TrackingRepository<
     }
 
     return false;
+  }
+
+  /**
+   * Takes the events of every tracked aggregate, in tracking order and queue
+   * order.
+   * An aggregate added and removed gives none: it never reached the store.
+   */
+  pullEvents(): readonly TEvent[] {
+    const pullEvents = this.options.pullEvents;
+    if (pullEvents === undefined) return [];
+
+    const events: TEvent[] = [];
+
+    for (const [, tracked] of this.changeTracker.entries()) {
+      events.push(...pullEvents(tracked.entity));
+    }
+
+    return events;
   }
 
   clear(): void {
@@ -356,23 +377,6 @@ export class TrackingRepository<
     };
   }
 
-  /** Deletes against the version read before the removal, then inserts with none. */
-  #createReplaceUnit(
-    id: TId,
-    expectedVersion: TVersion | undefined,
-    entity: TDomain,
-  ): FlushUnit<TContext> {
-    const storedId = this.#storedId(id);
-    const insert = this.#createInsertUnit(id, entity);
-    return {
-      kind: "replace",
-      run: async (ctx) => {
-        await this.dataStore.delete(storedId, expectedVersion, ctx);
-        await insert.run(ctx);
-      },
-    };
-  }
-
   /**
    * Hands the store its own copy of the changes on every run: some drivers
    * write into the documents they are given, for example to add a generated
@@ -406,6 +410,6 @@ export class TrackingRepository<
   }
 
   #getIdentityKey(id: TId): string {
-    return this.identityKey?.(id) ?? identityKeyOf(id);
+    return this.options.identityKey?.(id) ?? identityKeyOf(id);
   }
 }

@@ -12,13 +12,14 @@ await unitOfWork.execute(async () => {
 // Committed in one transaction: an update of p-1 that sets only `price`, and an insert of p-2.
 ```
 
-> Published to the `@enardo` registry, version 0.2.0: the API can still change. The package ships no database adapters: install an adapter package for your database, or write a `DataStore` and a `TransactionManager` for your driver.
+> Published to the `@enardo` registry, version 0.3.0: the API can still change. The package ships no database adapters: install an adapter package for your database, or write a `DataStore` and a `TransactionManager` for your driver.
 
 ## Contents
 
 - [Why it exists](#why-it-exists)
 - [Quick start](#quick-start)
 - [Configuration and usage](#configuration-and-usage)
+- [Upgrading from 0.2](#upgrading-from-02)
 - [Upgrading from 0.1](#upgrading-from-01)
 - [Contributing](#contributing)
 
@@ -199,8 +200,8 @@ Next, replace the `Map` with your database: an adapter package, or a `DataStore`
 There are no config files or environment variables. Everything is wired in code:
 
 ```ts
-const repository = new TrackingRepository(dataStore, mapper, identityKey); // identityKey is optional
-const unitOfWork = new TransactionalUnitOfWork(transactionManager);
+const repository = new TrackingRepository(dataStore, mapper, options); // options is optional
+const unitOfWork = new TransactionalUnitOfWork(transactionManager, unitOfWorkOptions); // unitOfWorkOptions is optional
 unitOfWork.register(repository);
 ```
 
@@ -208,8 +209,10 @@ unitOfWork.register(repository);
 | --- | --- | --- |
 | `dataStore` | `DataStore<TRecords, TId, TContext, TVersion>`. `TVersion` defaults to `number`. | yes |
 | `mapper` | `Mapper<TDomain, TRecords, TId, TStoredId>`. `TStoredId` defaults to `TId` (see [Stored identities](#stored-identities)). | yes |
-| `identityKey` | `(id: TId) => string` | only when `TId` isn't a `string`, `number`, `bigint` or `boolean` (see [Composite identities](#composite-identities)) |
+| `options.identityKey` | `(id: TId) => string` | only when `TId` isn't a `string`, `number`, `bigint` or `boolean` (see [Composite identities](#composite-identities)) |
+| `options.pullEvents` | `(aggregate: TDomain) => readonly TEvent[]` | only to collect domain events (see [Domain events](#domain-events)) |
 | `transactionManager` | `TransactionManager<TContext>` from `@enardo/transaction-manager` | yes |
+| `unitOfWorkOptions.onEvents` | `(events: readonly TEvent[], context: TContext) => void \| Promise<void>` | only when a repository collects events (see [Domain events](#domain-events)) |
 
 The contracts, with doc comments, are defined in [`src/data-store.ts`](src/data-store.ts), [`src/mapper.ts`](src/mapper.ts), [`src/record-set.ts`](src/record-set.ts) and [`src/repository.ts`](src/repository.ts). The transaction contracts are in [`@enardo/transaction-manager`](../transaction-manager/README.md).
 
@@ -376,7 +379,9 @@ const productMapper: Mapper<Product, ProductRecords, ProductId, ObjectId> = {
   toStoredId,
 };
 
-const products = new TrackingRepository(productStore, productMapper, (id) => id.value);
+const products = new TrackingRepository(productStore, productMapper, {
+  identityKey: (id) => id.value,
+});
 ```
 
 - **Required only when the forms differ.** The compiler requires `toStoredId` when `TStoredId` is another type than `TId`. Leave both type arguments equal, and the method out, when the store keeps the identity as it is.
@@ -385,12 +390,12 @@ const products = new TrackingRepository(productStore, productMapper, (id) => id.
 
 ### Composite identities
 
-Identities that are a `string`, `number`, `bigint` or `boolean` work as they are. `"1"` and `1` count as different identities. For any other identity, which rejects with a `TypeError` without one, pass an `identityKey` function that never maps two ids to the same string:
+Identities that are a `string`, `number`, `bigint` or `boolean` work as they are. `"1"` and `1` count as different identities. For any other identity, which rejects with a `TypeError` without one, pass an `identityKey` option, a function that never maps two ids to the same string:
 
 ```ts
-const orders = new TrackingRepository(orderStore, orderMapper, (id) =>
-  JSON.stringify([id.accountId, id.orderNumber]),
-);
+const orders = new TrackingRepository(orderStore, orderMapper, {
+  identityKey: (id) => JSON.stringify([id.accountId, id.orderNumber]),
+});
 ```
 
 Prefer a serialized tuple to string concatenation: `` `${accountId}:${orderNumber}` `` can give two different ids the same key when a value contains `:`.
@@ -403,9 +408,8 @@ Prefer a serialized tuple to string concatenation: `` `${accountId}:${orderNumbe
 | change an entity you loaded | `apply` with only the changed records and fields, or no write at all if nothing changed | the version read |
 | `remove(entity)` after loading it | `delete` | the version read |
 | `remove(entity)` without loading it | `delete` | `undefined`: the delete is unconditional |
-| `remove` and then `add` the same identity | `delete`, then `apply` with every record in `inserted` | the version read (if loaded) for `delete`, `undefined` for `apply` |
 | `add` and then `remove` the same entity | no write | none |
-| `add` an identity that is already new or loaded | nothing: `add` rejects with a native `Error` | none |
+| `add` an identity that is already new, loaded or removed | nothing: `add` rejects with a native `Error` | none |
 
 - **Reads.** `findById` returns the tracked instance without querying the store when the identity is already tracked. `findAll` always queries the store, but returns the tracked instances for identities it already knows, drops removed entities, and appends added ones. A tracked identity keeps the version of its first read, because its in-memory state is based on that read.
 - **Change detection.** A snapshot is a deep copy with `undefined` fields dropped, and holding, of each stored record, only the fields the mapper returns for the entity as loaded, with the values the store returned. A stored record the mapper does not return is kept whole, and so is every record when `toRecords` fails on the entity at load. Class instances, such as an `ObjectId`, are kept rather than copied, so they reach the store with their prototype. On commit, every loaded entity is mapped again and compared with its snapshot: records by key, and top-level fields with `isDeepStrictEqual`. Each check maps, copies and compares every loaded entity. `hasPendingChanges()` runs the same comparison and is useful for "unsaved changes" warnings.
@@ -466,6 +470,59 @@ What the version check doesn't cover:
 - **Removing without loading.** `remove(entity)` on an entity you didn't load deletes it whatever its version. Load it first if the delete depends on its state.
 - **Rules across aggregates**, such as a unique username. Enforce them with database constraints.
 
+### Domain events
+
+An aggregate decides its own domain events, and the unit of work hands them over inside the transaction, so an outbox row commits or rolls back with the aggregate's write. The package knows nothing of how an aggregate queues them: tell the repository how to take them with the `pullEvents` option, and the unit of work where to put them with `onEvents`.
+
+```ts
+const products = new TrackingRepository(productStore, productMapper, {
+  pullEvents: (product) => product.pullEvents(), // takes the events and empties the aggregate's queue
+});
+
+const unitOfWork = new TransactionalUnitOfWork(transactionManager, {
+  onEvents: async (events: readonly ProductEvent[], ctx) => {
+    // ctx is the transaction: write the events with it, for example into an outbox table.
+    await outbox.insert(events, ctx);
+  },
+});
+unitOfWork.register(products);
+```
+
+- **When.** At commit, before the transaction opens, the unit of work pulls the events of every participant, in registration order. Inside the transaction it runs the writes, then calls `onEvents(events, ctx)` once, when there is at least one event. A commit with events and no write still opens a transaction.
+- **Which aggregates.** Every aggregate the repository tracks: new, loaded and unchanged, changed or removed. An aggregate may raise an event with no change of persisted state. One added and then removed in the same unit of work gives no event, since it never reached the store.
+- **Order.** Tracking order, as for the writes, and within an aggregate the order of its queue.
+- **Retries.** The events are pulled once, before the transaction, so a transaction the transaction manager runs again hands `onEvents` the same events. A use case retried with `retryOnConflict` runs again on fresh aggregates.
+- **Failures.** An error of `onEvents` rolls the transaction back, and `execute()` rethrows it. An error of `pullEvents` fails the commit before any transaction opens.
+- **No hook.** If events are collected and the unit of work has no `onEvents`, the commit throws an `Error` before the transaction opens, rather than dropping them.
+- **`hasPendingChanges()`** counts only the store writes the repositories plan: reading an aggregate's queue empties it, so events are not counted.
+- **The hook may be synchronous.** The unit of work awaits the result either way.
+
+Both classes take the event type as their last type argument, `TEvent`, which defaults to `never`. TypeScript infers `TEvent` only from an annotated `events` parameter of `onEvents` (as above); otherwise it falls back to `never` and `register` refuses the repository, so give both type arguments. It infers no type argument once you give one, so a unit of work that names its context (as the Mongo adapter's does) names `TEvent` too, and `register` refuses a repository whose events are not part of it:
+
+```ts
+const unitOfWork = new TransactionalUnitOfWork<Transaction, ProductEvent>(transactionManager, {
+  onEvents,
+});
+```
+
+A subclass with custom finders that wants events writes every type argument up to `TEvent`:
+
+```ts
+class ProductStoreRepository extends TrackingRepository<
+  Product,
+  ProductRecords,
+  string,
+  Transaction,
+  number, // TVersion
+  string, // TStoredId
+  ProductEvent
+> {
+  constructor(store: ProductStore) {
+    super(store, productMapper, { pullEvents: (product) => product.pullEvents() });
+  }
+}
+```
+
 ### Failures and rollback
 
 If anything fails, whether your `work`, a write or the commit, `execute()` clears the repositories as it always does and rethrows the original error:
@@ -487,13 +544,29 @@ A misuse is a fault in the caller's code, which it fixes rather than handles: it
 | Type         | Raised when                                                                                     |
 | ------------ | ----------------------------------------------------------------------------------------------- |
 | `Error`      | `execute()` is called again on the same unit of work, including while the first call is running |
+| `Error`      | Repositories collected domain events and the unit of work has no `onEvents` option              |
 | `TypeError`  | An identity isn't a `string`, `number`, `bigint` or `boolean`, and no `identityKey` was given   |
 | `TypeError`  | A record set lacks a collection listed in `recordKeys`, or the collection isn't an array        |
 | `Error`      | Two records of one collection share a key                                                       |
-| `Error`      | `add()` targets an identity already tracked as new, clean or replaced (the promise rejects)     |
+| `Error`      | `add()` targets an identity already tracked as new, clean or removed (the promise rejects)     |
 | `RangeError` | `retryOnConflict` gets a bad `attempts`                                                         |
 
 The messages of the record sets name the side at fault: `previous` is the snapshot, `next` the records the mapper produced.
+
+## Upgrading from 0.2
+
+The third argument of `TrackingRepository` is now an options object, so the positional `identityKey` moves into it:
+
+```ts
+// 0.2
+new TrackingRepository(store, mapper, (id) => id.value);
+// 0.3
+new TrackingRepository(store, mapper, { identityKey: (id) => id.value });
+```
+
+`add` of an identity removed in the same unit of work no longer replaces it: it rejects with an `Error`, as over a new or clean one. Remove-then-add (a delete, then an insert, restarting the version at 1) is gone, `FlushUnit.kind` loses `"replace"` and `EntityState` loses `"replaced"`. Update the loaded entity instead.
+
+`pullEvents` and `onEvents` are optional and add the type parameter `TEvent`, which defaults to `never`; see [Domain events](#domain-events). A participant of your own needs no change: its `pullEvents` member is optional.
 
 ## Upgrading from 0.1
 

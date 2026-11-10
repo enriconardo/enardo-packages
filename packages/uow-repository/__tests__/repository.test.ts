@@ -5,6 +5,7 @@ import type {
 } from "@enardo/transaction-manager";
 import { ConcurrencyConflictError } from "~/errors";
 import { TrackingRepository } from "~/repository";
+import type { TrackingRepositoryOptions } from "~/index";
 import { TransactionalUnitOfWork } from "~/unit-of-work";
 import type { DataStore, VersionedRecords } from "~/data-store";
 import type { Mapper } from "~/mapper";
@@ -137,7 +138,10 @@ describe("TrackingRepository", () => {
       orderMapper,
       orderKeys,
       { findById },
-      (identity) => `${identity.accountId}:${identity.orderNumber}`,
+      {
+        identityKey: (identity) =>
+          `${identity.accountId}:${identity.orderNumber}`,
+      },
     );
 
     await unitOfWork.execute(async () => {
@@ -393,55 +397,6 @@ describe("TrackingRepository", () => {
       expect(repository.planFlush()).toEqual([]);
     });
 
-    it("replaces an entity by deleting it, then inserting all of its records, in one unit", async () => {
-      const { unitOfWork, repository, apply, deleteRecords, transaction } =
-        createGroupSetup();
-      const calls: string[] = [];
-      deleteRecords.mockImplementation(async () => {
-        calls.push("delete");
-      });
-      apply.mockImplementation(async () => {
-        calls.push("apply");
-      });
-
-      await unitOfWork.execute(async () => {
-        const group = await repository.findById("g-1");
-        await repository.remove(group!);
-        await repository.add({
-          id: "g-1",
-          name: "Climbers",
-          members: [{ userId: "u-3", role: "owner" }],
-        });
-
-        expect(repository.planFlush().map(({ kind }) => kind)).toEqual([
-          "replace",
-        ]);
-      });
-
-      expect(calls).toEqual(["delete", "apply"]);
-      // The delete checks the version that was read; the insert has none to check.
-      expect(deleteRecords).toHaveBeenCalledWith("g-1", 1, transaction);
-      expect(apply).toHaveBeenCalledWith(
-        {
-          id: "g-1",
-          expectedVersion: undefined,
-          changes: {
-            groups: {
-              inserted: [{ _id: "g-1", name: "Climbers" }],
-              updated: [],
-              deleted: [],
-            },
-            members: {
-              inserted: [memberRecord("g-1", "u-3", "owner")],
-              updated: [],
-              deleted: [],
-            },
-          },
-        },
-        transaction,
-      );
-    });
-
     it("hands the store its own copy of the changes on every run, so a retried unit writes them unchanged", async () => {
       const { repository, apply, transaction } = createGroupSetup();
       const received: MemberRecord[][] = [];
@@ -563,6 +518,119 @@ describe("TrackingRepository", () => {
       expect(apply).not.toHaveBeenCalled();
       expect(deleteRecords).not.toHaveBeenCalled();
     });
+
+    it("rejects adding back an identity removed after loading with a native Error, and only deletes it", async () => {
+      const apply = vi.fn<ProductStore["apply"]>(async () => undefined);
+      const deleteRecords = vi.fn<ProductStore["delete"]>(
+        async () => undefined,
+      );
+      const { unitOfWork, repository, transaction } = createSetup(
+        productMapper,
+        productKeys,
+        {
+          findById: async () =>
+            versioned<ProductRecords>(
+              { products: [{ productId: "p-1", productName: "Keyboard" }] },
+              4,
+            ),
+          apply,
+          delete: deleteRecords,
+        },
+      );
+      let error: unknown;
+      let kinds: string[] = [];
+
+      await unitOfWork.execute(async () => {
+        const loaded = await repository.findById("p-1");
+        await repository.remove(loaded!);
+        error = await rejectionOf(repository.add({ id: "p-1", name: "Mouse" }));
+        kinds = repository.planFlush().map(({ kind }) => kind);
+      });
+
+      expectNativeError(
+        error,
+        Error,
+        'An entity with identity "string:p-1" is already tracked.',
+      );
+      // The rejected add tracks nothing new: the identity stays removed.
+      expect(kinds).toEqual(["delete"]);
+      expect(deleteRecords).toHaveBeenCalledExactlyOnceWith(
+        "p-1",
+        4,
+        transaction,
+      );
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("rejects adding back an identity removed without loading with a native Error, and only deletes it", async () => {
+      const apply = vi.fn<ProductStore["apply"]>(async () => undefined);
+      const deleteRecords = vi.fn<ProductStore["delete"]>(
+        async () => undefined,
+      );
+      const { unitOfWork, repository, transaction } = createSetup(
+        productMapper,
+        productKeys,
+        { apply, delete: deleteRecords },
+      );
+      let error: unknown;
+      let kinds: string[] = [];
+
+      await unitOfWork.execute(async () => {
+        await repository.remove({ id: "p-1", name: "Keyboard" });
+        error = await rejectionOf(repository.add({ id: "p-1", name: "Mouse" }));
+        kinds = repository.planFlush().map(({ kind }) => kind);
+      });
+
+      expectNativeError(
+        error,
+        Error,
+        'An entity with identity "string:p-1" is already tracked.',
+      );
+      expect(kinds).toEqual(["delete"]);
+      expect(deleteRecords).toHaveBeenCalledExactlyOnceWith(
+        "p-1",
+        undefined,
+        transaction,
+      );
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("rejects adding back a removed identity under the stored form, deleting it only", async () => {
+      const calls: string[] = [];
+      const { unitOfWork, repository } = createSetup(
+        {
+          ...productMapper,
+          toStoredId: (id) => `stored:${id}`,
+        },
+        productKeys,
+        {
+          findById: async () =>
+            versioned<ProductRecords>({
+              products: [{ productId: "p-1", productName: "Keyboard" }],
+            }),
+          apply: async ({ id }) => {
+            calls.push(`apply ${String(id)}`);
+          },
+          delete: async (id) => {
+            calls.push(`delete ${String(id)}`);
+          },
+        },
+      );
+      let error: unknown;
+
+      await unitOfWork.execute(async () => {
+        const product = await repository.findById("p-1");
+        await repository.remove(product!);
+        error = await rejectionOf(repository.add({ id: "p-1", name: "Mouse" }));
+      });
+
+      expectNativeError(
+        error,
+        Error,
+        'An entity with identity "string:p-1" is already tracked.',
+      );
+      expect(calls).toEqual(["delete stored:p-1"]);
+    });
   });
 
   describe("versions", () => {
@@ -615,8 +683,10 @@ describe("TrackingRepository", () => {
         orderMapper,
         orderKeys,
         { findById: async () => versioned(storedOrder()), apply },
-        (identity) =>
-          JSON.stringify([identity.accountId, identity.orderNumber]),
+        {
+          identityKey: (identity) =>
+            JSON.stringify([identity.accountId, identity.orderNumber]),
+        },
       );
       let order: Order | null = null;
 
@@ -752,31 +822,6 @@ describe("TrackingRepository", () => {
         ["stored:p-3", 3, transaction],
         ["stored:p-4", undefined, transaction],
       ]);
-    });
-
-    it("hands both writes of a replace the stored form of the identity", async () => {
-      const calls: string[] = [];
-      const { unitOfWork, repository } = createSetup(
-        storedProductMapper,
-        productKeys,
-        {
-          findById: async () => storedProduct("p-1"),
-          apply: async ({ id }) => {
-            calls.push(`apply ${String(id)}`);
-          },
-          delete: async (id) => {
-            calls.push(`delete ${String(id)}`);
-          },
-        },
-      );
-
-      await unitOfWork.execute(async () => {
-        const product = await repository.findById("p-1");
-        await repository.remove(product!);
-        await repository.add({ id: "p-1", name: "Mouse" });
-      });
-
-      expect(calls).toEqual(["delete stored:p-1", "apply stored:p-1"]);
     });
 
     it("converts identities while planning, so a failing conversion opens no transaction", async () => {
@@ -1437,7 +1482,7 @@ function createSetup<TDomain, TRecords extends RecordSet<TRecords>, TId>(
   store: Partial<
     Omit<DataStore<TRecords, TId, Transaction>, "recordKeys">
   > = {},
-  identityKey?: (id: TId) => string,
+  options?: TrackingRepositoryOptions<TDomain, TId, never>,
 ) {
   const transaction: Transaction = { id: "transaction-1" };
   const transactionManager: TransactionManager = {
@@ -1454,7 +1499,7 @@ function createSetup<TDomain, TRecords extends RecordSet<TRecords>, TId>(
     ...store,
   };
   const unitOfWork = new TransactionalUnitOfWork(transactionManager);
-  const repository = new TrackingRepository(dataStore, mapper, identityKey);
+  const repository = new TrackingRepository(dataStore, mapper, options);
   unitOfWork.register(repository);
 
   return { unitOfWork, repository, transaction, transactionManager };
@@ -1910,3 +1955,367 @@ const trimmingProductMapper: Mapper<Product, ProductRecords, string> = {
     return { id: record.productId, name: record.productName.trim() };
   },
 };
+
+describe("TrackingRepository identityKey option", () => {
+  it("keys composite identities with the identityKey of the options object", async () => {
+    const { repository } = createSetup(
+      orderMapper,
+      orderKeys,
+      { findById: async () => versioned(storedOrder()) },
+      {
+        identityKey: (identity) =>
+          `${identity.accountId}:${identity.orderNumber}`,
+      },
+    );
+
+    await repository.findById({
+      accountId: "account-1",
+      orderNumber: "order-1",
+    });
+    const error = await reasonOf(
+      repository.add({
+        identity: { accountId: "account-1", orderNumber: "order-1" },
+        description: "Mouse",
+      }),
+    );
+
+    // The key in the message is the option's, not identityKeyOf's.
+    expectNativeError(
+      error,
+      Error,
+      'An entity with identity "account-1:order-1" is already tracked.',
+    );
+  });
+});
+
+describe("TrackingRepository domain events", () => {
+  const context: Transaction = { id: "transaction-1" };
+
+  it("collects no event without the pullEvents option, leaving the queue as it is", async () => {
+    const { repository } = createSetup(accountMapper, accountKeys, {
+      findById: async (id) => versioned(storedAccount(id, "Ada"), 3),
+    });
+
+    const account = await repository.findById("a-1");
+    account!.queue.push(accountEvent("noted", "a-1"));
+
+    expect(repository.pullEvents()).toEqual([]);
+    expect(account!.queue).toEqual([accountEvent("noted", "a-1")]);
+  });
+
+  it("hands over the event of a loaded and changed aggregate, and plans its update", async () => {
+    const { repository, apply } = createAccountSetup({
+      "a-1": storedAccount("a-1", "Ada"),
+    });
+
+    const account = await repository.findById("a-1");
+    account!.owner = "Grace";
+    account!.queue.push(accountEvent("transferred", "a-1"));
+
+    const units = repository.planFlush();
+    expect(units.map(({ kind }) => kind)).toEqual(["update"]);
+    for (const unit of units) {
+      await unit.run(context);
+    }
+    expect(apply).toHaveBeenCalledExactlyOnceWith(
+      {
+        id: "a-1",
+        expectedVersion: 3,
+        changes: {
+          accounts: {
+            inserted: [],
+            updated: [
+              {
+                record: { accountId: "a-1", owner: "Grace" },
+                set: { owner: "Grace" },
+                unset: [],
+              },
+            ],
+            deleted: [],
+          },
+        },
+      },
+      context,
+    );
+    expect(repository.pullEvents()).toEqual([
+      accountEvent("transferred", "a-1"),
+    ]);
+    // pullEvents takes the events: the aggregate's queue is emptied.
+    expect(account!.queue).toEqual([]);
+  });
+
+  it("hands over the event of a loaded aggregate whose state did not change, with no write", async () => {
+    const { repository } = createAccountSetup({
+      "a-1": storedAccount("a-1", "Ada"),
+    });
+
+    const account = await repository.findById("a-1");
+    account!.queue.push(accountEvent("viewed", "a-1"));
+
+    expect(repository.planFlush()).toEqual([]);
+    expect(repository.pullEvents()).toEqual([accountEvent("viewed", "a-1")]);
+  });
+
+  it("hands over the event of a loaded and removed aggregate, and plans its delete", async () => {
+    const { repository, deleteRecords } = createAccountSetup({
+      "a-1": storedAccount("a-1", "Ada"),
+    });
+
+    const account = await repository.findById("a-1");
+    account!.queue.push(accountEvent("closed", "a-1"));
+    await repository.remove(account!);
+
+    const units = repository.planFlush();
+    expect(units.map(({ kind }) => kind)).toEqual(["delete"]);
+    for (const unit of units) {
+      await unit.run(context);
+    }
+    expect(deleteRecords).toHaveBeenCalledExactlyOnceWith("a-1", 3, context);
+    expect(repository.pullEvents()).toEqual([accountEvent("closed", "a-1")]);
+  });
+
+  it("hands over the events of a new aggregate in queue order", async () => {
+    const { repository } = createAccountSetup();
+    const account = newAccount("a-1", "Ada");
+    account.queue.push(
+      accountEvent("opened", "a-1"),
+      accountEvent("credited", "a-1"),
+    );
+
+    await repository.add(account);
+
+    expect(repository.pullEvents()).toEqual([
+      accountEvent("opened", "a-1"),
+      accountEvent("credited", "a-1"),
+    ]);
+  });
+
+  it("hands over the events of every tracked aggregate in tracking order, then queue order", async () => {
+    const { repository } = createAccountSetup({
+      "a-2": storedAccount("a-2", "Grace"),
+      "a-3": storedAccount("a-3", "Edsger"),
+    });
+    const first = newAccount("a-1", "Ada");
+    await repository.add(first);
+    const second = await repository.findById("a-2");
+    const third = await repository.findById("a-3");
+    await repository.remove(third!);
+
+    // Raised in another order than the aggregates were tracked.
+    third!.queue.push(accountEvent("closed", "a-3"));
+    second!.queue.push(accountEvent("viewed", "a-2"));
+    first.queue.push(
+      accountEvent("opened", "a-1"),
+      accountEvent("credited", "a-1"),
+    );
+    second!.queue.push(accountEvent("renamed", "a-2"));
+
+    expect(repository.pullEvents()).toEqual([
+      accountEvent("opened", "a-1"),
+      accountEvent("credited", "a-1"),
+      accountEvent("viewed", "a-2"),
+      accountEvent("renamed", "a-2"),
+      accountEvent("closed", "a-3"),
+    ]);
+  });
+
+  it.each([
+    { removal: "after loading it", loaded: true, expectedVersion: 3 },
+    {
+      removal: "without loading it",
+      loaded: false,
+      expectedVersion: undefined,
+    },
+  ])(
+    "rejects adding back an identity removed $removal, and the commit deletes it and hands over the removed aggregate's events only",
+    async ({ loaded, expectedVersion }) => {
+      const { repository, apply, deleteRecords } = createAccountSetup({
+        "a-1": storedAccount("a-1", "Ada"),
+      });
+      const onEvents = vi.fn<
+        (events: readonly AccountEvent[], context: Transaction) => void
+      >(() => undefined);
+      const unitOfWork = new TransactionalUnitOfWork<Transaction, AccountEvent>(
+        {
+          async runInTransaction(work) {
+            return work(context);
+          },
+        },
+        { onEvents },
+      );
+      unitOfWork.register(repository);
+      const added = newAccount("a-1", "Grace");
+      added.queue.push(accountEvent("opened", "a-1"));
+      let error: unknown;
+
+      await unitOfWork.execute(async () => {
+        const removed = loaded
+          ? (await repository.findById("a-1"))!
+          : newAccount("a-1", "Ada");
+        removed.queue.push(accountEvent("closed", "a-1"));
+        await repository.remove(removed);
+        error = await rejectionOf(repository.add(added));
+      });
+
+      expectNativeError(
+        error,
+        Error,
+        'An entity with identity "string:a-1" is already tracked.',
+      );
+      expect(deleteRecords).toHaveBeenCalledExactlyOnceWith(
+        "a-1",
+        expectedVersion,
+        context,
+      );
+      expect(apply).not.toHaveBeenCalled();
+      expect(onEvents).toHaveBeenCalledExactlyOnceWith(
+        [accountEvent("closed", "a-1")],
+        context,
+      );
+      // The rejected instance was never tracked, so its queue is untouched.
+      expect(added.queue).toEqual([accountEvent("opened", "a-1")]);
+    },
+  );
+
+  it("hands over no event of an aggregate added and then removed, and leaves its queue as it is", async () => {
+    const { repository, pullEvents } = createAccountSetup();
+    const account = newAccount("a-1", "Ada");
+    account.queue.push(accountEvent("opened", "a-1"));
+
+    await repository.add(account);
+    await repository.remove(account);
+
+    expect(repository.planFlush()).toEqual([]);
+    expect(repository.pullEvents()).toEqual([]);
+    expect(account.queue).toEqual([accountEvent("opened", "a-1")]);
+    expect(pullEvents).not.toHaveBeenCalled();
+  });
+
+  it("reports no pending change for a loaded, unchanged aggregate with a queued event, leaving the queue as it is", async () => {
+    const { repository, pullEvents } = createAccountSetup({
+      "a-1": storedAccount("a-1", "Ada"),
+    });
+
+    const account = await repository.findById("a-1");
+    account!.queue.push(accountEvent("viewed", "a-1"));
+
+    expect(repository.hasPendingChanges()).toBe(false);
+    expect(account!.queue).toEqual([accountEvent("viewed", "a-1")]);
+    expect(pullEvents).not.toHaveBeenCalled();
+  });
+
+  it("propagates the error the app's pullEvents throws", async () => {
+    const failure = new Error("the queue is corrupt");
+    const { repository } = createAccountSetup(
+      { "a-1": storedAccount("a-1", "Ada") },
+      () => {
+        throw failure;
+      },
+    );
+
+    await repository.findById("a-1");
+
+    let error: unknown;
+    try {
+      repository.pullEvents();
+    } catch (thrown) {
+      error = thrown;
+    }
+    expect(error).toBe(failure);
+  });
+});
+
+interface AccountEvent {
+  type: string;
+  accountId: string;
+}
+
+/** An aggregate that queues the domain events it raises, outside its records. */
+interface Account {
+  id: string;
+  owner: string;
+  queue: AccountEvent[];
+}
+
+interface AccountRecord {
+  accountId: string;
+  owner: string;
+}
+
+interface AccountRecords {
+  accounts: [AccountRecord];
+}
+
+type AccountStore = DataStore<AccountRecords, string, Transaction>;
+
+const accountMapper: Mapper<Account, AccountRecords, string> = {
+  toDomain({ accounts: [record] }) {
+    return { id: record.accountId, owner: record.owner, queue: [] };
+  },
+  toRecords(account) {
+    return { accounts: [{ accountId: account.id, owner: account.owner }] };
+  },
+  identity(account) {
+    return account.id;
+  },
+};
+
+const accountKeys: RecordKeys<AccountRecords> = {
+  accounts: (record) => record.accountId,
+};
+
+function accountEvent(type: string, accountId: string): AccountEvent {
+  return { type, accountId };
+}
+
+function newAccount(id: string, owner: string): Account {
+  return { id, owner, queue: [] };
+}
+
+function storedAccount(id: string, owner: string): AccountRecords {
+  return { accounts: [{ accountId: id, owner }] };
+}
+
+/**
+ * Wires an account repository that pulls each aggregate's queue, over a store
+ * holding `stored` at version 3.
+ */
+function createAccountSetup(
+  stored: Readonly<Record<string, AccountRecords>> = {},
+  pull: (account: Account) => readonly AccountEvent[] = (account) =>
+    account.queue.splice(0),
+) {
+  const apply = vi.fn<AccountStore["apply"]>(async () => undefined);
+  const deleteRecords = vi.fn<AccountStore["delete"]>(async () => undefined);
+  const pullEvents = vi.fn(pull);
+  const dataStore: AccountStore = {
+    recordKeys: accountKeys,
+    findById: async (id) => {
+      const records = stored[id];
+      return records === undefined
+        ? null
+        : versioned(structuredClone(records), 3);
+    },
+    findAll: async () =>
+      Object.values(stored).map((records) =>
+        versioned(structuredClone(records), 3),
+      ),
+    apply,
+    delete: deleteRecords,
+  };
+  const repository = new TrackingRepository(dataStore, accountMapper, {
+    pullEvents,
+  });
+
+  return { repository, apply, deleteRecords, pullEvents };
+}
+
+/**
+ * What `promise` rejects with. Fails with an assertion when `promise`
+ * resolves, so a test written before its behavior is red on an assertion.
+ */
+async function rejectionOf(promise: Promise<unknown>): Promise<unknown> {
+  const [outcome] = await Promise.allSettled([promise]);
+  expect(outcome?.status, "the call's outcome").toBe("rejected");
+  return (outcome as PromiseRejectedResult).reason;
+}

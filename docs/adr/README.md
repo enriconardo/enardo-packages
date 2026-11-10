@@ -21,7 +21,8 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0017](0017-types-take-no-i-prefix.md) | Types take no `I` prefix, and a contract takes the plain name | accepted |
 | [0018](0018-where-the-refused-value-comes-from.md) | Where a refused value comes from decides between a `BaseError` and a native error | accepted; its `ENTITY_*` row has no subject since `@enardo/entities` 3.0.0 (ADR 0020) |
 | [0019](0019-the-diff-compares-only-what-the-mapper-returns.md) | The diff compares only the fields the mapper returns, with the values the store read | accepted |
-| [0020](0020-an-aggregate-raises-only-its-domain-events.md) | An aggregate raises only the domain events its class declares; what changed in the store is reported by the unit of work | accepted |
+| [0020](0020-an-aggregate-raises-only-its-domain-events.md) | An aggregate raises only the domain events its class declares; what changed in the store is reported by the unit of work | accepted; point 3 superseded by 0021 |
+| [0021](0021-the-unit-of-work-hands-over-domain-events-inside-the-transaction.md) | The unit of work hands the aggregates' domain events to the app inside the transaction; it reports no change set | accepted |
 
 ## Template
 

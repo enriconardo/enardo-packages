@@ -1,6 +1,6 @@
 # 0020. An aggregate raises only the domain events its class declares; what changed in the store is reported by the unit of work
 
-- Status: accepted
+- Status: accepted; point 3 superseded by 0021
 - Date: 2026-11-10
 - Spec: docs/specs/2026-11-10-lean-aggregate-core.md
 
