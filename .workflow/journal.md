@@ -2,10 +2,10 @@
 
 branch: feature/entities/lean-aggregate-core
 tier: L
-phase: l/chunk-5/commit
+phase: close/review
 base: 3a9eb21
 started: 2026-11-10T11:07:11Z
-review_rounds: 0
+review_rounds: 1
 verify_red_streak: 0
 escalations: 0
 
@@ -95,3 +95,5 @@ A new major, 3.0.0, with a lean core:
 - 2026-11-10T12:05:29Z chunk 2: suite 4 (case 11 fixed); red check's only problem is the deleted deep-freeze.test.ts (tooling gap); all else passes with the code in place; case 11 proven by the reviewer's Partial mutant -> step review round 2
 - 2026-11-10T12:07:24Z chunk 3: suite 5 (index.test); red check: index test red on AssertionError; only problem the deleted deep-freeze.test.ts (tooling gap) -> taken as valid red
 - 2026-11-10T12:15:11Z chunk 4 step review round 1: changes required (README names @enardo/events; 1.x/2.x reading order reversed; equals direction; Gone list missing TS2314 forms and _fields; nested freeze not under still-compile) -> implementer
+- 2026-11-10T12:19:43Z review round 1 on f66fe65: 1 blocking (JSDoc missing on Entity/AggregateRoot public and protected members) -> step-implementer; suggestions: README Object.keys holds for the base only (folded into the fix), setAttributes undefined on absent optional key, case 11 via super vs spec wording
+- 2026-11-10T12:19:43Z backlog candidates (code-reviewer): stale backlog lines (:18 'entities keeps a private copy' of isMergeableEvent, :46 EntityId.create); equatable.ts, entity.ts, aggregate-root.ts lack a role suffix

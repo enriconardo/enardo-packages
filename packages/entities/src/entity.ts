@@ -14,15 +14,24 @@ export abstract class Entity<
   readonly #id: TId;
   #attributes: Readonly<TAttributes>;
 
+  /**
+   * @param id - The identity, fixed for the entity's lifetime.
+   * @param attributes - The initial state, stored as a frozen shallow copy.
+   */
   protected constructor(id: TId, attributes: TAttributes) {
     this.#id = id;
     this.#attributes = Object.freeze({ ...attributes });
   }
 
+  /** The identity given at construction; it never changes. */
   get id(): TId {
     return this.#id;
   }
 
+  /**
+   * The current state: a shallow frozen snapshot. Nested values are shared with
+   * the caller. The reference is stable until a mutation changes a value.
+   */
   get attributes(): Readonly<TAttributes> {
     return this.#attributes;
   }
@@ -40,6 +49,7 @@ export abstract class Entity<
     return this.id.equals(otherId);
   }
 
+  /** Sets one attribute; a shorthand for `setAttributes` with a single key. */
   protected setAttribute<K extends keyof TAttributes>(
     key: K,
     value: TAttributes[K],
@@ -47,6 +57,12 @@ export abstract class Entity<
     this.setAttributes({ [key]: value } as Pick<TAttributes, K>);
   }
 
+  /**
+   * Sets several attributes. Compares each own key of `values` (symbols
+   * included) with `Object.is`; when none differs it keeps the same snapshot,
+   * otherwise it stores a new frozen shallow copy. Every mutation goes through
+   * here, so it is the one method a subclass overrides to see them all.
+   */
   protected setAttributes<K extends keyof TAttributes>(
     values: Pick<TAttributes, K>,
   ): void {

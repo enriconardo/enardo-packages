@@ -116,7 +116,7 @@ A subclass declares its own constructor. Keep it public if a mapper builds the e
 - `attributes` is a `Readonly<TAttributes>`. The constructor stores a shallow, frozen copy of the object it receives, so a later change to a top-level key of that object does not reach the entity. The mapper reads `entity.id` and `entity.attributes` to build the store's records.
 - The freeze is shallow, as the type is. A nested object, array, `Map`, `Set` or `Date` is shared with the caller and stays mutable: keeping nested values immutable is the domain's job.
 - `TAttributes` is a plain object. An array or a class instance loses its prototype in the copy and is not supported.
-- `Object.keys(entity)` is `[]`, and `JSON.stringify(entity)` gives `{}`: serialize `id` and `attributes` explicitly.
+- The base adds no own enumerable key: for it `Object.keys(entity)` is `[]` and `JSON.stringify(entity)` gives `{}` (a subclass's own fields are listed). Serialize `id` and `attributes` explicitly.
 
 #### Mutation
 

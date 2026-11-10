@@ -12,10 +12,15 @@ export abstract class AggregateRoot<
 > extends Entity<TId, TAttributes> {
   readonly #events: TEvent[] = [];
 
+  /**
+   * @param id - The identity, fixed for the entity's lifetime.
+   * @param attributes - The initial state, stored as a frozen shallow copy.
+   */
   protected constructor(id: TId, attributes: TAttributes) {
     super(id, attributes);
   }
 
+  /** Queues a domain event of type `TEvent` until it is pulled or cleared. */
   protected raise(event: TEvent): void {
     this.#events.push(event);
   }
@@ -25,6 +30,7 @@ export abstract class AggregateRoot<
     return this.#events.splice(0);
   }
 
+  /** Drops the queued events without returning them. */
   clearEvents(): void {
     this.#events.length = 0;
   }
