@@ -10,21 +10,12 @@ Work that is queued or proposed but not started. Each item becomes a branch, ope
 
 In the order approved.
 
-- **`feature/entities/lean-aggregate-core`: a lean core for `@enardo/entities` 3.0.0.** Tier L, a new major.
-  - The core stays: `Entity` compared by identity, the aggregate that collects its own events and hands them over with `pullEvents`, the state as an immutable snapshot, a protected `setAttribute`.
-  - The id's type becomes a parameter, beside the attributes', so ids can differ by aggregate (`Id<"User">`, or the subclass's own); one `EntityId` for every aggregate lets a `UserId` pass where a `ProductId` is expected.
-  - The attributes stay as the snapshot's type, in the domain's shape: today the JSDoc calls them the "persisted/normalized" shape, which binds the model to the store. The mapper of `uow-repository` converts between the two.
-  - `AggregateRoot` takes the event's type too, with `raise(event)` protected and `pullEvents()` typed on it. The dependency on `@enardo/events` goes: the app picks the type (a union of the aggregate's events), extending `Event` if it publishes them.
-  - Out of the base class: the generic `<model>.created/updated/deleted` events and their merge (change notifications, not domain events: see `feature/uow-repository/commit-change-set`), `createdAt`/`updatedAt` bumped on every mutation, `markForRemoval` (a lifecycle the change tracker already holds; a domain with a real end names it, `archive()`), the public `addEvent` and `create*Event`. The `ENTITY_*` row of ADR 0018 and the README's *Errors* go with `markForRemoval`.
-  - Fixed on the way, found by a probe on 2.0.0 (2026-11-10): `create` compiles with required attributes missing; `_attributes`, `_events` and `_isMarkedForRemoval` are public and writable; `deepFreeze` leaves Map, Set and Date mutable; `onBeforeAttributeMutation` runs on a no-op, against its JSDoc. Immutability rests on `readonly` types and private state, rather than a promise the runtime breaks.
-  - No consumer reads the lifecycle events, so this branch need not wait for `feature/uow-repository/commit-change-set`. `cambusa`'s six packages are on `^1.1.0` and migrate when they take the major.
-  - From the analysis of `@enardo/entities` on `docs/repo/entities-events-backlog` (2026-11-10).
 - **`feature/uow-repository/commit-change-set`: the change set of a commit, for change notifications.** Tier L.
   - The change tracker already knows which entities are new, changed and removed, and which fields change (the diff of the mapper's output, ADR 0019): at commit it exposes them, with no dependency on `@enardo/events`. The app, or an outbox, turns them into events. The record-level `ChangeSet` it already exports (`record-set.ts`) is the starting point: the branch decides whether it serves as it is or an entity-level view goes beside it, under another name.
   - It replaces the `<model>.created/updated/deleted` events of `@enardo/entities`, with data the store confirms and one notification per entity, so nothing is left to merge.
   - From the analysis of `@enardo/entities` on `docs/repo/entities-events-backlog` (2026-11-10).
 - **`feature/events/drop-mergeable-event`: `MergeableEvent` and `isMergeableEvent` leave `@enardo/events`.** Tier L, a new major. After `feature/entities/lean-aggregate-core`.
-  - The only use of `MergeableEvent` is the merge of the `updated` events of `@enardo/entities`, which leaves with that branch: domain events are facts, and are never merged. `isMergeableEvent` has none: `entities` keeps a private copy. `Event`, `EventBus`, `EventHandler`, `EventContext` and `SyncEventBus` stay, as the contract of dispatch.
+  - Neither has a use left: the only one, the merge of the `updated` events of `@enardo/entities`, left with `feature/entities/lean-aggregate-core` (3.0.0, which no longer depends on `@enardo/events`). Domain events are facts, and are never merged. `Event`, `EventBus`, `EventHandler`, `EventContext` and `SyncEventBus` stay, as the contract of dispatch.
   - From the analysis of `@enardo/entities` on `docs/repo/entities-events-backlog` (2026-11-10).
 - **Three doubts on the dispatch of `@enardo/events`**, to analyze before a change. Tier to decide with the analysis.
   - `subscribe(eventName, handler)` does not tie the name to the handler's event type: a handler of one event subscribes to another and compiles.

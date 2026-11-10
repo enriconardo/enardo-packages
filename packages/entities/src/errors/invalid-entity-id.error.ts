@@ -17,7 +17,7 @@ export class InvalidEntityIdError extends BaseError {
 
     switch (reason) {
       case "empty":
-        message = "EntityId cannot be empty";
+        message = "An entity id cannot be empty";
         break;
     }
 

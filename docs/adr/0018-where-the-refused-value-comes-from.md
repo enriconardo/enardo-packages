@@ -1,6 +1,6 @@
 # 0018. Where a refused value comes from decides between a `BaseError` and a native error
 
-- Status: accepted
+- Status: accepted; its `ENTITY_*` row has no subject since `@enardo/entities` 3.0.0 (ADR 0020)
 - Date: 2026-11-05
 - Spec: none; from the evaluation of the backlog items on ADR 0012 point 6 (2026-11-05)
 
