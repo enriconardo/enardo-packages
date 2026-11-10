@@ -2,7 +2,7 @@
 
 branch: feature/entities/lean-aggregate-core
 tier: L
-phase: l/chunk-1/commit
+phase: l/chunk-2/commit
 base: 3a9eb21
 started: 2026-11-10T11:07:11Z
 review_rounds: 0
@@ -88,3 +88,8 @@ A new major, 3.0.0, with a lean core:
 - 2026-11-10T11:29:53Z spec review round 2: holds, minors only; all fixed (create/rehydrate cost on cambusa, eslint-config README example, TS2314, TS4113 wording, ADR 0003 as analogy, regression case of create via TS2578); dist type test kept out, open question for checkpoint
 - 2026-11-10T11:41:42Z checkpoint 1, human: 'cambusa NON rappresenta un rischio. è un progetto pilota che verrà ricostruito da zero'; dist type test: 'faccio come proponi tu' (left out); approval pending their clarification questions
 - 2026-11-10T11:47:24Z checkpoint 1: human approved the spec ('approvo')
+- 2026-11-10T12:00:35Z chunk 2: red check valid; 2 type-only tests pass already (to step reviewer). Case 20 'create' line is a read, not a call (lint no-unsafe-call); spec wording of case 20 and decision 4 aligned, behavior unchanged
+- 2026-11-10T12:00:35Z tooling gap: red-check passes deleted recorded test files to the runner (junit: not in report); workaround: record the deletion as a separate suite after a valid red check, no new red check (it adds no test)
+- 2026-11-10T12:00:35Z lesson candidate (workflow): red-check.sh/junit.py should skip recorded files whose last record deletes them
+- 2026-11-10T12:04:34Z chunk 2 step review round 1: code ok; test finding on case 11 (checks the test's own constructor, not Entity's); spec agrees with reviewer -> back to test-author
+- 2026-11-10T12:05:29Z chunk 2: suite 4 (case 11 fixed); red check's only problem is the deleted deep-freeze.test.ts (tooling gap); all else passes with the code in place; case 11 proven by the reviewer's Partial mutant -> step review round 2

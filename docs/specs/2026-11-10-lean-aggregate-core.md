@@ -194,7 +194,7 @@ Decisions 1–5 were taken by the user at the brainstorming. Decisions 6 onward 
    - Not taken: no freeze at all. Decision 8 explains why.
 4. **No static factory in the base. The constructor is `protected`.**
    - Without generic events, `create` and `rehydrate` would both be `new this(…)`. Kept, they would be a second way to build an aggregate, bypassing the domain's factory, its invariants and its event.
-   - The bug of `create` goes with it. Case 20 calls `create` with an attribute missing, which on 2.0.0 compiles, so its `@ts-expect-error` fails with `TS2578`, the symptom. A subclass's own constructor has concrete types, and case 11 checks that a missing attribute fails there.
+   - The bug of `create` goes with it. Case 20 checks that `create` is gone. A subclass's own constructor has concrete types, and case 11 checks that a missing attribute fails there.
    - `cambusa` calls `create` in a handler and `rehydrate` in its three Mongo repositories (*Why*). Its migration is no constraint: it is a pilot project, to be rebuilt from scratch (the user, at checkpoint 1).
 5. **No mutation hooks.**
    - An invariant goes in the domain method, before `setAttribute`. One that holds for every mutation overrides the protected `setAttributes` and calls `super`.
@@ -333,7 +333,7 @@ Run by the prober on 2026-11-10, in `node:24-bookworm`, in scratch projects outs
     - `raise` of an event outside `TEvent` fails;
     - `raise` with `TEvent = never` fails;
     - `pullEvents()` is `TEvent[]` (`expectTypeOf`);
-    - `create`, `rehydrate`, `markForRemoval`, `addEvent` and `createdAt` do not exist (`@ts-expect-error`). The `create` line passes attributes with a required one missing. On 2.0.0 it compiles, and the directive fails with `TS2578`: that is the regression case of the `create` bug.
+    - `create`, `rehydrate`, `markForRemoval`, `addEvent` and `createdAt` do not exist (`@ts-expect-error`). Each is read, not called (`void Order.create`), since the lint preset refuses a call of a member it cannot type (`no-unsafe-call`). On 2.0.0 each read compiles, and the directive fails with `TS2578`. The symptom of the `create` bug, a missing attribute accepted, is covered on the constructor by case 11.
 
 Package:
 
@@ -346,7 +346,7 @@ Package:
   - Changed: `packages/entities/src/errors/invalid-entity-id.error.ts` (message only), and `packages/entities/__tests__/invalid-entity-id.error.test.ts` (`Id.create` in place of `EntityId.create`).
   - `__tests__/entity-id.vo.test.ts:12,17` take the new message, since `EntityId` shares the error until chunk 3 deletes both.
   - `Id` is not exported from `src/index.ts` yet: its tests import it through `~/`, and the old `index.test.ts` stays green.
-- [ ] 2. `Entity` and `AggregateRoot` on `Equatable`, with private state and no events from the base (test-first). Cases 5–20.
+- [x] 2. `Entity` and `AggregateRoot` on `Equatable`, with private state and no events from the base (test-first). Cases 5–20.
   - Rewritten: `packages/entities/src/entity.ts`, `packages/entities/src/aggregate-root.ts`, `packages/entities/__tests__/aggregate-root.test.ts`.
   - New: `packages/entities/__tests__/entity.test.ts`.
   - Deleted: `packages/entities/src/utils/`, `packages/entities/__tests__/deep-freeze.test.ts`.

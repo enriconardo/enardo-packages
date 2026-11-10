@@ -1,66 +1,59 @@
-import type { EntityId } from "./entity-id.vo.js";
-import { deepFreeze } from "./utils/index.js";
-
-export interface EntityCommonAttributes {
-  id: EntityId;
-}
+import type { Equatable } from "./equatable";
 
 /**
- * Abstract base class for all domain entities.
+ * Base of every domain entity: an identity and a state of attributes.
  *
- * An entity is identified by an {@link EntityId} and compared by identity
- * rather than structural equality.  Its internal attributes are deeply frozen
- * on construction to enforce immutability.
- *
- * @template TAttributes Shape of the persisted/normalized entity attributes. Must extend {@link EntityCommonAttributes}.
+ * The state lives in ECMAScript private fields, so nothing outside reaches it.
+ * `attributes` is a shallow frozen snapshot: nested values are shared with the
+ * caller and stay the domain's to keep immutable.
  */
-export abstract class Entity<TAttributes extends EntityCommonAttributes> {
-  /**
-   * @internal
-   */
-  _attributes: TAttributes;
+export abstract class Entity<
+  TId extends Equatable<TId>,
+  TAttributes extends object,
+> {
+  readonly #id: TId;
+  #attributes: Readonly<TAttributes>;
 
-  /**
-   * @param attributes Initial attribute snapshot in normalized internal shape
-   *   ({@link TAttributes}). The value is deeply frozen immediately to prevent
-   *   unintended mutation from the outside.
-   */
-  protected constructor(attributes: TAttributes) {
-    this._attributes = deepFreeze(attributes);
+  protected constructor(id: TId, attributes: TAttributes) {
+    this.#id = id;
+    this.#attributes = Object.freeze({ ...attributes });
   }
 
-  /** The entity's unique identifier. */
-  get id(): EntityId {
-    return this._attributes.id;
+  get id(): TId {
+    return this.#id;
+  }
+
+  get attributes(): Readonly<TAttributes> {
+    return this.#attributes;
   }
 
   /**
-   * Compares this entity to another value by type and identifier.
-   *
-   * Two entities are considered equal when they belong to the exact same
-   * concrete class **and** share the same {@link EntityId}.
-   *
-   * @param other Any value to compare against.
-   * @returns `true` only when `other` is the same object reference, or is an
-   *    instance of the same concrete class with an equal identifier.
+   * Same reference, or same concrete class with an equal id. Reads the public
+   * getters only, so an entity from another copy of the package compares
+   * instead of throwing.
    */
   equals(other: unknown): boolean {
-    if (this === other) {
-      return true;
-    }
+    if (this === other) return true;
+    if (other === null || typeof other !== "object") return false;
+    if (other.constructor !== this.constructor) return false;
+    const otherId = (other as Entity<TId, TAttributes>).id;
+    return this.id.equals(otherId);
+  }
 
-    if (other === null || other === undefined) {
-      return false;
-    }
+  protected setAttribute<K extends keyof TAttributes>(
+    key: K,
+    value: TAttributes[K],
+  ): void {
+    this.setAttributes({ [key]: value } as Pick<TAttributes, K>);
+  }
 
-    if (!(other instanceof Entity)) {
-      return false;
-    }
-
-    if (other.constructor !== this.constructor) {
-      return false;
-    }
-
-    return this.id.equals(other.id);
+  protected setAttributes<K extends keyof TAttributes>(
+    values: Pick<TAttributes, K>,
+  ): void {
+    const keys = Reflect.ownKeys(values) as K[];
+    const current = this.#attributes;
+    const changed = keys.some((key) => !Object.is(current[key], values[key]));
+    if (!changed) return;
+    this.#attributes = Object.freeze({ ...current, ...values });
   }
 }
