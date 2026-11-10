@@ -2,10 +2,10 @@
 
 branch: feature/uow-repository/collect-domain-events
 tier: L
-phase: close/review
+phase: close/checkpoint
 base: 8756612
 started: 2026-11-10T14:18:21Z
-review_rounds: 2
+review_rounds: 3
 verify_red_streak: 0
 escalations: 2
 
@@ -64,13 +64,17 @@ At brainstorm the human reframed it: the tool is meant for a DDD architecture, n
 
 - chunk 1 red check skipped (escalation 1, user's choice): 22 new tests fail with TypeError (old positional constructor, missing pullEvents), not on an assertion or NotImplemented; a signature change cannot be stubbed by appending. Goes in chunk 1's commit body.
 - chunk 3 red check skipped (escalation 2, user's choice): the 3 tests of case 19 pass already, the chunk has no src change. Goes in chunk 3's commit body.
-- code-reviewer (round 1), needs judgment: remove, add, remove of one identity hands over the second instance's events, though it was added then removed (Decision 9 says no event); case 6 (remove/add/remove/add -> three instances' events) hands them over too. The spec points both ways; the code follows case 6.
+- RESOLVED at checkpoint 2 (user: remove the replace, chunk 5): code-reviewer (round 1), needs judgment: remove, add, remove of one identity hands over the second instance's events, though it was added then removed (Decision 9 says no event); case 6 (remove/add/remove/add -> three instances' events) hands them over too. The spec points both ways; the code follows case 6.
 
 ## Lesson candidates
 
+- DROPPED by the user (too heavy; the final review caught it): (critic: revise, accepted) CLAUDE.md Code conventions, after the README bullet: "A README example that a commit adds or changes is compiled against the built `dist` before it lands: `tsc --noEmit` in the dev container on a scratch file in the package, with the app's names declared as stubs, and the file removed afterwards." Evidence: 58a205f, 778e1d3.
+
 ## Backlog candidates
 
-- code-reviewer: an error of the app's pullEvents on a replaced identity throws from TrackingRepository.add (it pulls there), not from the commit's planning as the spec says; execute still rejects and no transaction opens. Document it in the README's Failures bullet, or defer the call.
+- DROPPED by the user (too heavy for its gain): lesson-critic: a check that compiles the READMEs' ts examples against dist (needs a convention to declare the app-side names); sources 58a205f, 778e1d3.
+
+- DROPPED (moot without the replace): code-reviewer: an error of the app's pullEvents on a replaced identity throws from TrackingRepository.add (it pulls there), not from the commit's planning as the spec says; execute still rejects and no transaction opens. Document it in the README's Failures bullet, or defer the call.
 
 - workflow: the split marked chunk 3 test-first though it changes no src/ (its behavior comes from earlier chunks), so no red was possible; such a chunk should be marked tests-after.
 
@@ -99,3 +103,7 @@ At brainstorm the human reframed it: the tool is meant for a DDD architecture, n
 - 2026-11-10T15:06:35Z chunk 4 step review 1: ok
 - 2026-11-10T15:06:47Z all 4 chunks committed; branch verify green
 - 2026-11-10T15:08:36Z review round 1 on afd8845: 1 blocking (README Domain events example does not compile: TEvent not inferred from an unannotated onEvents)
+- 2026-11-10T15:10:14Z review round 2 on 58a205f: 0 blocking
+- 2026-11-10T15:11:24Z lessons: 1 proposed, critic revise (widened to every README example a commit changes, compiled in the dev container), accepted
+- 2026-11-10T15:44:57Z checkpoint 2: user accepted onEvents inside the transaction (documented); asked to remove the replace ('il replace stia complicando le cose inutilmente... vorrei toglierlo'): chunk 5; backlog 1 dropped (moot), 2 dropped (too heavy), workflow defects 3-4 go to workflow-overload, 5 already committed; lesson dropped (too heavy)
+- 2026-11-10T15:47:29Z checkpoint 2: user approved the spec amendment (chunk 5, Decision 11, cases 20-21): 'procedi'

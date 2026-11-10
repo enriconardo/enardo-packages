@@ -35,9 +35,10 @@ interface TrackingRepositoryOptions<TDomain, TId, TEvent> {
 - Without `pullEvents`, the repository collects no event, as today.
 - `TrackingRepository` implements a new optional member of `UnitOfWorkParticipant`, `pullEvents(): readonly TEvent[]`, which calls the option on the aggregates it tracks:
   - new, clean (changed or not) and removed aggregates: every tracked instance, whether or not it produces a flush unit. An aggregate may raise an event with no change of persisted state;
-  - a replaced identity (`remove`, then `add`): the events of the removed instance, then those of the added one. `TrackingRepository.add`, before it calls `changeTracker.add`, pulls the events of the instance it replaces (`changeTracker.get(key)?.state === "removed"`), since that instance leaves tracking there, and keeps them in a private map by identity key, emptied by `clear()`. A repeated replacement (remove, add, remove, add) appends to that list. `ChangeTracker` and `TrackedEntity` do not change;
+  - a removed identity is not added again: the replace of 0.2 is removed (chunk 5, Decision 11), so every tracked identity holds one instance;
   - an aggregate added and then removed: no event, since it never reached the store. Its queue is left as it is;
   - order: tracking order (the order identities were first tracked, as for the writes), and within an aggregate the order of its queue.
+- The replace is removed (chunk 5). `add` of an identity tracked as removed, loaded or not, rejects with the native `Error` it gives today over an identity tracked as new or clean, and tracks nothing new. `ChangeTracker` loses the `"replaced"` state (`EntityState` is `"new" | "clean" | "removed"`), `FlushUnit.kind` loses `"replace"`, and `TrackingRepository` loses the replace unit and the events kept for replaced instances.
 - An error thrown by the app's `pullEvents` propagates from the commit's planning: no transaction opens, and `execute` rethrows it, as for a mapper that fails at planning.
 - A subclass with custom finders (`README.md:338`, `extends TrackingRepository<User, UserRecords, string, Transaction>`) that wants events writes every type argument up to `TEvent`, `TVersion` and `TStoredId` included. The README shows the form.
 
@@ -71,7 +72,7 @@ interface TransactionalUnitOfWorkOptions<TContext, TEvent> {
 
 ### Versions
 
-`@enardo/uow-repository` 0.3.0 (breaking below 1.0.0: the constructor of `TrackingRepository`). `@enardo/uow-repository-mongo` follows with 0.3.0: its peer `workspace:^` resolves to `^0.3.0` at publish, and its README and tests pass `identityKey` positionally. Its `src/` does not change.
+`@enardo/uow-repository` 0.3.0 (breaking below 1.0.0: the constructor of `TrackingRepository`, and the removal of the replace). `@enardo/uow-repository-mongo` follows with 0.3.0: its peer `workspace:^` resolves to `^0.3.0` at publish, and its README and tests pass `identityKey` positionally. Its `src/` does not change.
 
 ### Documents
 
@@ -89,9 +90,10 @@ interface TransactionalUnitOfWorkOptions<TContext, TEvent> {
 5. **Events are pulled before the transaction, with the writes.** A retried transaction must hand over the same events; `pullEvents` empties the queue, so it can be called once. On a failure the aggregates are discarded with the unit of work, and a retry (`retryOnConflict`) runs the use case again on fresh aggregates.
 6. **`pullEvents` is an optional member of `UnitOfWorkParticipant`.** A participant with no events implements nothing new. Required, it would break every participant for no gain.
 7. **Events with no `onEvents` throw.** Silently dropping a domain event is the failure an outbox exists to prevent. Requiring the hook in the types (a conditional options type on `TEvent`) was weighed: it breaks down where it matters most, since the Mongo form gives the type arguments by hand and a forgotten `TEvent` is `never`; the runtime check covers every form.
-8. **A replaced identity keeps the removed instance's events.** The tracker drops that instance on `add`, so without pulling them there they would be lost silently; a removed aggregate's events (`archived`, `closed`) are facts the outbox needs. The repository pulls them, not the public `ChangeTracker`, which knows nothing of the option.
+8. *(Superseded by 11.)* A replaced identity kept the removed instance's events: remove, add, remove then handed over the events of an instance added and removed, against Decision 9, and remove, add, remove, add those of three instances.
 10. **`onEvents` may be synchronous.** An in-memory dispatch or a test hook returns `void`; the unit of work awaits the result either way.
 9. **An aggregate added and removed in the same unit of work gives no event, and its queue is untouched.** It never reached the store, so its events never happened there.
+11. **The replace is removed: a removed identity cannot be added again in the same unit of work.** Decided by the user at the final checkpoint ("il replace stia complicando le cose inutilmente e lo vedo uno scenario poco realistico"). With generated identities a new aggregate has a new identity; with natural ones, a reset is a method of the aggregate that keeps its identity and raises an event with the intent, not a delete and an insert. Keeping it made the events of an instance replaced and then removed contradict Decision 9 (found by the final review). EF Core refuses the same sequence. Alternative: keep the replace and drop the events of an instance added after a removal and removed again (more state, for a scenario no consumer has). In 0.3.0, already breaking and not yet published, the removal costs no further release.
 
 ## Test cases
 
@@ -102,7 +104,7 @@ interface TransactionalUnitOfWorkOptions<TContext, TEvent> {
 3. A loaded aggregate, changed, with an event → update written, event handed over.
 4. A loaded aggregate with an event and no change of state → a transaction opens, no write, `onEvents` receives the event.
 5. A loaded and removed aggregate with an event → delete written, event handed over.
-6. `remove` then `add` of the same identity, each instance with an event → the removed instance's event, then the added one's; remove, add, remove, add → the three instances' events, in that order.
+6. *(Replaced by case 20 with chunk 5.)* ~~`remove` then `add` of the same identity → the removed instance's event, then the added one's.~~
 7. `add` then `remove` of an aggregate with an event → no transaction, `onEvents` not called, the aggregate's queue still holds the event.
 8. Two repositories, each with aggregates with events → events in registration order of the repositories, then tracking order, then queue order.
 9. A transaction manager that calls its callback twice (a retry) → `onEvents` receives the same events both times, and `pullEvents` was called once per aggregate.
@@ -116,6 +118,8 @@ interface TransactionalUnitOfWorkOptions<TContext, TEvent> {
 17. The app's `pullEvents` throws → `execute` rejects with that error, no transaction opened, nothing written.
 18. A synchronous `onEvents` (returning `void`) → called, and the commit completes.
 19. `packages/uow-repository-mongo/__tests__/`, on the in-memory replica set: `onEvents` inserts the events into an outbox collection with the session; a commit leaves the aggregate and the outbox documents; an `onEvents` that inserts and then throws leaves neither the aggregate's write nor the outbox documents.
+20. `remove` (of a loaded aggregate, and of one not loaded) then `add` of the same identity → `add` rejects with a native `Error` naming the identity; the commit deletes the removed aggregate and hands over its events only; nothing is inserted.
+21. The replace tests of 0.2 (`repository.test.ts` "replaces an entity by deleting it, then inserting all of its records, in one unit", "hands both writes of a replace the stored form of the identity"; `repository-with-mongo.test.ts` "replaces an aggregate removed and added again in one unit of work, restarting at version 1") and the replaced-identity tests of chunk 1 are removed or rewritten as case 20: the spec changes the behavior they pin.
 
 ## Chunks
 
@@ -123,3 +127,4 @@ interface TransactionalUnitOfWorkOptions<TContext, TEvent> {
 - [x] 2. `TransactionalUnitOfWork` collects the events and calls `onEvents` (test-first): `packages/uow-repository/src/unit-of-work.ts` (options, `TEvent`, `#plan`, `#commit`, the JSDoc of `hasPendingChanges` at `:29` and `:81`), `src/index.ts` (export `TransactionalUnitOfWorkOptions`), `__tests__/unit-of-work.test.ts`, `__tests__/public-api.test.ts`. Cases 1, 2, 8, 9, 10, 11, 12, 15, 16, 18.
 - [x] 3. Outbox through `onEvents` on the Mongo replica set (test-first): a new test file in `packages/uow-repository-mongo/__tests__/`, no `src/` change. Case 19.
 - [x] 4. Docs, ADR statuses, backlog and the 0.3.0 versions (no test-first): `packages/uow-repository/README.md`, `packages/uow-repository-mongo/README.md`, both `package.json` versions, the status of `docs/adr/0020-…`, `docs/adr/README.md` (rows of 0020 and 0021), `docs/backlog.md`. ADR 0021 itself is committed with the spec.
+- [ ] 5. Remove the replace (test-first): `packages/uow-repository/src/change-tracker.ts`, `src/repository.ts`, `src/unit-of-work.ts` (`FlushUnit.kind`), `__tests__/repository.test.ts`, `packages/uow-repository-mongo/__tests__/repository-with-mongo.test.ts`; `packages/uow-repository/README.md` (the *Errors* row at `:552`, the *Order* bullet of *Domain events*, *Upgrading from 0.2*) and `packages/uow-repository-mongo/README.md` (`:329`, *Upgrading from 0.2*). Cases 20, 21.
