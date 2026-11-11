@@ -101,3 +101,6 @@ Noted during exploration: `origin` is an HTTPS URL today, so the volume clone mu
 - 2026-11-11T11:18:45Z human: keep the ruleset's force-push test on a scratch branch in A3
 - 2026-11-11T11:22:09Z human: amended spec approved
 - 2026-11-11T11:28:04Z chunk 4 step review round 2: ok; H1 86/86, H4, H6 reported by the implementer. Note: an existing container keeps its old volume mount on up -d; a fresh create (after down) gets the tmpfs
+- 2026-11-11T13:27:54Z acceptance in the container, in-container parts: A1 (hooksPath, local main, volume, node owner, clean status, install) ok; A3 ssh-add, ssh -T, ls-remote batch, commit-msg hook ok, credential.helper only git's 'cache' from ~/.gitconfig; A4 command -v from new shell and bash -l ok; A5 example.com refused, api.github.com reached; A6 running
+- 2026-11-11T13:29:46Z A6 in the container: verify:all --force green, 86/86 tasks, 0 cached, 1m40s; memory figure from docker stats pending from the owner
+- 2026-11-11T13:30:19Z human: A1-A7 all verified and working
