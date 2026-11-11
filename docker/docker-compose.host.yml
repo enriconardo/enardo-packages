@@ -9,3 +9,8 @@ services:
       # Only the git identity: no SSH key and no credential enters this
       # container on the host.
       - ${HOME}/.gitconfig:/home/node/.gitconfig:ro
+      # Compose merges volumes by target: this covers the claude-config volume
+      # of the main file, so the container of dev.sh (no firewall) holds no
+      # Claude login, and dependencies' code run there cannot reach one.
+      - type: tmpfs
+        target: /home/node/.claude

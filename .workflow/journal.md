@@ -2,7 +2,7 @@
 
 branch: chore/repo/dev-container-environment
 tier: L
-phase: l/chunk-4/implement
+phase: l/chunk-5/acceptance
 base: f7495c1
 started: 2026-11-11T05:21:04Z
 review_rounds: 0
@@ -100,3 +100,4 @@ Noted during exploration: `origin` is an HTTPS URL today, so the volume clone mu
 - 2026-11-11T11:17:07Z human: keep it simple, drop the superfluous: clone with the SSH URL and branch, no HTTPS fallback nor origin rewrite in post-create, no extra A3 checks, ruleset checked only as Active on main
 - 2026-11-11T11:18:45Z human: keep the ruleset's force-push test on a scratch branch in A3
 - 2026-11-11T11:22:09Z human: amended spec approved
+- 2026-11-11T11:28:04Z chunk 4 step review round 2: ok; H1 86/86, H4, H6 reported by the implementer. Note: an existing container keeps its old volume mount on up -d; a fresh create (after down) gets the tmpfs
