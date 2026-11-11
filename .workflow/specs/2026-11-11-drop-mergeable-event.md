@@ -36,4 +36,4 @@ Domain events are facts, and a fact is never merged: an exported merge contract 
 ## Chunks
 
 - [x] 1. Remove `MergeableEvent` and `isMergeableEvent` (no test-first): delete `packages/events/src/mergeable-event.ts` and `packages/events/__tests__/mergeable-domain-event.test.ts`, drop the two re-exports from `packages/events/src/index.ts`, set `packages/events/package.json` `version` to 2.0.0; covers all the test cases above.
-- [ ] 2. Remove this branch's item from the backlog (no test-first, docs): `.workflow/backlog.md` loses the queued item `feature/events/drop-mergeable-event`, in a commit of its own (`.workflow/backlog.md`, *Removing items*); the item *Three doubts on the dispatch of `@enardo/events`* stays.
+- [x] 2. Remove this branch's item from the backlog (no test-first, docs): `.workflow/backlog.md` loses the queued item `feature/events/drop-mergeable-event`, in a commit of its own (`.workflow/backlog.md`, *Removing items*); the item *Three doubts on the dispatch of `@enardo/events`* stays.

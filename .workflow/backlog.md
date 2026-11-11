@@ -10,9 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, ope
 
 In the order approved.
 
-- **`feature/events/drop-mergeable-event`: `MergeableEvent` and `isMergeableEvent` leave `@enardo/events`.** Tier L, a new major. After `feature/entities/lean-aggregate-core`.
-  - Neither has a use left: the only one, the merge of the `updated` events of `@enardo/entities`, left with `feature/entities/lean-aggregate-core` (3.0.0, which no longer depends on `@enardo/events`). Domain events are facts, and are never merged. `Event`, `EventBus`, `EventHandler`, `EventContext` and `SyncEventBus` stay, as the contract of dispatch.
-  - From the analysis of `@enardo/entities` on `docs/repo/entities-events-backlog` (2026-11-10).
 - **Three doubts on the dispatch of `@enardo/events`**, to analyze before a change. Tier to decide with the analysis.
   - `subscribe(eventName, handler)` does not tie the name to the handler's event type: a handler of one event subscribes to another and compiles.
   - `EventContext.session?: unknown` carries the transaction into the handlers, and so decides unsaid whether they run inside it or after the commit: an outbox has to decide it. ADR 0021 puts the hand-over of the domain events inside the transaction, for an outbox, and their publishing after the commit, by a relay: the analysis starts from it (spec of `feature/uow-repository/collect-domain-events`, 2026-11-10).
