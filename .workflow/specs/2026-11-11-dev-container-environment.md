@@ -116,7 +116,7 @@ Stage 2, run inside the container:
 
 ## Chunks
 
-- [ ] 1. `.gitattributes` (no test-first): `.gitattributes`. H4.
+- [x] 1. `.gitattributes` (no test-first): `.gitattributes`. H4.
 - [ ] 2. The image and the compose stack (no test-first): `docker/dev/Dockerfile`, `docker/dev/init-firewall.sh`, `docker/dev/github_known_hosts`, `docker/docker-compose.yml`, `docker/docker-compose.host.yml`, `dev.sh` (the second `-f` only), `docker/README.md` (the throwaway run's `--network` at `:26` and `:35`, and *Who reaches it* at `:50`, now the `browsers` network, so the document stays true for stage 1; the compose comment at `:47-48` too). H1, H2, H3, H5.
 - [ ] 3. The dev container definition (no test-first): `.devcontainer/devcontainer.json`, `.devcontainer/post-create.sh`, `.claude/settings.json` (`extraKnownMarketplaces` for `workflow-overload`, public on GitHub), `.claude/skills/publish/SKILL.md` (nothing uses it on the branch before the merge), `docker/README.md` (a *Setting up* section for the acceptance: WSL, Docker Desktop, the extension, keychain and the deploy key, `gitCredentialHelperConfigLocation`). H4; A1-A5 and A7 in the acceptance.
 - [ ] 4. Acceptance, by the owner (no test-first): the branch, with the spec and ADR 0022 committed at the checkpoint, is pushed on the owner's word; the owner runs `./dev.sh down`, then A1-A7, and resumes with `/overload` in the container (each commit of the task includes the journal, so the clone has it as of the last commit pushed). A finding is fixed on the host branch: `docker compose -p enardo-packages down` from WSL, `./dev.sh up -d`, fix, verify, push, `./dev.sh down`, and a new clone (the abandoned clone's volume is removed once nothing in it is unpushed). Chunks 5 and 6 run in the container.
