@@ -6,6 +6,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker/docker-compose.yml"
+# The binds of the host (the checkout, ~/.gitconfig) are not in the main file,
+# which the dev container definition also uses. Deleted with dev.sh.
+COMPOSE_HOST_FILE="$ROOT_DIR/docker/docker-compose.host.yml"
 DEV_SERVICE="dev"
 
 # Three namespaces meet on the command line: commands, project names (a group
@@ -35,14 +38,8 @@ development container. Never run pnpm on the host.
 EOF
 }
 
-# The image aligns its `node` user with these; bash never exports UID and has
-# no GID at all, so they have to be set here for compose to see them.
-DEV_UID="$(id -u)"
-DEV_GID="$(id -g)"
-export DEV_UID DEV_GID
-
 compose() {
-  docker compose -f "$COMPOSE_FILE" "$@"
+  docker compose -f "$COMPOSE_FILE" -f "$COMPOSE_HOST_FILE" "$@"
 }
 
 # Compose with every profile enabled, so profile-gated services are visible.
@@ -148,6 +145,18 @@ require_this_checkout() {
     if [[ "$source" -ef "$ROOT_DIR" ]]; then
       continue
     fi
+    # Docker Desktop (WSL backend) reports the bind not as the path given but
+    # as .../docker-desktop-bind-mounts/<distro>/<sha256 of that path>, a
+    # folder that exists only in its VM, so -ef cannot see it. Another hash
+    # is another checkout and stays refused.
+    # The hash is of the path the stack was created from: the logical one, or
+    # the physical one when it came through a symlink.
+    local logical_hash physical_hash
+    logical_hash="$(printf '%s' "$ROOT_DIR" | sha256sum | cut -d' ' -f1)"
+    physical_hash="$(printf '%s' "$(cd "$ROOT_DIR" && pwd -P)" | sha256sum | cut -d' ' -f1)"
+    if [[ "$source" == */docker-desktop-bind-mounts/*/"$logical_hash" || "$source" == */docker-desktop-bind-mounts/*/"$physical_hash" ]]; then
+      continue
+    fi
     {
       if [[ -n "$source" ]]; then
         echo "The dev container mounts $source, not this checkout ($ROOT_DIR)."
@@ -159,7 +168,7 @@ require_this_checkout() {
       # would hand it to any checkout refused here, through its next `up`.
       if [[ -z "$source" ]]; then
         echo "Remove the stack with 'docker compose -p $project down'."
-      elif [[ ! -e "$source" ]]; then
+      elif [[ "$source" != */docker-desktop-bind-mounts/* && ! -e "$source" ]]; then
         echo "$source no longer exists: remove the stack with 'docker compose -p $project down'."
       fi
     } >&2

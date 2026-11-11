@@ -3,15 +3,11 @@ name: enardo-packages
 services:
   # The development environment: every command that touches node_modules runs
   # here (pnpm, turbo, verify), including builds in watch mode. Started from
-  # the host with ./dev.sh up.
+  # the host with ./dev.sh up. It binds nothing of the host: dev.sh adds the
+  # binds with docker-compose.host.yml.
   dev:
     build:
       context: ./dev
-      args:
-        # Exported by dev.sh from id -u / id -g: bash does not export UID and
-        # has no GID, so a bare ${UID} would always fall back to 1000.
-        UID: ${DEV_UID:-1000}
-        GID: ${DEV_GID:-1000}
     working_dir: /workspaces/enardo-packages
     # PID 1 is `sleep infinity`, which never reaps the processes that exec'd
     # commands orphan: docker's init reaps them.
@@ -22,8 +18,8 @@ services:
       # corepack fetches the pnpm version pinned in package.json; without this
       # it asks for confirmation and a non-interactive exec would hang.
       COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
-      # No pager in here: `less` is not installed, and git output is piped.
-      GIT_PAGER: cat
+      # Claude Code's login and .claude.json live in the named volume below.
+      CLAUDE_CONFIG_DIR: /home/node/.claude
       # Keep the pnpm store on the same filesystem as node_modules: a store on
       # another filesystem cannot be hard-linked from, so pnpm falls back to
       # copying every package.
@@ -35,19 +31,33 @@ services:
     depends_on:
       - playwright
     volumes:
-      # Relative to this file, so the repo works wherever it is cloned.
-      - ..:/workspaces/enardo-packages
-      # Only the git identity: pushing happens on the host, so no SSH key and
-      # no credential ever enters this container.
-      - ${HOME}/.gitconfig:/home/node/.gitconfig:ro
+      - claude-config:/home/node/.claude
+    # The firewall (docker/dev/init-firewall.sh) needs them.
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    networks:
+      - default
+      - browsers
 
   # The browsers of the browser tests (vitest's browser mode), behind
   # Playwright's run-server on port 3000. Vitest in the dev container connects
   # to it, and the browsers load the test pages from that container's loopback
   # through the connection (exposeNetwork). The port is not published: only
-  # this compose network reaches it. Nothing is mounted.
+  # the dev container reaches it. Nothing is mounted. It is only on an
+  # internal network: it has no way out at runtime.
   playwright:
     build:
       context: ./playwright
+    networks:
+      - browsers
     # The browsers start child processes: docker's init reaps them.
     init: true
+
+networks:
+  # Shared by dev and playwright, with no route out.
+  browsers:
+    internal: true
+
+volumes:
+  claude-config:

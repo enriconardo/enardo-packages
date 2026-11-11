@@ -2,7 +2,7 @@
 
 branch: chore/repo/dev-container-environment
 tier: L
-phase: l/chunk-2/implement
+phase: l/chunk-3/implement
 base: f7495c1
 started: 2026-11-11T05:21:04Z
 review_rounds: 0
@@ -13,7 +13,7 @@ spec: .workflow/specs/2026-11-11-dev-container-environment.md
 
 spec_review_rounds: 4
 
-step_review_rounds: 1
+step_review_rounds: 0
 
 ## Intent
 
@@ -70,6 +70,9 @@ Noted during exploration: `origin` is an HTTPS URL today, so the volume clone mu
 
 ## Backlog candidates
 
+- `verify:all --force` is flaky under parallel packages: 1 run in 3 failed on email-nodemailer's idle SMTP check (a connection reached a server no sender may reach), with `Port already in use` and a mongod invariant failure in the Mongo packages in the same log, neither in the two green runs. Cause suspected (port collisions across packages), not proven. Seen on chunk 2.
+- A branch ruleset on `main`, limiting what the deploy key can force-push (spec, Decision 8).
+
 ## Log
 
 - 2026-11-11T05:21:04Z opened on f7495c1 of main
@@ -81,3 +84,7 @@ Noted during exploration: `origin` is an HTTPS URL today, so the volume clone mu
 - 2026-11-11T06:03:31Z human at checkpoint: close the playwright channel in this task (internal compose network), overriding 'as it is'
 - 2026-11-11T06:09:11Z spec review round 4: holds, only minors, all fixed
 - 2026-11-11T06:10:31Z human: spec approved
+- 2026-11-11T06:24:13Z chunk 2: verify red at dev.sh's require_this_checkout, not on the code: Docker Desktop reports the compose bind as docker-desktop-bind-mounts/Ubuntu-24.04/<sha256 of the checkout path>, so -ef fails; the stack is this checkout. Spec limits dev.sh to the second -f: asking the human
+- 2026-11-11T06:25:32Z human: teach require_this_checkout the docker-desktop-bind-mounts form; spec chunk 2 amended
+- 2026-11-11T06:33:08Z chunk 2 step review round 1: changes required (UID/GID remap still present, false 'no longer exists' hint on Docker Desktop, symlink refused); reviewer's H3 sudo probes denied by the permission classifier, H3 not independently run
+- 2026-11-11T06:44:27Z chunk 2 step review round 2: ok; H1 86/86 on runs 2 and 3 after one flaky run, H2, H3 and H5 reported by the implementer on the rebuilt image

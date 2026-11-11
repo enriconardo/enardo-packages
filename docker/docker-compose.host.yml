@@ -1,0 +1,11 @@
+# Temporary overlay, for stage 1 of the dev container task: the binds that the
+# main compose file no longer has (under Clone in Volume they cannot resolve).
+# Only dev.sh adds it, with a second -f. Deleted in stage 2.
+services:
+  dev:
+    volumes:
+      # Relative to this file, so the repo works wherever it is cloned.
+      - ..:/workspaces/enardo-packages
+      # Only the git identity: no SSH key and no credential enters this
+      # container on the host.
+      - ${HOME}/.gitconfig:/home/node/.gitconfig:ro
