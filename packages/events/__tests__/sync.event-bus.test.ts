@@ -9,7 +9,9 @@ interface UserRegisteredPayload {
   email: string;
 }
 
-type UserRegisteredEvent = Event<UserRegisteredPayload>;
+type UserRegisteredEvent = Event<UserRegisteredPayload, "user.registered">;
+type UserDeletedEvent = Event<{ userId: string }, "user.deleted">;
+type UserEvents = UserRegisteredEvent | UserDeletedEvent;
 
 function createEvent(payload: UserRegisteredPayload): UserRegisteredEvent {
   return {
@@ -21,7 +23,7 @@ function createEvent(payload: UserRegisteredPayload): UserRegisteredEvent {
 
 describe("SyncEventBus", () => {
   it("should call subscribed handler when event is published", async () => {
-    const bus = new SyncEventBus();
+    const bus = new SyncEventBus<UserEvents>();
     const handleFn = vi.fn();
     const handler: EventHandler<UserRegisteredEvent> = {
       handle: handleFn,
@@ -37,7 +39,7 @@ describe("SyncEventBus", () => {
   });
 
   it("should pass context to handlers", async () => {
-    const bus = new SyncEventBus();
+    const bus = new SyncEventBus<UserEvents>();
     const handleFn = vi.fn();
     const handler: EventHandler<UserRegisteredEvent> = {
       handle: handleFn,
@@ -53,7 +55,7 @@ describe("SyncEventBus", () => {
   });
 
   it("should call multiple handlers in subscription order", async () => {
-    const bus = new SyncEventBus();
+    const bus = new SyncEventBus<UserEvents>();
     const order: number[] = [];
 
     const handler1: EventHandler<UserRegisteredEvent> = {
@@ -76,9 +78,9 @@ describe("SyncEventBus", () => {
   });
 
   it("should not call handlers for different event names", async () => {
-    const bus = new SyncEventBus();
+    const bus = new SyncEventBus<UserEvents>();
     const handleFn = vi.fn();
-    const handler: EventHandler<UserRegisteredEvent> = {
+    const handler: EventHandler<UserDeletedEvent> = {
       handle: handleFn,
     };
 
@@ -90,13 +92,37 @@ describe("SyncEventBus", () => {
   });
 
   it("should do nothing when no handlers are subscribed", async () => {
-    const bus = new SyncEventBus();
-    // Should not throw
+    const bus = new SyncEventBus<UserEvents>();
+
+    await expect(
+      bus.publish(createEvent({ userId: "u1", email: "a@b.com" })),
+    ).resolves.toBeUndefined();
+  });
+
+  it("should start a handler after the previous one's promise settles", async () => {
+    const bus = new SyncEventBus<UserEvents>();
+    const steps: string[] = [];
+
+    bus.subscribe("user.registered", {
+      handle: async () => {
+        steps.push("first started");
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        steps.push("first settled");
+      },
+    });
+    bus.subscribe("user.registered", {
+      handle: async () => {
+        steps.push("second started");
+      },
+    });
+
     await bus.publish(createEvent({ userId: "u1", email: "a@b.com" }));
+
+    expect(steps).toEqual(["first started", "first settled", "second started"]);
   });
 
   it("should propagate handler errors", async () => {
-    const bus = new SyncEventBus();
+    const bus = new SyncEventBus<UserEvents>();
     const handler: EventHandler<UserRegisteredEvent> = {
       handle: async () => {
         throw new Error("handler failed");
@@ -111,7 +137,7 @@ describe("SyncEventBus", () => {
   });
 
   it("should stop at first handler error (no partial dispatch)", async () => {
-    const bus = new SyncEventBus();
+    const bus = new SyncEventBus<UserEvents>();
     const secondHandlerFn = vi.fn();
 
     const handler1: EventHandler<UserRegisteredEvent> = {
@@ -134,7 +160,7 @@ describe("SyncEventBus", () => {
 
   describe("publishAll", () => {
     it("should publish multiple events sequentially", async () => {
-      const bus = new SyncEventBus();
+      const bus = new SyncEventBus<UserEvents>();
       const receivedPayloads: string[] = [];
 
       const handler: EventHandler<UserRegisteredEvent> = {
@@ -156,7 +182,7 @@ describe("SyncEventBus", () => {
     });
 
     it("should pass context to all events", async () => {
-      const bus = new SyncEventBus();
+      const bus = new SyncEventBus<UserEvents>();
       const contexts: (EventContext | undefined)[] = [];
 
       const handler: EventHandler<UserRegisteredEvent> = {
