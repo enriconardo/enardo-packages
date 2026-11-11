@@ -1,5 +1,5 @@
 version      = 1
-exec         = ./dev.sh exec
+exec         =
 verify       = pnpm verify
 main         = main
 branch       = <type>/<scope>/<description>
@@ -15,4 +15,4 @@ test_files   = bash scripts/test-files.sh {files}
 tests_glob   = packages/*/__tests__/**
 red_types    = AssertionError, NotImplemented
 reference    = .workflow/reference
-probe_env    = docker run --rm node:24-bookworm
+probe_env    = env -C "$(mktemp -d)"

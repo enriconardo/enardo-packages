@@ -2,7 +2,7 @@
 
 branch: chore/repo/dev-container-environment
 tier: L
-phase: l/chunk-5/acceptance
+phase: l/chunk-6/commit
 base: f7495c1
 started: 2026-11-11T05:21:04Z
 review_rounds: 0
@@ -13,7 +13,7 @@ spec: .workflow/specs/2026-11-11-dev-container-environment.md
 
 spec_review_rounds: 7
 
-step_review_rounds: 0
+step_review_rounds: 1
 
 ## Intent
 
@@ -104,3 +104,4 @@ Noted during exploration: `origin` is an HTTPS URL today, so the volume clone mu
 - 2026-11-11T13:27:54Z acceptance in the container, in-container parts: A1 (hooksPath, local main, volume, node owner, clean status, install) ok; A3 ssh-add, ssh -T, ls-remote batch, commit-msg hook ok, credential.helper only git's 'cache' from ~/.gitconfig; A4 command -v from new shell and bash -l ok; A5 example.com refused, api.github.com reached; A6 running
 - 2026-11-11T13:29:46Z A6 in the container: verify:all --force green, 86/86 tasks, 0 cached, 1m40s; memory figure from docker stats pending from the owner
 - 2026-11-11T13:30:19Z human: A1-A7 all verified and working
+- 2026-11-11T13:34:28Z chunk 6 step review round 1: ok; probe_env outside the chunk's list but set by Decision 12 for stage 2, fixed by the implementer

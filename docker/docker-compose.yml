@@ -2,9 +2,8 @@ name: enardo-packages
 
 services:
   # The development environment: every command that touches node_modules runs
-  # here (pnpm, turbo, verify), including builds in watch mode. Started from
-  # the host with ./dev.sh up. It binds nothing of the host: dev.sh adds the
-  # binds with docker-compose.host.yml.
+  # here (pnpm, turbo, verify), including builds in watch mode. It binds
+  # nothing of the host.
   dev:
     build:
       context: ./dev
@@ -27,7 +26,7 @@ services:
       # Where the browser tests find their browsers: the playwright service.
       PLAYWRIGHT_WS_ENDPOINT: ws://playwright:3000/
     # `pnpm verify` runs the browser tests, so the browsers start with this
-    # container, from every ./dev.sh up.
+    # container.
     depends_on:
       - playwright
     volumes:

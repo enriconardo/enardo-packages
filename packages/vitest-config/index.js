@@ -19,7 +19,7 @@ export function browserProject() {
   const wsEndpoint = process.env.PLAYWRIGHT_WS_ENDPOINT;
   if (!wsEndpoint) {
     throw new Error(
-      "PLAYWRIGHT_WS_ENDPOINT is not set: the tests run in the dev container (./dev.sh exec).",
+      "PLAYWRIGHT_WS_ENDPOINT is not set: the tests run in the dev container.",
     );
   }
 
