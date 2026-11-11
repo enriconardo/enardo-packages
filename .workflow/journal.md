@@ -2,7 +2,7 @@
 
 branch: feature/events/typed-dispatch
 tier: L
-phase: l/chunk-2/commit
+phase: l/chunk-3/commit
 base: 8ed8c51
 started: 2026-11-11T15:53:03Z
 review_rounds: 0
@@ -62,3 +62,9 @@ Backlog item (Queued): "Three doubts on the dispatch of `@enardo/events`" (from 
 - 2026-11-11T16:25:04Z chunk 2 red check round 1: valid red; 7 type tests pass already
 - 2026-11-11T16:27:54Z chunk 2 step review 1: changes required, EventHandler JSDoc lacks the knowing in-hook case and states after-commit as fact; back to implementer
 - 2026-11-11T16:28:56Z chunk 2 step review 2: ok
+- 2026-11-11T16:29:13Z chunk 2 committed 5fd450e
+- 2026-11-11T16:34:23Z chunk 3 suite 4 used a dynamic import of @enardo/errors (not yet a dependency); decided: add the dependency as stub-like prep, then the test-author switches to a static import and records again
+- 2026-11-11T16:35:02Z chunk 3: @enardo/errors dependency added (package.json, lockfile), resolves from events
+- 2026-11-11T16:35:49Z chunk 3 red check on suite 5: valid red, no test passes already
+- 2026-11-11T16:37:25Z chunk 3 step review 1: changes required, publish's context cast lost its comment; back to implementer
+- 2026-11-11T16:38:14Z chunk 3 step review 2: ok

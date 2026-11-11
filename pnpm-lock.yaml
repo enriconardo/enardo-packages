@@ -323,6 +323,10 @@ importers:
         version: 3.9.6
 
   packages/events:
+    dependencies:
+      '@enardo/errors':
+        specifier: workspace:^
+        version: link:../errors
     devDependencies:
       '@enardo/eslint-config':
         specifier: workspace:^
