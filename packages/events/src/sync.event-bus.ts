@@ -1,44 +1,107 @@
+import { EventHandlersFailedError } from "./event-handlers-failed.error.js";
+import type { EventHandlerFailure } from "./event-handlers-failed.error.js";
 import type { Event } from "./event.js";
 import type { EventHandler } from "./event-handler.js";
-import type { EventBus } from "./event-bus.js";
-import type { EventContext } from "./event-context.js";
+import type { ContextArgument, EventBus, EventNamed } from "./event-bus.js";
 
 /**
  * In-process, synchronous event bus.
  *
- * Handlers are executed sequentially with `await` so they can participate
- * in the same database transaction via {@link EventContext.session}.
+ * Handlers are executed sequentially, each awaited before the next. The
+ * caller's `TContext` is passed to every handler unchanged; the bus never
+ * reads it.
+ *
+ * A handler that throws or rejects does not stop the dispatch: every handler
+ * of every event runs, then `publish` and `publishAll` reject with one
+ * {@link EventHandlersFailedError} listing each failure, whose `cause` carries
+ * the thrown values. Handlers' return values are ignored.
+ *
+ * The bus is meant to run after the commit, from the app's relay: a handler
+ * opens its own transaction if it needs one and is idempotent, since delivery
+ * is at least once. An app that puts its transaction in `TContext` and
+ * publishes inside a unit of work's hook does it knowingly: handlers run
+ * before the commit, run again if the transaction is retried, and a failing
+ * handler rolls back the use case.
  *
  * @example
  * ```ts
  * const bus = new SyncEventBus();
  * bus.subscribe("user.registered", myHandler);
- * await bus.publish(event, { session });
+ * await bus.publish(event);
  * ```
  */
-export class SyncEventBus implements EventBus {
-  private readonly handlers = new Map<string, EventHandler<Event>[]>();
+export class SyncEventBus<
+  Events extends Event = Event,
+  TContext = undefined,
+> implements EventBus<Events, TContext> {
+  private readonly handlers = new Map<
+    string,
+    EventHandler<Events, unknown, TContext>[]
+  >();
 
-  subscribe<EventType extends Event>(
-    eventName: string,
-    handler: EventHandler<EventType>,
+  subscribe<Name extends Events["eventName"]>(
+    eventName: Name,
+    handler: EventHandler<EventNamed<Events, Name>, unknown, TContext>,
   ): void {
     const existing = this.handlers.get(eventName) ?? [];
+    // Stored among the handlers of `Events` through the bivariance of `handle`.
     existing.push(handler);
     this.handlers.set(eventName, existing);
   }
 
-  async publish(event: Event, context?: EventContext): Promise<void> {
-    const handlers = this.handlers.get(event.eventName) ?? [];
-
-    for (const handler of handlers) {
-      await handler.handle(event, context);
-    }
+  async publish(
+    event: Events,
+    ...context: ContextArgument<TContext>
+  ): Promise<void> {
+    // The tuple guarantees it: when the argument may be left out, `undefined` is a `TContext`.
+    const ctx = context[0] as TContext;
+    const failures = await this.dispatch(event, 0, ctx);
+    throwIfFailed(failures);
   }
 
-  async publishAll(events: Event[], context?: EventContext): Promise<void> {
-    for (const event of events) {
-      await this.publish(event, context);
+  async publishAll(
+    events: readonly Events[],
+    ...context: ContextArgument<TContext>
+  ): Promise<void> {
+    // The tuple guarantees it: when the argument may be left out, `undefined` is a `TContext`.
+    const ctx = context[0] as TContext;
+    const failures: Failure[] = [];
+
+    for (const [index, event] of events.entries()) {
+      failures.push(...(await this.dispatch(event, index, ctx)));
     }
+    throwIfFailed(failures);
+  }
+
+  private async dispatch(
+    event: Events,
+    eventIndex: number,
+    context: TContext,
+  ): Promise<Failure[]> {
+    const handlers = this.handlers.get(event.eventName) ?? [];
+    const failures: Failure[] = [];
+
+    for (const [handlerIndex, handler] of handlers.entries()) {
+      try {
+        await handler.handle(event, context);
+      } catch (error: unknown) {
+        failures.push({
+          eventIndex,
+          eventName: event.eventName,
+          handlerIndex,
+          error,
+        });
+      }
+    }
+    return failures;
+  }
+}
+
+type Failure = EventHandlerFailure & { readonly error: unknown };
+
+function throwIfFailed(failures: Failure[]): void {
+  const [first, ...rest] = failures;
+  if (first !== undefined) {
+    throw new EventHandlersFailedError([first, ...rest]);
   }
 }

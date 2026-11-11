@@ -10,12 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, ope
 
 In the order approved.
 
-- **Three doubts on the dispatch of `@enardo/events`**, to analyze before a change. Tier to decide with the analysis.
-  - `subscribe(eventName, handler)` does not tie the name to the handler's event type: a handler of one event subscribes to another and compiles.
-  - `EventContext.session?: unknown` carries the transaction into the handlers, and so decides unsaid whether they run inside it or after the commit: an outbox has to decide it. ADR 0021 puts the hand-over of the domain events inside the transaction, for an outbox, and their publishing after the commit, by a relay: the analysis starts from it (spec of `feature/uow-repository/collect-domain-events`, 2026-11-10).
-  - `SyncEventBus` is async and sequential, and stops at the first handler that throws, without saying the others did not run.
-  - From the analysis of `@enardo/entities` on `docs/repo/entities-events-backlog` (2026-11-10).
-
 ## To evaluate
 
 - **pnpm 12** (12.15.0 on 2026-10-23), deferred while 11 gets fixes: nothing here needs it yet. Tier L. Found in a throwaway clone:
@@ -39,6 +33,12 @@ In the order approved.
 - **`verify:all --force` fails about one run in three with packages in parallel.**
   - One run failed on `email-nodemailer`'s idle SMTP check (a connection reached a server no sender may reach), with `Port already in use` and a mongod invariant failure in the Mongo packages in the same log, neither in the two green runs. The cause suspected, port collisions across packages, is not proven.
   - From chunk 2 of `chore/repo/dev-container-environment` (2026-11-11).
+
+- **Most failure tests of `@enardo/events` recognize `EventHandlersFailedError` by its class.**
+  - In `packages/events/__tests__/sync.event-bus.test.ts`, only the first failure test checks `isBaseErrorLike` and `code`; the others use `toBeInstanceOf`. The root `CLAUDE.md` recognizes an error by `isBaseErrorLike` and its `code`: asserting them in every failure test follows it more strictly.
+  - From the final review of `feature/events/typed-dispatch` (2026-11-11).
+- **`packages/events/src/index.ts` imports without the `.js` extension**, while the other files of its `src/` use it. Align it when the file is next touched.
+  - From the final review of `feature/events/typed-dispatch` (2026-11-11).
 
 ## Dropped
 
