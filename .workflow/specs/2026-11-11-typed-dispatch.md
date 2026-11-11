@@ -126,6 +126,10 @@ Runtime:
 17. `publishAll` passes the same context to every handler of every event, and dispatches the events in array order.
 18. `new EventHandlersFailedError(...)`'s `name` is `"EventHandlersFailedError"` and `toJSON()` holds `code`, `details` and the serialized `cause` with its `message` `"Errors thrown by the event handlers"` and its `errors`.
 
+Types, added at the checkpoint (the step review of chunk 1 found that cases 2-9 hold the class only: an `EventBus.publish(event: Event)` would stay green, the class still satisfying the interface through method bivariance):
+
+19. Through the interface (`const bus: EventBus<UserRegistered | UserDeleted> = new SyncEventBus()`): `publish(eventNotInTheUnion)` and `publishAll([eventNotInTheUnion])` do not compile; through `EventBus<E, { correlationId: string }>`, `publish(event)` does not compile and `publish(event, { correlationId })` does; through `EventBus<E>`, `publish(event, {})` does not.
+
 ## Chunks
 
 - [x] 1. Event name tied to the handler: `Event` gains `Name`, `EventNamed`, and `EventBus`/`SyncEventBus` take `Events` (test-first): `packages/events/src/event.ts`, `src/event-bus.ts`, `src/sync.event-bus.ts`, `src/index.ts`, `__tests__/event-bus.types.test.ts` (new), `__tests__/sync-domain-event-bus.test.ts` renamed to `__tests__/sync.event-bus.test.ts` (existing runtime cases kept, `{ session }` context still in place); cases 1-7, 11, 12; signatures: `Event` (second type parameter `Name`), `EventBus` (type parameter `Events`, `subscribe`), `SyncEventBus` (type parameter `Events`, its `subscribe`/`publish`/`publishAll`).
@@ -133,3 +137,4 @@ Runtime:
 - [x] 3. Every handler runs, then one `EventHandlersFailedError` (test-first): `src/event-handlers-failed.error.ts` (new), `src/sync.event-bus.ts` (its JSDoc on failures too), `src/index.ts`, `package.json` (dependency `@enardo/errors` `workspace:^`), `pnpm-lock.yaml`, `__tests__/event-handlers-failed.error.test.ts` (new), `__tests__/sync.event-bus.test.ts` (*should propagate handler errors* and *should stop at first handler error* replaced); cases 13-16, 18.
 - [x] 4. README of `@enardo/events` (no test-first, docs): `packages/events/README.md`.
 - [x] 5. Remove the backlog item *Three doubts on the dispatch of `@enardo/events`* (no test-first, docs): `.workflow/backlog.md`, in a commit of its own.
+- [x] 6. The `EventBus` interface's own `publish`/`publishAll` types (no test-first: tests only, the behavior comes from chunks 1-2): `__tests__/event-bus.types.test.ts`; case 19.

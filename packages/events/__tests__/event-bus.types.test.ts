@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 import { SyncEventBus } from "~/index";
-import type { Event, EventHandler, EventNamed } from "~/index";
+import type { Event, EventBus, EventHandler, EventNamed } from "~/index";
 
 // These tests are enforced by `tsc --noEmit` (`pnpm typecheck`): `vitest run`
 // erases the types. The calls sit in functions that are never called, so
@@ -178,6 +178,70 @@ describe("SyncEventBus", () => {
             expectTypeOf(context).toEqualTypeOf<undefined>();
           },
         });
+      });
+    });
+  });
+});
+
+// The class alone would not prove these: `SyncEventBus` still satisfies an
+// `EventBus` whose `publish` takes any `Event` and an optional context,
+// through method bivariance. These calls go through the interface.
+describe("EventBus", () => {
+  describe("typed by an event union", () => {
+    const bus = (): EventBus<UserEvents> => new SyncEventBus<UserEvents>();
+
+    it("rejects publishing an event outside the union", () => {
+      void (async () => {
+        await bus().publish(userRegistered);
+        // @ts-expect-error UserRenamed is not a member of UserEvents
+        await bus().publish(userRenamed);
+        // @ts-expect-error UserRenamed is not a member of UserEvents
+        await bus().publishAll([userRenamed]);
+      });
+    });
+  });
+
+  describe("with an app-typed context", () => {
+    interface AppContext {
+      correlationId: string;
+    }
+    const bus = (): EventBus<UserEvents, AppContext> =>
+      new SyncEventBus<UserEvents, AppContext>();
+    const correlationId = "c1";
+
+    it("requires the context on publish and publishAll", () => {
+      void (async () => {
+        // @ts-expect-error the context is required by AppContext
+        await bus().publish(userRegistered);
+        // @ts-expect-error the context is required by AppContext
+        await bus().publishAll([userRegistered]);
+      });
+    });
+
+    it("accepts the context on publish and publishAll", () => {
+      void (async () => {
+        await bus().publish(userRegistered, { correlationId });
+        await bus().publishAll([userRegistered], { correlationId });
+      });
+    });
+  });
+
+  describe("with the default context", () => {
+    const bus = (): EventBus<UserEvents> => new SyncEventBus<UserEvents>();
+
+    it("accepts publish without a context", () => {
+      void (async () => {
+        await bus().publish(userRegistered);
+        await bus().publishAll([userRegistered]);
+      });
+    });
+
+    it("rejects a context", () => {
+      void (async () => {
+        // @ts-expect-error the default context is undefined
+        await bus().publish(userRegistered, {});
+        // @ts-expect-error the default context is undefined
+        await bus().publishAll([userRegistered], {});
       });
     });
   });

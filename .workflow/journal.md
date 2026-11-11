@@ -2,10 +2,10 @@
 
 branch: feature/events/typed-dispatch
 tier: L
-phase: l/chunk-5/commit
+phase: l/chunk-6/commit
 base: 8ed8c51
 started: 2026-11-11T15:53:03Z
-review_rounds: 0
+review_rounds: 1
 verify_red_streak: 0
 escalations: 0
 
@@ -46,6 +46,10 @@ Backlog item (Queued): "Three doubts on the dispatch of `@enardo/events`" (from 
 
 ## Backlog candidates
 
+- (code-reviewer) `@enardo/events` has nothing Node-only in `src/` but no browser test project nor runtime-neutral presets, unlike `http-client`: decide whether it runs in browsers.
+- (code-reviewer) failure tests of `sync.event-bus.test.ts` other than the first check the class with `toBeInstanceOf`; asserting `code` (and `isBaseErrorLike`) there would follow the rule more strictly.
+- (code-reviewer) `packages/events/src/index.ts` imports without `.js`, the other files of `src/` with it: align when next touched.
+
 ## Log
 
 - 2026-11-11T15:53:03Z opened on 8ed8c51 of main
@@ -72,3 +76,9 @@ Backlog item (Queued): "Three doubts on the dispatch of `@enardo/events`" (from 
 - 2026-11-11T16:40:29Z chunk 4 step review 1: ok (README snippets compiled against src)
 - 2026-11-11T16:40:39Z chunk 4 committed aee488f
 - 2026-11-11T16:41:30Z chunk 5 step review 1: ok
+- 2026-11-11T16:41:41Z chunk 5 committed 2c2be33; all chunks done
+- 2026-11-11T16:42:48Z review round 1 on 2c2be33: 0 blocking
+- 2026-11-11T16:42:54Z lessons: none (the problems met were workflow defects, for the checkpoint)
+- 2026-11-11T16:46:08Z checkpoint: human asks the EventBus interface test gap as chunk 6; backlog: candidate 1 dropped (@enardo/events is not for browsers), candidates 2 and 3 kept
+- 2026-11-11T16:48:05Z chunk 6 tests recorded (suite 6), pass already; @ts-expect-error lines shown in force against mutated EventBus
+- 2026-11-11T16:49:26Z chunk 6 step review 1: ok, mutation check holds
