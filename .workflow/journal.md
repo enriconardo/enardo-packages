@@ -2,7 +2,7 @@
 
 branch: feature/events/typed-dispatch
 tier: L
-phase: l/chunk-3/commit
+phase: l/chunk-4/commit
 base: 8ed8c51
 started: 2026-11-11T15:53:03Z
 review_rounds: 0
@@ -13,7 +13,7 @@ spec: .workflow/specs/2026-11-11-typed-dispatch.md
 
 spec_review_rounds: 1
 
-step_review_rounds: 2
+step_review_rounds: 1
 
 ## Intent
 
@@ -68,3 +68,5 @@ Backlog item (Queued): "Three doubts on the dispatch of `@enardo/events`" (from 
 - 2026-11-11T16:35:49Z chunk 3 red check on suite 5: valid red, no test passes already
 - 2026-11-11T16:37:25Z chunk 3 step review 1: changes required, publish's context cast lost its comment; back to implementer
 - 2026-11-11T16:38:14Z chunk 3 step review 2: ok
+- 2026-11-11T16:38:27Z chunk 3 committed 81f625b
+- 2026-11-11T16:40:29Z chunk 4 step review 1: ok (README snippets compiled against src)
