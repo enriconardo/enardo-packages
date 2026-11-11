@@ -1,6 +1,6 @@
 # 0004. The shared packages are published to a private registry, and depend on each other through `workspace:^`
 
-- Status: accepted
+- Status: accepted; where the publish step runs superseded by 0022
 - Date: 2026-10-16
 - Spec: `git show c337d77:docs/specs/2026-10-15-split-repos.md` (removed from the tree)
 

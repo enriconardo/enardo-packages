@@ -11,7 +11,7 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0001](0001-shared-configs-as-workspace-packages.md) | Shared TypeScript and ESLint configs live in workspace packages, with a local-override rule | accepted; `workspace:*` superseded by 0004; *A third package for vitest configs* overturned by 0010; point 2's moving into a preset of an override two packages need superseded by 0011 |
 | [0002](0002-strict-compiler-and-type-aware-lint.md) | Strict compiler flags and type-aware linting; findings are fixed, not suppressed | accepted |
 | [0003](0003-type-guards-claim-only-what-they-check.md) | A type guard never claims more than its check proves; `@enardo/http-status` splits class and membership guards | accepted |
-| [0004](0004-shared-packages-published-to-a-private-registry.md) | The shared packages are published to a private registry, and depend on each other through `workspace:^` | accepted |
+| [0004](0004-shared-packages-published-to-a-private-registry.md) | The shared packages are published to a private registry, and depend on each other through `workspace:^` | accepted; where the publish step runs superseded by 0022 |
 | [0010](0010-a-vitest-preset-package.md) | The browser test project lives in a vitest preset package | accepted |
 | [0011](0011-only-a-block-moves-into-a-preset.md) | Only a block of configuration that a second package needs moves into a preset; a scalar is repeated with its comment, unless it fits every package on a preset | accepted |
 | [0012](0012-errors-recognized-by-a-brand.md) | An error of the ecosystem is recognized by a brand and its `code`, never by `BaseError`'s identity | accepted; point 3's open question settled by 0013; point 5 settled by fix/database/error-contract-and-lifecycle (DatabaseError removed); point 6's test given by 0018 |
@@ -23,6 +23,7 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0019](0019-the-diff-compares-only-what-the-mapper-returns.md) | The diff compares only the fields the mapper returns, with the values the store read | accepted |
 | [0020](0020-an-aggregate-raises-only-its-domain-events.md) | An aggregate raises only the domain events its class declares; what changed in the store is reported by the unit of work | accepted; point 3 superseded by 0021 |
 | [0021](0021-the-unit-of-work-hands-over-domain-events-inside-the-transaction.md) | The unit of work hands the aggregates' domain events to the app inside the transaction; it reports no change set | accepted |
+| [0022](0022-the-work-happens-in-a-dev-container-on-a-volume.md) | The work happens in a dev container, with the repo in a Docker volume | accepted |
 
 ## Template
 

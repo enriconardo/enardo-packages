@@ -1,0 +1,23 @@
+{
+  "name": "enardo-packages",
+  "dockerComposeFile": "../docker/docker-compose.yml",
+  "service": "dev",
+  "workspaceFolder": "/workspaces/enardo-packages",
+  "remoteUser": "node",
+  // A volume has no host owner to align the uid with.
+  "updateRemoteUserUID": false,
+  // The firewall runs before the install, so dependencies' scripts never run
+  // on an open network; the start re-runs it (a restart is a new bootstrap).
+  "postCreateCommand": "sudo /usr/local/bin/init-firewall.sh && bash .devcontainer/post-create.sh",
+  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  "waitFor": "postStartCommand",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
+}
