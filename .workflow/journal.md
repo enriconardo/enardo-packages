@@ -2,10 +2,10 @@
 
 branch: feature/events/drop-mergeable-event
 tier: L
-phase: close/review
+phase: close/integrate
 base: f88e993
 started: 2026-11-11T14:08:14Z
-review_rounds: 0
+review_rounds: 1
 verify_red_streak: 0
 escalations: 0
 
@@ -43,3 +43,6 @@ Out of scope: the "Three doubts on the dispatch of @enardo/events" backlog item.
 - 2026-11-11T14:08:22Z human: tier L (backlog); no publish now; ADR 0020 left to the agent, kept unchanged
 - 2026-11-11T14:09:58Z spec review 1: holds; 2 minor (grep claim scope, backlog item removal) fixed; lockfile gap settled in What
 - 2026-11-11T14:11:30Z human approved the spec: "si"
+- 2026-11-11T14:17:12Z review round 1 on a6a108d: 0 blocking
+- 2026-11-11T14:17:12Z lessons: no candidates, skipped
+- 2026-11-11T14:20:19Z human: go ("via"); no lessons, no backlog items
