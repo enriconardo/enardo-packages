@@ -2,16 +2,16 @@
 
 branch: chore/repo/dev-container-environment
 tier: L
-phase: l/chunk-4/acceptance
+phase: l/chunk-4/implement
 base: f7495c1
 started: 2026-11-11T05:21:04Z
 review_rounds: 0
 verify_red_streak: 0
-escalations: 0
+escalations: 1
 
 spec: .workflow/specs/2026-11-11-dev-container-environment.md
 
-spec_review_rounds: 4
+spec_review_rounds: 7
 
 step_review_rounds: 0
 
@@ -71,7 +71,7 @@ Noted during exploration: `origin` is an HTTPS URL today, so the volume clone mu
 ## Backlog candidates
 
 - `verify:all --force` is flaky under parallel packages: 1 run in 3 failed on email-nodemailer's idle SMTP check (a connection reached a server no sender may reach), with `Port already in use` and a mongod invariant failure in the Mongo packages in the same log, neither in the two green runs. Cause suspected (port collisions across packages), not proven. Seen on chunk 2.
-- A branch ruleset on `main`, limiting what the deploy key can force-push (spec, Decision 8).
+- A key of the dev container's own (option B of the acceptance): generated at creation in a named volume, added by hand as a deploy key, ssh ignoring the forwarded agent (`IdentityAgent none`), so that a push from the container reaches only this repo. Left for later by the owner, who chose the ordinary agent forwarding for now.
 
 ## Log
 
@@ -91,3 +91,12 @@ Noted during exploration: `origin` is an HTTPS URL today, so the volume clone mu
 - 2026-11-11T06:51:52Z chunk 3 step review round 1: changes required (README setup: keychain and deploy key missing, step order, HTTPS way out; publish skill: bare registry command, first login, rm -rf per package, stray placeholder)
 - 2026-11-11T06:55:55Z chunk 3 step review round 2: ok; one wording minor fixed. A1-A5 and A7 remain the owner's. To watch in A3: a VS Code window restart may not restart the WSL server, so it may keep the old SSH_AUTH_SOCK
 - 2026-11-11T07:58:00Z acceptance finding (owner, README step 4): gitCredentialHelperConfigLocation not found; it exists in Dev Containers 0.469.0, machine-scoped, UI extension: README now says to set it in the local user settings JSON
+- 2026-11-11T10:46:33Z acceptance finding (owner, A3): the deploy key was on the wrong repo, and WSL's ssh config put an account-wide key in the forwarded agent. Human: the container gets an SSH key of its own in a named volume, added by hand as a deploy key; the ruleset on main becomes part of the task. Spec and ADR 0022 amended (Decision 10, chunk 4 inserted, acceptance now chunk 5), back to spec review
+- 2026-11-11T10:48:44Z spec review round 5 (amendment): 2 blocking accepted and fixed (B1 key and Claude login volumes reachable under dev.sh with no firewall: tmpfs in the host overlay; B2 claim that the host no longer matters: restated), 5 minors accepted and fixed; past the third round, so to the human
+- 2026-11-11T10:51:03Z human: retry, one more spec review round
+- 2026-11-11T10:51:48Z spec review round 6: holds; 2 minors fixed (H6 find instead of ls, ADR duplicate sentence)
+- 2026-11-11T11:10:40Z human: option A for now: WSL's agent forwarded with the developer's keys (forwardWSLServices on), no key of the container's own, the account-wide push from the container accepted. Spec and ADR re-amended
+- 2026-11-11T11:13:05Z spec review round 7 (option A): holds; 4 minors and 1 gap fixed (accepted risk in Risks, backlog wording, wsl --shutdown side effect and empty-agent recovery, Why wording)
+- 2026-11-11T11:17:07Z human: keep it simple, drop the superfluous: clone with the SSH URL and branch, no HTTPS fallback nor origin rewrite in post-create, no extra A3 checks, ruleset checked only as Active on main
+- 2026-11-11T11:18:45Z human: keep the ruleset's force-push test on a scratch branch in A3
+- 2026-11-11T11:22:09Z human: amended spec approved
