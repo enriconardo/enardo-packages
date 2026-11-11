@@ -2,7 +2,7 @@
 
 branch: chore/repo/dev-container-environment
 tier: L
-phase: l/chunk-6/commit
+phase: l/chunk-7/commit
 base: f7495c1
 started: 2026-11-11T05:21:04Z
 review_rounds: 0
@@ -13,7 +13,7 @@ spec: .workflow/specs/2026-11-11-dev-container-environment.md
 
 spec_review_rounds: 7
 
-step_review_rounds: 1
+step_review_rounds: 2
 
 ## Intent
 
@@ -105,3 +105,6 @@ Noted during exploration: `origin` is an HTTPS URL today, so the volume clone mu
 - 2026-11-11T13:29:46Z A6 in the container: verify:all --force green, 86/86 tasks, 0 cached, 1m40s; memory figure from docker stats pending from the owner
 - 2026-11-11T13:30:19Z human: A1-A7 all verified and working
 - 2026-11-11T13:34:28Z chunk 6 step review round 1: ok; probe_env outside the chunk's list but set by Decision 12 for stage 2, fixed by the implementer
+- 2026-11-11T13:36:41Z A6 memory (owner, docker stats --no-stream from WSL at the peak of verify:all --force): dev 4.117GiB, playwright 616.9MiB, about 4.7GiB together, VM limit 11.69GiB
+- 2026-11-11T13:39:23Z chunk 7 step review round 1: changes required (docker/README.md:26 stale image contents, :73 self-contradicting shutdown sentence, volume warning repeated)
+- 2026-11-11T13:39:57Z chunk 7 step review round 2: ok; C2 and C3 hold

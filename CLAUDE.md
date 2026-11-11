@@ -9,8 +9,8 @@ packages/<name>             @enardo/<name>, shared, project-agnostic libraries
 packages/typescript-config  tsconfig presets (library, node-app, react-app, runtime-browser, runtime-node)
 packages/eslint-config      ESLint presets (node, react, runtimeNeutral)
 packages/vitest-config      vitest presets (the browser test project, the Mongo replica set)
-docker/                     dev container, test browsers, compose stack (./dev.sh; docker/README.md)
-scripts/                    workflow scripts
+docker/                     dev container, test browsers, compose stack (docker/README.md)
+scripts/                    workflow scripts, and clean.sh
 docs/adr/                   architecture decision records
 .workflow/backlog.md        work queued or to evaluate, in order
 .workflow/specs/            task specs
@@ -20,20 +20,14 @@ Workspaces are declared in `pnpm-workspace.yaml`; internal dependencies use `wor
 
 ## Development environment
 
-Every command that touches `node_modules` runs in the `dev` container. The host runs the rest (the editor, git, Claude Code), and package commands go through `./dev.sh exec` (`./dev.sh exec pnpm --filter @enardo/logger test`).
+All the work happens in the `dev` container, which VS Code creates from `.devcontainer/devcontainer.json` with the repo in a Docker volume (*Dev Containers: Clone Repository in Container Volume*; [docker/README.md](docker/README.md) has the setup). node, pnpm, turbo, git and Claude Code run in its terminal, with no wrapper: `pnpm --filter @enardo/logger test`.
 
-```
-./dev.sh up [-d]             # start the dev container and test browsers; no -d: a shell
-./dev.sh shell [service]     # a shell in a service (default: dev)
-./dev.sh exec <command>      # run one command in the dev container
-./dev.sh logs [service...]   # follow logs (default: every service)
-./dev.sh down [service]      # everything, or one service: 'down dev'
-./dev.sh clean               # remove every node_modules and dist
-```
-
-- **Never run `pnpm` on the host.** `mongodb-memory-server` is a native module: installs from two environments into one `node_modules` break it. Recovery: `./dev.sh clean`, then `./dev.sh exec pnpm install`. The one exception is the registry, from outside the repo (the `publish` skill).
-- **Never `npm i` in the dev container**, which can move files of `node_modules`: a probe that needs a package outside the lockfile runs in a throwaway container.
-- The repo is mounted at `/workspaces/enardo-packages` in the container; browser tests run in the `playwright` service ([docker/README.md](docker/README.md), with what the containers never mount).
+- **The container is the only place that runs pnpm.** `mongodb-memory-server` is a native module: an install from two environments into one `node_modules` breaks it. Recovery: `bash scripts/clean.sh` (it removes every `node_modules` and `dist`; not a pnpm script, since it removes pnpm's own `node_modules`), then `pnpm install`. The registry is the one exception, from WSL (the `publish` skill).
+- **A firewall denies outbound traffic** except to an allow list (GitHub, the npm registry, Claude's and VS Code's hosts, the Mongo download). A host that is refused is added in `docker/dev/init-firewall.sh`; `sudo /usr/local/bin/init-firewall.sh` refreshes the addresses ([docker/README.md](docker/README.md)).
+- **Never `npm i` in the dev container**, which can move files of `node_modules`: a probe that needs a package outside the lockfile runs in a temporary folder outside the repo (`probe_env`).
+- **The repo's volume is the only copy of what is not pushed**: push a branch, work in progress included, before anything removes the volume.
+- **After a change to `docker/`**, the human runs *Rebuild Container*, which rebuilds both services; then `pnpm verify:all --force`, since turbo's key holds neither the image nor the compose file.
+- Browser tests run in the `playwright` service ([docker/README.md](docker/README.md)).
 
 ## Tooling & commands
 
@@ -46,7 +40,7 @@ Every command that touches `node_modules` runs in the `dev` container. The host 
 
 ## Publishing
 
-Packages are published through the `publish` skill, each publish approved by the user. A published version never changes: a breaking change is a new major (a new minor below 1.0.0).
+Packages are published through the `publish` skill, each publish approved by the user. The container packs; the registry token never enters it, so the human runs the publish commands from WSL, which the skill gives filled in. A published version never changes: a breaking change is a new major (a new minor below 1.0.0).
 
 ## Architecture conventions
 
