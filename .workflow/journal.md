@@ -2,7 +2,7 @@
 
 branch: chore/repo/dev-container-environment
 tier: L
-phase: l/chunk-3/implement
+phase: l/chunk-4/acceptance
 base: f7495c1
 started: 2026-11-11T05:21:04Z
 review_rounds: 0
@@ -88,3 +88,5 @@ Noted during exploration: `origin` is an HTTPS URL today, so the volume clone mu
 - 2026-11-11T06:25:32Z human: teach require_this_checkout the docker-desktop-bind-mounts form; spec chunk 2 amended
 - 2026-11-11T06:33:08Z chunk 2 step review round 1: changes required (UID/GID remap still present, false 'no longer exists' hint on Docker Desktop, symlink refused); reviewer's H3 sudo probes denied by the permission classifier, H3 not independently run
 - 2026-11-11T06:44:27Z chunk 2 step review round 2: ok; H1 86/86 on runs 2 and 3 after one flaky run, H2, H3 and H5 reported by the implementer on the rebuilt image
+- 2026-11-11T06:51:52Z chunk 3 step review round 1: changes required (README setup: keychain and deploy key missing, step order, HTTPS way out; publish skill: bare registry command, first login, rm -rf per package, stray placeholder)
+- 2026-11-11T06:55:55Z chunk 3 step review round 2: ok; one wording minor fixed. A1-A5 and A7 remain the owner's. To watch in A3: a VS Code window restart may not restart the WSL server, so it may keep the old SSH_AUTH_SOCK

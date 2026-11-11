@@ -2,6 +2,26 @@
 
 The dev container, the test browsers' image, and the compose stack that runs them. `./dev.sh` drives it; the root `CLAUDE.md` says what runs where.
 
+## Setting up (the dev container)
+
+The environment is created by VS Code from `.devcontainer/devcontainer.json`, with the repo in a Docker volume. On the machine:
+
+1. **Windows with a WSL2 distro, Docker Desktop (WSL backend) and VS Code connected to WSL**, with the *Dev Containers* extension.
+2. **Stop the stack of `dev.sh`** (`./dev.sh down`) before the first clone: the compose project name is fixed, so the old and the new stack are the same project.
+3. **A deploy key of this repo, with write access, in WSL's SSH agent**, and only that key: everything in the container can use what the agent holds while VS Code is attached.
+   - Create it in WSL: `ssh-keygen -t ed25519 -f ~/.ssh/enardo-packages-deploy -C enardo-packages-deploy`. In the repo's GitHub settings, *Deploy keys*, add `~/.ssh/enardo-packages-deploy.pub` with *Allow write access* checked.
+   - Run an agent that outlives terminals and that VS Code's server sees. With keychain (`sudo apt install keychain`), add to `~/.bashrc` (and `~/.profile`, so a non-interactive login sees it): `eval "$(keychain --eval --quiet enardo-packages-deploy)"`. It starts one agent per login session of the machine, loads the key (asking for its passphrase once) and exports `SSH_AUTH_SOCK` to every shell. Open a new WSL terminal, then restart the VS Code window connected to WSL, so that its server inherits `SSH_AUTH_SOCK`.
+   - Check: `ssh-add -l` lists the deploy key and no other, and `ssh -T git@github.com` authenticates. With no running agent there is nothing to forward.
+   - VS Code forwards the agent (`dev.containers.forwardWSLServices`, on by default). A3 of the spec checks that it works from a WSL window.
+4. **`dev.containers.gitCredentialHelperConfigLocation` set to `none`** in VS Code's user settings. Its default (`global`) installs a git credential helper that hands the host's HTTPS Git credentials to the container. After the container is up, `git config --global --get-all credential.helper` must show no helper pointing at VS Code's server.
+5. **Create it:** *Dev Containers: Clone Repository in Container Volume* with `git@github.com:enriconardo/enardo-packages.git` (and the branch). The creation enables the firewall, sets `core.hooksPath`, makes a local `main` and runs `pnpm install`. Pushes go through the SSH agent, so `origin` has to be the SSH URL.
+   - If the prompt does not offer a branch with an SSH URL, clone the HTTPS URL `https://github.com/enriconardo/enardo-packages/tree/<branch>` (the repo is public), then `git remote set-url origin git@github.com:enriconardo/enardo-packages.git` in the container.
+   - If the forwarding from a WSL window does not work, an HTTPS clone still creates the container, but a push then has no credential: stop there. That is a question for the owner, not something to work around.
+
+`~/.gitconfig` is copied by VS Code. Claude Code's login lives in the named volume `claude-config`, at `/home/node/.claude`, and survives *Rebuild Container*.
+
+**The repo's volume is the only copy of what is not pushed.** `docker volume rm`, `docker volume prune --all` and Docker Desktop's *Purge data* and *Clean / Purge* remove it: push a branch, work in progress included, before any of these.
+
 ## The dev image (`dev/`)
 
 - `node:24-bookworm`, plus pnpm and shellcheck; nothing else is added.
