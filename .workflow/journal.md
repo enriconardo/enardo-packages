@@ -2,7 +2,7 @@
 
 branch: feature/events/typed-dispatch
 tier: L
-phase: l/chunk-4/commit
+phase: l/chunk-5/commit
 base: 8ed8c51
 started: 2026-11-11T15:53:03Z
 review_rounds: 0
@@ -70,3 +70,5 @@ Backlog item (Queued): "Three doubts on the dispatch of `@enardo/events`" (from 
 - 2026-11-11T16:38:14Z chunk 3 step review 2: ok
 - 2026-11-11T16:38:27Z chunk 3 committed 81f625b
 - 2026-11-11T16:40:29Z chunk 4 step review 1: ok (README snippets compiled against src)
+- 2026-11-11T16:40:39Z chunk 4 committed aee488f
+- 2026-11-11T16:41:30Z chunk 5 step review 1: ok

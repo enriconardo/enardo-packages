@@ -10,12 +10,6 @@ Work that is queued or proposed but not started. Each item becomes a branch, ope
 
 In the order approved.
 
-- **Three doubts on the dispatch of `@enardo/events`**, to analyze before a change. Tier to decide with the analysis.
-  - `subscribe(eventName, handler)` does not tie the name to the handler's event type: a handler of one event subscribes to another and compiles.
-  - `EventContext.session?: unknown` carries the transaction into the handlers, and so decides unsaid whether they run inside it or after the commit: an outbox has to decide it. ADR 0021 puts the hand-over of the domain events inside the transaction, for an outbox, and their publishing after the commit, by a relay: the analysis starts from it (spec of `feature/uow-repository/collect-domain-events`, 2026-11-10).
-  - `SyncEventBus` is async and sequential, and stops at the first handler that throws, without saying the others did not run.
-  - From the analysis of `@enardo/entities` on `docs/repo/entities-events-backlog` (2026-11-10).
-
 ## To evaluate
 
 - **pnpm 12** (12.15.0 on 2026-10-23), deferred while 11 gets fixes: nothing here needs it yet. Tier L. Found in a throwaway clone:
