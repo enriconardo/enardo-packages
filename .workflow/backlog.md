@@ -36,6 +36,12 @@ In the order approved.
   - `retryable` says that the same send may succeed later, and the rule already counts a wrong host as retryable, since a caller bounds its retries while a transient failure taken for a permanent one loses the message. The same reasoning puts `EPROXY` in `CONNECTION_FAILURES`. Tier M: documented behavior changes.
   - To take up when a project configures a proxy: `cambusa`, the only consumer, does not (2026-11-09).
   - From the second review of `feature/email/send-errors` (2026-10-20), and the analysis of this item on nodemailer 10.1.0 and 10.4.0, source read, not run (2026-11-09).
+- **The dev container's firewall accepts any UDP packet from port 53.**
+  - `docker/dev/init-firewall.sh` keeps Anthropic's `INPUT -p udp --sport 53 -j ACCEPT` (and `OUTPUT --dport 53`), so a packet from any host that comes from port 53 gets in. Limiting both rules to the resolver of `/etc/resolv.conf`, or the input to established traffic, is tighter. Run H3 of the spec of `chore/repo/dev-container-environment` again after the change.
+  - From the final review of `chore/repo/dev-container-environment` (2026-11-11).
+- **`verify:all --force` fails about one run in three with packages in parallel.**
+  - One run failed on `email-nodemailer`'s idle SMTP check (a connection reached a server no sender may reach), with `Port already in use` and a mongod invariant failure in the Mongo packages in the same log, neither in the two green runs. The cause suspected, port collisions across packages, is not proven.
+  - From chunk 2 of `chore/repo/dev-container-environment` (2026-11-11).
 
 ## Dropped
 
