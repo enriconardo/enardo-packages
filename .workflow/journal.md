@@ -2,7 +2,7 @@
 
 branch: feature/events/drop-mergeable-event
 tier: L
-phase: l/checkpoint
+phase: l/chunk-2/implement
 base: f88e993
 started: 2026-11-11T14:08:14Z
 review_rounds: 0
@@ -12,6 +12,8 @@ escalations: 0
 spec: .workflow/specs/2026-11-11-drop-mergeable-event.md
 
 spec_review_rounds: 1
+
+step_review_rounds: 1
 
 ## Intent
 
