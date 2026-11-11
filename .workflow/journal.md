@@ -2,10 +2,10 @@
 
 branch: feature/events/typed-dispatch
 tier: L
-phase: l/chunk-6/commit
+phase: close/write
 base: 8ed8c51
 started: 2026-11-11T15:53:03Z
-review_rounds: 1
+review_rounds: 2
 verify_red_streak: 0
 escalations: 0
 
@@ -82,3 +82,7 @@ Backlog item (Queued): "Three doubts on the dispatch of `@enardo/events`" (from 
 - 2026-11-11T16:46:08Z checkpoint: human asks the EventBus interface test gap as chunk 6; backlog: candidate 1 dropped (@enardo/events is not for browsers), candidates 2 and 3 kept
 - 2026-11-11T16:48:05Z chunk 6 tests recorded (suite 6), pass already; @ts-expect-error lines shown in force against mutated EventBus
 - 2026-11-11T16:49:26Z chunk 6 step review 1: ok, mutation check holds
+- 2026-11-11T16:49:39Z chunk 6 committed 26c1c76
+- 2026-11-11T16:50:07Z review round 2 on 26c1c76: 0 blocking
+- 2026-11-11T16:54:43Z checkpoint 2: human gave the go ("procedi")
+- 2026-11-11T16:54:54Z backlog: 2 items added; spec status done
