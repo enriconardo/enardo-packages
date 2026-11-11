@@ -105,4 +105,80 @@ describe("SyncEventBus", () => {
       });
     });
   });
+
+  describe("with an app-typed context", () => {
+    interface AppContext {
+      correlationId: string;
+    }
+    const bus = (): SyncEventBus<UserEvents, AppContext> =>
+      new SyncEventBus<UserEvents, AppContext>();
+    const correlationId = "c1";
+    const appContextHandler = {} as EventHandler<
+      UserRegistered,
+      void,
+      AppContext
+    >;
+
+    it("requires the context on publish and publishAll", () => {
+      void (async () => {
+        // @ts-expect-error the context is required by AppContext
+        await bus().publish(userRegistered);
+        // @ts-expect-error the context is required by AppContext
+        await bus().publishAll([userRegistered]);
+      });
+    });
+
+    it("accepts the context on publish and publishAll", () => {
+      void (async () => {
+        await bus().publish(userRegistered, { correlationId });
+        await bus().publishAll([userRegistered], { correlationId });
+      });
+    });
+
+    it("gives the handler the context's type", () => {
+      void (() => {
+        bus().subscribe("user.registered", {
+          handle: async (_event, context) => {
+            expectTypeOf(context).toEqualTypeOf<AppContext>();
+          },
+        });
+      });
+    });
+
+    it("accepts a handler that declares the context", () => {
+      void (() => {
+        bus().subscribe("user.registered", appContextHandler);
+      });
+    });
+  });
+
+  describe("with the default context", () => {
+    const bus = (): SyncEventBus<UserEvents> => new SyncEventBus<UserEvents>();
+
+    it("accepts publish without a context", () => {
+      void (async () => {
+        await bus().publish(userRegistered);
+        await bus().publishAll([userRegistered]);
+      });
+    });
+
+    it("rejects a context", () => {
+      void (async () => {
+        // @ts-expect-error the default context is undefined
+        await bus().publish(userRegistered, {});
+        // @ts-expect-error the default context is undefined
+        await bus().publishAll([userRegistered], {});
+      });
+    });
+
+    it("gives the handler an undefined context", () => {
+      void (() => {
+        bus().subscribe("user.registered", {
+          handle: async (_event, context) => {
+            expectTypeOf(context).toEqualTypeOf<undefined>();
+          },
+        });
+      });
+    });
+  });
 });

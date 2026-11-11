@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { SyncEventBus } from "~/sync.event-bus";
 import type { Event } from "~/event";
 import type { EventHandler } from "~/event-handler";
-import type { EventContext } from "~/event-context";
 
 interface UserRegisteredPayload {
   userId: string;
@@ -12,6 +11,10 @@ interface UserRegisteredPayload {
 type UserRegisteredEvent = Event<UserRegisteredPayload, "user.registered">;
 type UserDeletedEvent = Event<{ userId: string }, "user.deleted">;
 type UserEvents = UserRegisteredEvent | UserDeletedEvent;
+
+interface AppContext {
+  correlationId: string;
+}
 
 function createEvent(payload: UserRegisteredPayload): UserRegisteredEvent {
   return {
@@ -38,20 +41,23 @@ describe("SyncEventBus", () => {
     expect(handleFn).toHaveBeenCalledWith(event, undefined);
   });
 
-  it("should pass context to handlers", async () => {
-    const bus = new SyncEventBus<UserEvents>();
-    const handleFn = vi.fn();
-    const handler: EventHandler<UserRegisteredEvent> = {
+  it("should pass the caller's context to handlers as the same reference", async () => {
+    const bus = new SyncEventBus<UserEvents, AppContext>();
+    const handleFn =
+      vi.fn<(event: UserEvents, context: AppContext) => Promise<void>>();
+    const handler: EventHandler<UserRegisteredEvent, void, AppContext> = {
       handle: handleFn,
     };
 
     bus.subscribe("user.registered", handler);
 
     const event = createEvent({ userId: "u1", email: "a@b.com" });
-    const context: EventContext = { session: "fake-session" };
+    const context: AppContext = { correlationId: "c1" };
     await bus.publish(event, context);
 
-    expect(handleFn).toHaveBeenCalledWith(event, context);
+    expect(handleFn).toHaveBeenCalledOnce();
+    expect(handleFn.mock.calls[0]?.[0]).toBe(event);
+    expect(handleFn.mock.calls[0]?.[1]).toBe(context);
   });
 
   it("should call multiple handlers in subscription order", async () => {
@@ -181,28 +187,51 @@ describe("SyncEventBus", () => {
       expect(receivedPayloads).toEqual(["u1", "u2"]);
     });
 
-    it("should pass context to all events", async () => {
-      const bus = new SyncEventBus<UserEvents>();
-      const contexts: (EventContext | undefined)[] = [];
+    it("should pass the same context to every handler of every event, in array order", async () => {
+      const bus = new SyncEventBus<UserEvents, AppContext>();
+      const calls: { step: string; context: AppContext }[] = [];
 
-      const handler: EventHandler<UserRegisteredEvent> = {
-        handle: async (_event, ctx) => {
-          contexts.push(ctx);
+      bus.subscribe("user.registered", {
+        handle: async (event, context) => {
+          calls.push({ step: `registered#1 ${event.payload.userId}`, context });
         },
+      });
+      bus.subscribe("user.registered", {
+        handle: async (event, context) => {
+          calls.push({ step: `registered#2 ${event.payload.userId}`, context });
+        },
+      });
+      bus.subscribe("user.deleted", {
+        handle: async (event, context) => {
+          calls.push({ step: `deleted ${event.payload.userId}`, context });
+        },
+      });
+
+      const context: AppContext = { correlationId: "c1" };
+      const deleted: UserDeletedEvent = {
+        eventName: "user.deleted",
+        occurredAt: new Date(),
+        payload: { userId: "u2" },
       };
-
-      bus.subscribe("user.registered", handler);
-
-      const context: EventContext = { session: "s1" };
       await bus.publishAll(
         [
           createEvent({ userId: "u1", email: "a@b.com" }),
-          createEvent({ userId: "u2", email: "c@d.com" }),
+          deleted,
+          createEvent({ userId: "u3", email: "c@d.com" }),
         ],
         context,
       );
 
-      expect(contexts).toEqual([context, context]);
+      expect(calls.map((call) => call.step)).toEqual([
+        "registered#1 u1",
+        "registered#2 u1",
+        "deleted u2",
+        "registered#1 u3",
+        "registered#2 u3",
+      ]);
+      for (const call of calls) {
+        expect(call.context).toBe(context);
+      }
     });
   });
 });

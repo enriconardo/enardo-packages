@@ -1,5 +1,4 @@
 export type { Event } from "./event";
 export type { EventHandler } from "./event-handler";
-export type { EventBus, EventNamed } from "./event-bus";
-export type { EventContext } from "./event-context";
+export type { ContextArgument, EventBus, EventNamed } from "./event-bus";
 export { SyncEventBus } from "./sync.event-bus";

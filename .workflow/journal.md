@@ -2,7 +2,7 @@
 
 branch: feature/events/typed-dispatch
 tier: L
-phase: l/chunk-1/commit
+phase: l/chunk-2/commit
 base: 8ed8c51
 started: 2026-11-11T15:53:03Z
 review_rounds: 0
@@ -13,7 +13,7 @@ spec: .workflow/specs/2026-11-11-typed-dispatch.md
 
 spec_review_rounds: 1
 
-step_review_rounds: 1
+step_review_rounds: 2
 
 ## Intent
 
@@ -57,3 +57,8 @@ Backlog item (Queued): "Three doubts on the dispatch of `@enardo/events`" (from 
 - 2026-11-11T16:18:58Z human: set local git config diff.renames false until chunk 1 is committed, then unset it
 - 2026-11-11T16:19:06Z red check round 3: valid red; 11 type tests pass already (runtime-erased), listed in red-check-green.txt
 - 2026-11-11T16:21:54Z step review 1 of chunk 1: ok, mutation check holds; one non-blocking test gap noted under Open findings
+- 2026-11-11T16:22:12Z chunk 1 committed c4a4fcf; diff.renames unset
+- 2026-11-11T16:22:53Z chunk 2 stubs written (EventHandler/EventBus/SyncEventBus TContext, ContextArgument); subscribe body kept
+- 2026-11-11T16:25:04Z chunk 2 red check round 1: valid red; 7 type tests pass already
+- 2026-11-11T16:27:54Z chunk 2 step review 1: changes required, EventHandler JSDoc lacks the knowing in-hook case and states after-commit as fact; back to implementer
+- 2026-11-11T16:28:56Z chunk 2 step review 2: ok
