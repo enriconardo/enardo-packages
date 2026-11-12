@@ -31,9 +31,6 @@ In the order approved.
 - **The dev container's firewall accepts any UDP packet from port 53.**
   - `docker/dev/init-firewall.sh` keeps Anthropic's `INPUT -p udp --sport 53 -j ACCEPT` (and `OUTPUT --dport 53`), so a packet from any host that comes from port 53 gets in. Limiting both rules to the resolver of `/etc/resolv.conf`, or the input to established traffic, is tighter. Run H3 of the spec of `chore/repo/dev-container-environment` again after the change.
   - From the final review of `chore/repo/dev-container-environment` (2026-11-11).
-- **`verify:all --force` fails about one run in three with packages in parallel.**
-  - One run failed on `email-nodemailer`'s idle SMTP check (a connection reached a server no sender may reach), with `Port already in use` and a mongod invariant failure in the Mongo packages in the same log, neither in the two green runs. The cause suspected, port collisions across packages, is not proven.
-  - From chunk 2 of `chore/repo/dev-container-environment` (2026-11-11).
 - **An ESLint rule that forbids extensions on relative imports**, in a preset of `@enardo/eslint-config`, so the repo keeps one style (extensionless, as `moduleResolution: bundler` and tsdown allow) without relying on reviews.
   - From the final review of `refactor/repo/drop-js-import-extensions` (2026-11-12).
 
@@ -57,3 +54,4 @@ What was decided against, so that it is not proposed again. One or two lines eac
 - **`serializeError` calling a nested cause's `toJSON()`** (2026-11-09). No class overrides `toJSON()`; the READMEs of `@enardo/errors` and `@enardo/logger` state the limit. To reopen at the first class that needs an override.
 - **OAuth2 token endpoint outages as `retryable`** (2026-11-09). `EOAUTH2` is nearly always permanent, and the status never reaches the error; no project uses OAuth2.
 - **Most failure tests of `@enardo/events` recognize `EventHandlersFailedError` by its class** (2026-11-12). Asserting `isBaseErrorLike` and `code` in each adds nothing: in a test, which shares one copy of the package, `toBeInstanceOf` with the class is reliable (ADR 0012 point 3) and the root `CLAUDE.md` lists the class among what a test asserts; the brand and code are asserted once on the class and once on the bus's rejection.
+- **`verify:all --force` failing about one run in three with packages in parallel** (2026-11-12). Not reproduced: ten uncached runs on `main` (six of `test`, four of `verify:all`) were green. What remains is two races of very low odds, left as they are: `startClosedSmtpServer` hands out a freed ephemeral port, and mongodb-memory-server frees the port it probes before mongod binds it.
