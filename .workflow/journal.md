@@ -5,7 +5,7 @@ tier: S
 phase: s/implement
 base: 81045ed
 started: 2026-11-12T08:32:53Z
-review_rounds: 0
+review_rounds: 1
 verify_red_streak: 0
 escalations: 0
 
@@ -26,3 +26,5 @@ Decision (human, 2026-11-12): "si spostalo pure in dropped" - move the item to D
 ## Log
 
 - 2026-11-12T08:32:53Z opened on 81045ed of main
+- 2026-11-12T08:33:41Z review round 1 on ced3212: 0 blocking
+- 2026-11-12T08:53:01Z human: correggi (quote the old title in the Dropped entry)
