@@ -1,8 +1,8 @@
-import { EventHandlersFailedError } from "./event-handlers-failed.error.js";
-import type { EventHandlerFailure } from "./event-handlers-failed.error.js";
-import type { Event } from "./event.js";
-import type { EventHandler } from "./event-handler.js";
-import type { ContextArgument, EventBus, EventNamed } from "./event-bus.js";
+import { EventHandlersFailedError } from "./event-handlers-failed.error";
+import type { EventHandlerFailure } from "./event-handlers-failed.error";
+import type { Event } from "./event";
+import type { EventHandler } from "./event-handler";
+import type { ContextArgument, EventBus, EventNamed } from "./event-bus";
 
 /**
  * In-process, synchronous event bus.

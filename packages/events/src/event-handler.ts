@@ -1,4 +1,4 @@
-import type { Event } from "./event.js";
+import type { Event } from "./event";
 
 /**
  * Handles a specific type of event.
