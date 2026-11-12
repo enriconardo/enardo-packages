@@ -1,1 +1,1 @@
-export * from "./invalid-entity-id.error.js";
+export * from "./invalid-entity-id.error";
