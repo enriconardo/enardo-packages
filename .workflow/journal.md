@@ -2,10 +2,10 @@
 
 branch: refactor/repo/drop-js-import-extensions
 tier: S
-phase: s/implement
+phase: close/write
 base: 04c78c8
 started: 2026-11-12T08:58:25Z
-review_rounds: 0
+review_rounds: 1
 verify_red_streak: 0
 escalations: 0
 
@@ -30,3 +30,6 @@ Constraints: refactor, tests unchanged; one commit per package; backlog update a
 ## Log
 
 - 2026-11-12T08:58:25Z opened on 04c78c8 of main
+- 2026-11-12T09:00:44Z review round 1 on 8ebae04: 0 blocking (1 rejected: journal in 77d8f62 is by design, commit.sh adds it and integrate.sh removes it before the merge)
+- 2026-11-12T09:00:44Z dist of events and entities built before/after: byte-identical
+- 2026-11-12T09:01:50Z human: go; add the lint-rule backlog candidate, then merge
