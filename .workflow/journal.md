@@ -2,10 +2,10 @@
 
 branch: chore/repo/narrow-firewall-dns-rules
 tier: L
-phase: l/chunk-1/commit
+phase: close/write
 base: 78eed19
 started: 2026-11-12T10:26:55Z
-review_rounds: 0
+review_rounds: 1
 verify_red_streak: 0
 escalations: 0
 
@@ -45,3 +45,12 @@ Owner decisions: tier L; resolv.conf-based limit; owner runs H3 from WSL after t
 - 2026-11-12T10:47:58Z owner approved the spec: 'la approvo'
 - 2026-11-12T10:48:08Z H0 (dig part, run by Claude in dev on current image): dig @1.1.1.1 udp answers (104.20.23.154, 172.66.147.243): OUTPUT hole confirmed; tcp refused (host unreachable), as expected
 - 2026-11-12T10:52:58Z H0 (playwright part, run by owner): sender exit 0, listener 'got x 172.21.0.2 53': INPUT hole confirmed
+- 2026-11-12T10:54:16Z review round 1 on 7a7a981
+- 2026-11-12T10:55:29Z review round 1: ready, 0 blocking. Note: the spec (Decisions 1-2) supersedes the Intent's resolv.conf limit and the ESTABLISHED move. Wording suggestion (comment vs README on ExtServers) not applied: same condition, both clear
+- 2026-11-12T10:55:29Z lessons: none (the wrong premise of the first spec was caught by its own step, the spec review)
+- 2026-11-12T11:04:59Z H1 passed (owner, after rebuild): dig udp+tcp resolve, refresh 'Allow list refreshed.'; H2 passed: dig @1.1.1.1 udp and tcp 'host unreachable'
+- 2026-11-12T11:07:32Z H3 passed (owner): sender exit 0, listener 'nothing'
+- 2026-11-12T11:08:53Z H4: Claude wrote the prior spec's H3 as a script for the owner (scratchpad h4.sh, shellcheck clean but info-level quoting notes, intended)
+- 2026-11-12T11:16:22Z H4 passed (owner): 'H4: all passed'
+- 2026-11-12T11:18:41Z H5 passed (Claude): pnpm verify:all --force exit 0, 86/86 tasks, 0 cached, 2m2s
+- 2026-11-12T11:19:23Z owner: go ('si'); no lessons, no backlog items; remove the resolved item
