@@ -23,7 +23,7 @@ In the order approved.
   - A page would need a server it can reach: Vitest's own, or one in the dev container exposed through Playwright's `exposeNetwork`.
   - From the spec of `chore/repo/browser-tests` (2026-10-07).
 - **`EPROXY` of `@enardo/email-nodemailer` comes out `retryable: false`, for an outage too.**
-  - nodemailer 10.1.0 gives `EPROXY` for an outage (a proxy that closes before the tunnel, a `502`, `503` or `504`) and for misconfigurations (a `407` or `403`, an invalid destination, headers too large, a missing socks module, an unknown proxy protocol). The status is only in the `message`, which the README forbids matching.
+  - nodemailer 10.1.0 gives `EPROXY` for an outage (a proxy that closes before the tunnel, a `502`, `503` or `504`) and for misconfigurations (a `407` or `403`, an invalid destination, a missing socks module, an unknown proxy protocol), and for a broken proxy (response headers over 64 KiB). The status is only in nodemailer's `message`, which is no stable contract and which `cause` does not carry.
   - Not `EPROXY` in `CONNECTION_FAILURES` as a whole: a `socks` proxy (its module cannot be set on the sender's transporter) and an unknown protocol fail every send, and would be retried on each message.
   - First step: the constructor refuses a `proxy` that is not `http:` or `https:`, with a `TypeError`. Then decide whether the `EPROXY` left (a `503` beside a `407`) is retryable, as a wrong host already is since a caller bounds its retries. Tier L, a new major: documented behavior changes.
   - To take up when a project configures a proxy: `cambusa`, the only consumer, does not (2026-11-09).

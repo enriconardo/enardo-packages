@@ -2,7 +2,7 @@
 
 branch: docs/repo/rewrite-eproxy-backlog-item
 tier: S
-phase: s/implement
+phase: close/review
 base: 24b6363
 started: 2026-11-12T09:12:48Z
 review_rounds: 0
