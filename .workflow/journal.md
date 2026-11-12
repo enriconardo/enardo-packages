@@ -2,7 +2,7 @@
 
 branch: chore/repo/narrow-firewall-dns-rules
 tier: L
-phase: l/checkpoint
+phase: l/chunk-1/commit
 base: 78eed19
 started: 2026-11-12T10:26:55Z
 review_rounds: 0

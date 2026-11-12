@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Outbound firewall of the dev container: everything is denied except the
-# allow list below, the compose networks and DNS. Adapted from Anthropic's
-# .devcontainer/init-firewall.sh; docker/README.md and ADR 0022 say how it
-# differs and why.
+# allow list below, the compose networks and DNS to Docker's resolver on
+# loopback. Adapted from Anthropic's .devcontainer/init-firewall.sh;
+# docker/README.md and ADR 0022 say how it differs and why.
 #
 # Installed root-owned in /usr/local/bin, the one thing `node` may run through
 # sudo. Two modes, chosen from the state in force:
@@ -122,9 +122,12 @@ bootstrap() {
   }
   playwright_network="${playwright_ip%.*}.0/24"
 
-  # DNS and loopback first: the resolution below needs them.
-  iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
-  iptables -A INPUT -p udp --sport 53 -j ACCEPT
+  # No port-53 rule, on purpose: DNS goes to Docker's resolver on loopback
+  # (127.0.0.11, which the -i/-o lo rules below accept), and it forwards
+  # upstream from the host's namespace, not through this chain. Anthropic's
+  # udp/53 rules only opened a tunnel out and a way in from playwright. This
+  # assumes every ExtServers entry of /etc/resolv.conf is marked host(...): a
+  # compose `dns:` changes that and names stop resolving after the bootstrap.
   iptables -A INPUT -i lo -j ACCEPT
   iptables -A OUTPUT -o lo -j ACCEPT
 

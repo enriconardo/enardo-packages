@@ -62,4 +62,4 @@ No automated test: the script runs as root in the image, and `dev` can only `sud
 
 ## Chunks
 
-- [ ] 1. The DNS rules and the docs (no test-first): `docker/dev/init-firewall.sh`, `docker/README.md`. H0 before, H1–H5 after, by the owner. The backlog item (`.workflow/backlog.md:31-33`) is removed in its own commit at the close.
+- [x] 1. The DNS rules and the docs (no test-first): `docker/dev/init-firewall.sh`, `docker/README.md`. H0 before, H1–H5 after, by the owner. The backlog item (`.workflow/backlog.md:31-33`) is removed in its own commit at the close.
