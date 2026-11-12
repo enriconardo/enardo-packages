@@ -34,9 +34,6 @@ In the order approved.
   - One run failed on `email-nodemailer`'s idle SMTP check (a connection reached a server no sender may reach), with `Port already in use` and a mongod invariant failure in the Mongo packages in the same log, neither in the two green runs. The cause suspected, port collisions across packages, is not proven.
   - From chunk 2 of `chore/repo/dev-container-environment` (2026-11-11).
 
-- **Most failure tests of `@enardo/events` recognize `EventHandlersFailedError` by its class.**
-  - In `packages/events/__tests__/sync.event-bus.test.ts`, only the first failure test checks `isBaseErrorLike` and `code`; the others use `toBeInstanceOf`. The root `CLAUDE.md` recognizes an error by `isBaseErrorLike` and its `code`: asserting them in every failure test follows it more strictly.
-  - From the final review of `feature/events/typed-dispatch` (2026-11-11).
 - **`packages/events/src/index.ts` imports without the `.js` extension**, while the other files of its `src/` use it. Align it when the file is next touched.
   - From the final review of `feature/events/typed-dispatch` (2026-11-11).
 
@@ -59,3 +56,4 @@ What was decided against, so that it is not proposed again. One or two lines eac
 - **`@typescript-eslint/naming-convention` against the `I` prefix** (2026-11-05). Review is enough once no type has it, and the rule misses re-exports (ADR 0017).
 - **`serializeError` calling a nested cause's `toJSON()`** (2026-11-09). No class overrides `toJSON()`; the READMEs of `@enardo/errors` and `@enardo/logger` state the limit. To reopen at the first class that needs an override.
 - **OAuth2 token endpoint outages as `retryable`** (2026-11-09). `EOAUTH2` is nearly always permanent, and the status never reaches the error; no project uses OAuth2.
+- **Most failure tests of `@enardo/events` recognize `EventHandlersFailedError` by its class** (2026-11-12). Asserting `isBaseErrorLike` and `code` in each adds nothing: in a test, which shares one copy of the package, `toBeInstanceOf` with the class is reliable (ADR 0012 point 3) and the root `CLAUDE.md` lists the class among what a test asserts; the brand and code are asserted once on the class and once on the bus's rejection.
