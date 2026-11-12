@@ -23,10 +23,11 @@ In the order approved.
   - A page would need a server it can reach: Vitest's own, or one in the dev container exposed through Playwright's `exposeNetwork`.
   - From the spec of `chore/repo/browser-tests` (2026-10-07).
 - **`EPROXY` of `@enardo/email-nodemailer` comes out `retryable: false`, for an outage too.**
-  - A proxy that answers `503`, or closes before the tunnel, gives `EPROXY`; so do a `407` and a missing socks module. The status is only in the `message`, so the code cannot tell them apart.
-  - `retryable` says that the same send may succeed later, and the rule already counts a wrong host as retryable, since a caller bounds its retries while a transient failure taken for a permanent one loses the message. The same reasoning puts `EPROXY` in `CONNECTION_FAILURES`. Tier M: documented behavior changes.
+  - nodemailer 10.1.0 gives `EPROXY` for an outage (a proxy that closes before the tunnel, a `502`, `503` or `504`) and for misconfigurations (a `407` or `403`, an invalid destination, headers too large, a missing socks module, an unknown proxy protocol). The status is only in the `message`, which the README forbids matching.
+  - Not `EPROXY` in `CONNECTION_FAILURES` as a whole: a `socks` proxy (its module cannot be set on the sender's transporter) and an unknown protocol fail every send, and would be retried on each message.
+  - First step: the constructor refuses a `proxy` that is not `http:` or `https:`, with a `TypeError`. Then decide whether the `EPROXY` left (a `503` beside a `407`) is retryable, as a wrong host already is since a caller bounds its retries. Tier L, a new major: documented behavior changes.
   - To take up when a project configures a proxy: `cambusa`, the only consumer, does not (2026-11-09).
-  - From the second review of `feature/email/send-errors` (2026-10-20), and the analysis of this item on nodemailer 10.1.0 and 10.4.0, source read, not run (2026-11-09).
+  - From the second review of `feature/email/send-errors` (2026-10-20), and the analyses of this item on nodemailer 10.1.0 and 10.4.0 (2026-11-09) and on 10.1.0's source (2026-11-12), source read, not run.
 - **The dev container's firewall accepts any UDP packet from port 53.**
   - `docker/dev/init-firewall.sh` keeps Anthropic's `INPUT -p udp --sport 53 -j ACCEPT` (and `OUTPUT --dport 53`), so a packet from any host that comes from port 53 gets in. Limiting both rules to the resolver of `/etc/resolv.conf`, or the input to established traffic, is tighter. Run H3 of the spec of `chore/repo/dev-container-environment` again after the change.
   - From the final review of `chore/repo/dev-container-environment` (2026-11-11).
