@@ -34,9 +34,6 @@ In the order approved.
   - One run failed on `email-nodemailer`'s idle SMTP check (a connection reached a server no sender may reach), with `Port already in use` and a mongod invariant failure in the Mongo packages in the same log, neither in the two green runs. The cause suspected, port collisions across packages, is not proven.
   - From chunk 2 of `chore/repo/dev-container-environment` (2026-11-11).
 
-- **`packages/events/src/index.ts` imports without the `.js` extension**, while the other files of its `src/` use it. Align it when the file is next touched.
-  - From the final review of `feature/events/typed-dispatch` (2026-11-11).
-
 ## Dropped
 
 What was decided against, so that it is not proposed again. One or two lines each: the reason, and where the decision lives when it lives elsewhere. The full analysis is in the history (`git log -S '<title>' -- .workflow/backlog.md docs/backlog.md`).
