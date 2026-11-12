@@ -1,5 +1,5 @@
-import type { Event } from "./event.js";
-import type { EventHandler } from "./event-handler.js";
+import type { Event } from "./event";
+import type { EventHandler } from "./event-handler";
 
 /** The member(s) of `Events` that a handler subscribed under `Name` receives. */
 export type EventNamed<

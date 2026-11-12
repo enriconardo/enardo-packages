@@ -33,9 +33,8 @@ In the order approved.
 - **`verify:all --force` fails about one run in three with packages in parallel.**
   - One run failed on `email-nodemailer`'s idle SMTP check (a connection reached a server no sender may reach), with `Port already in use` and a mongod invariant failure in the Mongo packages in the same log, neither in the two green runs. The cause suspected, port collisions across packages, is not proven.
   - From chunk 2 of `chore/repo/dev-container-environment` (2026-11-11).
-
-- **`packages/events/src/index.ts` imports without the `.js` extension**, while the other files of its `src/` use it. Align it when the file is next touched.
-  - From the final review of `feature/events/typed-dispatch` (2026-11-11).
+- **An ESLint rule that forbids extensions on relative imports**, in a preset of `@enardo/eslint-config`, so the repo keeps one style (extensionless, as `moduleResolution: bundler` and tsdown allow) without relying on reviews.
+  - From the final review of `refactor/repo/drop-js-import-extensions` (2026-11-12).
 
 ## Dropped
 
