@@ -19,10 +19,11 @@ export interface TransactionManager<
    * `work` may run more than once, when the driver retries after a transient
    * error: it must be safe to repeat.
    *
-   * The promise resolves only after the commit succeeded. A rejection does not
-   * prove that nothing was committed: a commit whose outcome is unknown may
-   * have been applied, so a caller that runs the work again must make it
-   * idempotent.
+   * The promise resolves only after the commit succeeded, unless `work` ends
+   * the transaction itself: an implementation documents what it does then. A
+   * rejection does not prove that nothing was committed: a commit whose
+   * outcome is unknown may have been applied, so a caller that runs the work
+   * again must make it idempotent.
    *
    * A nested call, from inside `work`, is left to the implementation: it may
    * open an independent transaction, which neither sees nor rolls back with
