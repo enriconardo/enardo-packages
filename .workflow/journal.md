@@ -2,7 +2,7 @@
 
 branch: fix/events/dispatch-snapshot-and-docs
 tier: S
-phase: s/implement
+phase: close/review
 base: 76ccd20
 started: 2026-11-13T09:08:14Z
 review_rounds: 0
@@ -42,3 +42,4 @@ own on this branch.
 ## Log
 
 - 2026-11-13T09:08:14Z opened on 76ccd20 of main
+- 2026-11-13T09:09:13Z human: 2.0.0 unpublished, majors free; review points 2,7,8 as S, envelope (1,3,5,6) to backlog; point 4 dropped

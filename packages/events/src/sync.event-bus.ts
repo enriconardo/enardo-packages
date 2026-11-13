@@ -16,7 +16,8 @@ import type { ContextArgument, EventBus, EventNamed } from "./event-bus";
  * {@link EventHandlersFailedError} listing each failure, whose `cause` carries
  * the thrown values. Handlers' return values are ignored.
  *
- * A handler subscribed during a dispatch runs from the next dispatch on.
+ * A dispatch runs the handlers subscribed when it reaches the event: one
+ * subscribed meanwhile runs from the next dispatch on.
  *
  * Meant to run after the commit: see the README, _Where the bus runs_.
  *
