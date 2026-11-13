@@ -238,12 +238,37 @@ describe("SequentialEventBus", () => {
 });
 
 // The class alone would not prove these: `SequentialEventBus` still satisfies an
-// `EventBus` whose `publish` takes any `Event` and an optional context,
-// through method bivariance. These calls go through the interface.
+// `EventBus` whose `publish` takes any `Event` and an optional context, or
+// whose `subscribe` takes a handler of any context, through method
+// bivariance. These calls go through the interface.
 describe("EventBus", () => {
   describe("typed by an event union", () => {
     const bus = (): EventBus<UserEvents> =>
       new SequentialEventBus<UserEvents>();
+
+    it("rejects a name outside the union", () => {
+      void (() => {
+        // @ts-expect-error "user.renamed" is not a name of UserEvents
+        bus().subscribe("user.renamed", handlerOfEvent);
+      });
+    });
+
+    it("rejects a handler of another event", () => {
+      void (() => {
+        // @ts-expect-error a handler of UserRegistered under "user.deleted"
+        bus().subscribe("user.deleted", userRegisteredHandler);
+      });
+    });
+
+    it("gives the handler the event of its name", () => {
+      void (() => {
+        bus().subscribe("user.registered", {
+          handle: async (event) => {
+            expectTypeOf(event).toEqualTypeOf<UserRegistered>();
+          },
+        });
+      });
+    });
 
     it("rejects publishing an event outside the union", () => {
       void (async () => {
@@ -263,6 +288,7 @@ describe("EventBus", () => {
     const bus = (): EventBus<UserEvents, AppContext> =>
       new SequentialEventBus<UserEvents, AppContext>();
     const correlationId = "c1";
+    const appContextHandler = {} as EventHandler<UserRegistered, AppContext>;
 
     it("requires the context on publish and publishAll", () => {
       void (async () => {
@@ -277,6 +303,35 @@ describe("EventBus", () => {
       void (async () => {
         await bus().publish(userRegistered, { correlationId });
         await bus().publishAll([userRegistered], { correlationId });
+      });
+    });
+
+    it("gives the handler the context's type", () => {
+      void (() => {
+        bus().subscribe("user.registered", {
+          handle: async (_event, context) => {
+            expectTypeOf(context).toEqualTypeOf<AppContext>();
+          },
+        });
+      });
+    });
+
+    it("accepts a handler that declares the context", () => {
+      void (() => {
+        bus().subscribe("user.registered", appContextHandler);
+      });
+    });
+
+    it("rejects a handler whose context is undefined", () => {
+      void (() => {
+        // @ts-expect-error the handler's context is undefined, not AppContext
+        bus().subscribe("user.registered", userRegisteredHandler);
+      });
+    });
+
+    it("accepts a handler whose handle resolves to a value", () => {
+      void (() => {
+        bus().subscribe("user.registered", { handle: async () => 1 });
       });
     });
   });
@@ -298,6 +353,16 @@ describe("EventBus", () => {
         await bus().publish(userRegistered, {});
         // @ts-expect-error the default context is undefined
         await bus().publishAll([userRegistered], {});
+      });
+    });
+
+    it("gives the handler an undefined context", () => {
+      void (() => {
+        bus().subscribe("user.registered", {
+          handle: async (_event, context) => {
+            expectTypeOf(context).toEqualTypeOf<undefined>();
+          },
+        });
       });
     });
   });
