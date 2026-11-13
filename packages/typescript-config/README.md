@@ -7,17 +7,19 @@ The tsconfig presets every `@enardo/*` package extends, and the projects built o
 | Preset | For | Adds (to `base.json`, except the two `runtime-*` presets, which extend nothing) |
 | --- | --- | --- |
 | `base.json` | every preset | ES2022 (sets no `lib`: a config that extends it directly still gets the DOM), ESM, `moduleResolution: bundler`, `strict`, `isolatedModules`, `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch` |
-| `library.json` | packages built with tsdown | `lib` ES2022 (no DOM), `~/*` alias, `src` and `__tests__` included, `dist` as output |
-| `node-app.json` | Node apps (`api-server`), bundled by tsdown; `tsc` only typechecks | `lib` ES2022 (no DOM), `~/*` alias, `src` and `__tests__` included, no declarations |
+| `library.json` | packages built with tsdown | `lib` ES2022 (no DOM), the `node` types, `~/*` alias, `src` and `__tests__` included, `dist` as output |
+| `node-app.json` | Node apps (`api-server`), bundled by tsdown; `tsc` only typechecks | `lib` ES2022 (no DOM), the `node` types, `~/*` alias, `src` and `__tests__` included, no declarations |
 | `react-app.json` | Vite apps (`web`) | JSX, DOM libs, `vite/client` types, `~/*` alias |
 | `runtime-browser.json` | the browser program of a package whose `src/` runs in browsers and on Node | `lib` ES2022 with the DOM, no types, `src` alone included, `isolatedDeclarations` |
 | `runtime-node.json` | the Node program of the same package | `lib` ES2022, the `node` types, `src` alone included, `isolatedDeclarations` |
+
+`library.json` and `node-app.json` load the Node types and no other `@types/*` package, on any TypeScript version (TypeScript 6 no longer loads every one by default). A global from another package needs that package in the project's `types`, with `"node"` repeated, since a project's `types` replaces the preset's list: `["node", "vitest/globals"]`. A project that extends either preset needs `@types/node` installed, or `tsc` fails with TS2688. `base.json` sets no `types`: a config that extends it directly gets no `@types/*` under TypeScript 6.
 
 A library whose `src/` or tests use names only the DOM declares overrides `lib` with the DOM, as the *Overrides* example shows.
 
 The two runtime presets extend nothing: they are laid over a package's own `tsconfig.json`, through an `extends` array, so the package keeps its overrides and its `paths`.
 
-Paths use `${configDir}` (TypeScript 5.5+), which resolves against the `tsconfig.json` that extends the preset, not against this package. A preset can therefore carry `outDir`, `paths` and `include` for every package.
+Paths use `${configDir}` (TypeScript 5.5+), which resolves against the `tsconfig.json` that extends the preset, not against this package. A preset can therefore carry `outDir`, `paths` and `include` for every package. The presets are checked with TypeScript 6.0.
 
 ## Usage
 
@@ -56,7 +58,7 @@ What they miss, which lint rules on imports and globals cover in part:
 - every Node global, from the browser program, after a `/// <reference types="node" />` in `src/`: `@types/node` is installed, so the reference resolves (and the DOM, from the Node program, after a `/// <reference lib="dom" />`). A lint rule reports the directive;
 - the names `@types/node` declares that Node 24 lacks without a flag (`EventSource`, Web Storage), from the Node program.
 
-`runtime-node.json` needs `@types/node` installed in the package: without it, `tsc` fails with TS2688. They check `src/` as written, not the declarations the build emits.
+`runtime-node.json`, like `library.json` and `node-app.json`, needs `@types/node` installed in the package: without it, `tsc` fails with TS2688. They check `src/` as written, not the declarations the build emits.
 
 Both hold `isolatedDeclarations`, which requires every exported type to be written out, so that an inferred type cannot name what only one runtime's types declare: `BodyInit` of the DOM, `NodeJS.Timeout` of Node. Neither program reports such a name by itself, and a consumer on the other runtime would see it as `any` under `skipLibCheck`. Once the types are written out, the build emits the same names, so the package's own `tsconfig.json` needs no option. The option needs a program that sets `declaration` (or `composite`), or `tsc` fails with TS5069: `library.json` sets it, so a package whose `tsconfig.json` extends another preset must set it.
 

@@ -31,6 +31,7 @@
   "devDependencies": {
     "@enardo/eslint-config": "workspace:^",
     "@enardo/typescript-config": "workspace:^",
+    "@types/node": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "tsdown": "catalog:",
