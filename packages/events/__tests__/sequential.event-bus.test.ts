@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { isBaseErrorLike } from "@enardo/errors";
-import { SyncEventBus } from "~/sync.event-bus";
+import { SequentialEventBus } from "~/sequential.event-bus";
 import type { Event } from "~/event";
 import type { EventHandler } from "~/event-handler";
 import { EventHandlersFailedError } from "~/index";
@@ -19,8 +19,18 @@ function expectBothHandlersFailed(error: unknown, thrown: Error): void {
   const failed = error as EventHandlersFailedError;
   expect(failed.details).toEqual({
     failures: [
-      { eventIndex: 0, eventName: "user.registered", handlerIndex: 0 },
-      { eventIndex: 0, eventName: "user.registered", handlerIndex: 1 },
+      {
+        eventIndex: 0,
+        eventId: "event-u1",
+        eventName: "user.registered",
+        handlerIndex: 0,
+      },
+      {
+        eventIndex: 0,
+        eventId: "event-u1",
+        eventName: "user.registered",
+        handlerIndex: 1,
+      },
     ],
   });
   const cause = failed.cause as AggregateError;
@@ -49,15 +59,16 @@ interface AppContext {
 
 function createEvent(payload: UserRegisteredPayload): UserRegisteredEvent {
   return {
+    eventId: `event-${payload.userId}`,
     eventName: "user.registered",
     occurredAt: new Date(),
     payload,
   };
 }
 
-describe("SyncEventBus", () => {
+describe("SequentialEventBus", () => {
   it("should call subscribed handler when event is published", async () => {
-    const bus = new SyncEventBus<UserEvents>();
+    const bus = new SequentialEventBus<UserEvents>();
     const handleFn = vi.fn();
     const handler: EventHandler<UserRegisteredEvent> = {
       handle: handleFn,
@@ -73,10 +84,10 @@ describe("SyncEventBus", () => {
   });
 
   it("should pass the caller's context to handlers as the same reference", async () => {
-    const bus = new SyncEventBus<UserEvents, AppContext>();
+    const bus = new SequentialEventBus<UserEvents, AppContext>();
     const handleFn =
       vi.fn<(event: UserEvents, context: AppContext) => Promise<void>>();
-    const handler: EventHandler<UserRegisteredEvent, void, AppContext> = {
+    const handler: EventHandler<UserRegisteredEvent, AppContext> = {
       handle: handleFn,
     };
 
@@ -92,7 +103,7 @@ describe("SyncEventBus", () => {
   });
 
   it("should call multiple handlers in subscription order", async () => {
-    const bus = new SyncEventBus<UserEvents>();
+    const bus = new SequentialEventBus<UserEvents>();
     const order: number[] = [];
 
     const handler1: EventHandler<UserRegisteredEvent> = {
@@ -115,7 +126,7 @@ describe("SyncEventBus", () => {
   });
 
   it("should not call handlers for different event names", async () => {
-    const bus = new SyncEventBus<UserEvents>();
+    const bus = new SequentialEventBus<UserEvents>();
     const handleFn = vi.fn();
     const handler: EventHandler<UserDeletedEvent> = {
       handle: handleFn,
@@ -129,7 +140,7 @@ describe("SyncEventBus", () => {
   });
 
   it("should do nothing when no handlers are subscribed", async () => {
-    const bus = new SyncEventBus<UserEvents>();
+    const bus = new SequentialEventBus<UserEvents>();
 
     await expect(
       bus.publish(createEvent({ userId: "u1", email: "a@b.com" })),
@@ -137,7 +148,7 @@ describe("SyncEventBus", () => {
   });
 
   it("should start a handler after the previous one's promise settles", async () => {
-    const bus = new SyncEventBus<UserEvents>();
+    const bus = new SequentialEventBus<UserEvents>();
     const steps: string[] = [];
 
     bus.subscribe("user.registered", {
@@ -159,7 +170,7 @@ describe("SyncEventBus", () => {
   });
 
   it("should run a handler subscribed during a dispatch from the next one", async () => {
-    const bus = new SyncEventBus<UserEvents>();
+    const bus = new SequentialEventBus<UserEvents>();
     const late = vi.fn<() => Promise<void>>();
     let subscribed = false;
 
@@ -180,7 +191,7 @@ describe("SyncEventBus", () => {
 
   describe("when handlers throw", () => {
     it("should run the next handler, then reject with one EventHandlersFailedError", async () => {
-      const bus = new SyncEventBus<UserEvents>();
+      const bus = new SequentialEventBus<UserEvents>();
       const thrown = new Error("first failed");
       const secondHandlerFn = vi.fn();
 
@@ -202,7 +213,12 @@ describe("SyncEventBus", () => {
       expect(failed.code).toBe("EVENT_HANDLERS_FAILED");
       expect(failed.details).toEqual({
         failures: [
-          { eventIndex: 0, eventName: "user.registered", handlerIndex: 0 },
+          {
+            eventIndex: 0,
+            eventId: "event-u1",
+            eventName: "user.registered",
+            handlerIndex: 0,
+          },
         ],
       });
       expect(failed.cause).toBeInstanceOf(AggregateError);
@@ -212,7 +228,7 @@ describe("SyncEventBus", () => {
     });
 
     it("should report every handler that threw, a non-Error value as it is", async () => {
-      const bus = new SyncEventBus<UserEvents>();
+      const bus = new SequentialEventBus<UserEvents>();
       const thrown = new Error("first failed");
 
       bus.subscribe("user.registered", {
@@ -235,7 +251,7 @@ describe("SyncEventBus", () => {
     });
 
     it("should treat a handler that rejects asynchronously like one that throws", async () => {
-      const bus = new SyncEventBus<UserEvents>();
+      const bus = new SequentialEventBus<UserEvents>();
       const thrown = new Error("first failed");
 
       bus.subscribe("user.registered", {
@@ -262,7 +278,7 @@ describe("SyncEventBus", () => {
 
   describe("publishAll", () => {
     it("should dispatch the next event when a handler fails on the first", async () => {
-      const bus = new SyncEventBus<UserEvents>();
+      const bus = new SequentialEventBus<UserEvents>();
       const received: string[] = [];
 
       bus.subscribe("user.registered", {
@@ -285,13 +301,18 @@ describe("SyncEventBus", () => {
       expect(error).toBeInstanceOf(EventHandlersFailedError);
       expect((error as EventHandlersFailedError).details).toEqual({
         failures: [
-          { eventIndex: 0, eventName: "user.registered", handlerIndex: 0 },
+          {
+            eventIndex: 0,
+            eventId: "event-u1",
+            eventName: "user.registered",
+            handlerIndex: 0,
+          },
         ],
       });
     });
 
     it("should report the failures of every event, with their indexes", async () => {
-      const bus = new SyncEventBus<UserEvents>();
+      const bus = new SequentialEventBus<UserEvents>();
       const first = new Error("failed on u1");
       const second = new Error("failed on u2");
 
@@ -312,8 +333,18 @@ describe("SyncEventBus", () => {
       const failed = error as EventHandlersFailedError;
       expect(failed.details).toEqual({
         failures: [
-          { eventIndex: 0, eventName: "user.registered", handlerIndex: 0 },
-          { eventIndex: 1, eventName: "user.registered", handlerIndex: 0 },
+          {
+            eventIndex: 0,
+            eventId: "event-u1",
+            eventName: "user.registered",
+            handlerIndex: 0,
+          },
+          {
+            eventIndex: 1,
+            eventId: "event-u2",
+            eventName: "user.registered",
+            handlerIndex: 0,
+          },
         ],
       });
       expect(failed.message).toBe(
@@ -325,8 +356,96 @@ describe("SyncEventBus", () => {
       expect(cause.errors[1]).toBe(second);
     });
 
+    it("should copy each failed event's own eventId into its failure", async () => {
+      const bus = new SequentialEventBus<UserEvents>();
+
+      bus.subscribe("user.registered", {
+        handle: async (event) => {
+          throw new Error(`failed on ${event.payload.userId}`);
+        },
+      });
+      bus.subscribe("user.deleted", {
+        handle: async () => {
+          throw new Error("failed on deleted");
+        },
+      });
+
+      const deleted: UserDeletedEvent = {
+        eventId: "event-deleted-u2",
+        eventName: "user.deleted",
+        occurredAt: new Date(),
+        payload: { userId: "u2" },
+      };
+      const error = await rejectionOf(
+        bus.publishAll([
+          createEvent({ userId: "u1", email: "a@b.com" }),
+          deleted,
+          createEvent({ userId: "u3", email: "c@d.com" }),
+        ]),
+      );
+
+      expect(error).toBeInstanceOf(EventHandlersFailedError);
+      const failed = error as EventHandlersFailedError;
+      expect(failed.details).toEqual({
+        failures: [
+          {
+            eventIndex: 0,
+            eventId: "event-u1",
+            eventName: "user.registered",
+            handlerIndex: 0,
+          },
+          {
+            eventIndex: 1,
+            eventId: "event-deleted-u2",
+            eventName: "user.deleted",
+            handlerIndex: 0,
+          },
+          {
+            eventIndex: 2,
+            eventId: "event-u3",
+            eventName: "user.registered",
+            handlerIndex: 0,
+          },
+        ],
+      });
+      expect(failed.message).toBe(
+        "Event handlers failed: #0 user.registered[0], #1 user.deleted[0], #2 user.registered[0]",
+      );
+    });
+
+    it("should report eventId as undefined for an event that carries none, without checking it", async () => {
+      const bus = new SequentialEventBus<UserEvents>();
+      const handleFn = vi.fn<() => Promise<void>>(async () => {
+        throw new Error("failed");
+      });
+      bus.subscribe("user.registered", { handle: handleFn });
+
+      // An untyped caller: the event reaches the bus without an eventId.
+      const withoutId = {
+        eventName: "user.registered",
+        occurredAt: new Date(),
+        payload: { userId: "u1", email: "a@b.com" },
+      } as unknown as UserRegisteredEvent;
+
+      const error = await rejectionOf(bus.publishAll([withoutId]));
+
+      expect(handleFn).toHaveBeenCalledOnce();
+      expect(error).toBeInstanceOf(EventHandlersFailedError);
+      const failed = error as EventHandlersFailedError;
+      expect(failed.details).toEqual({
+        failures: [
+          {
+            eventIndex: 0,
+            eventId: undefined,
+            eventName: "user.registered",
+            handlerIndex: 0,
+          },
+        ],
+      });
+    });
+
     it("should publish multiple events sequentially", async () => {
-      const bus = new SyncEventBus<UserEvents>();
+      const bus = new SequentialEventBus<UserEvents>();
       const receivedPayloads: string[] = [];
 
       const handler: EventHandler<UserRegisteredEvent> = {
@@ -348,7 +467,7 @@ describe("SyncEventBus", () => {
     });
 
     it("should pass the same context to every handler of every event, in array order", async () => {
-      const bus = new SyncEventBus<UserEvents, AppContext>();
+      const bus = new SequentialEventBus<UserEvents, AppContext>();
       const calls: { step: string; context: AppContext }[] = [];
 
       bus.subscribe("user.registered", {
@@ -369,6 +488,7 @@ describe("SyncEventBus", () => {
 
       const context: AppContext = { correlationId: "c1" };
       const deleted: UserDeletedEvent = {
+        eventId: "event-deleted-u2",
         eventName: "user.deleted",
         occurredAt: new Date(),
         payload: { userId: "u2" },

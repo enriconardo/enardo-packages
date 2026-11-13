@@ -5,7 +5,7 @@ import type { EventHandler } from "./event-handler";
 import type { ContextArgument, EventBus, EventNamed } from "./event-bus";
 
 /**
- * In-process, synchronous event bus.
+ * In-process, sequential event bus.
  *
  * Handlers are executed sequentially, each awaited before the next. The
  * caller's `TContext` is passed to every handler unchanged; the bus never
@@ -23,23 +23,23 @@ import type { ContextArgument, EventBus, EventNamed } from "./event-bus";
  *
  * @example
  * ```ts
- * const bus = new SyncEventBus();
+ * const bus = new SequentialEventBus();
  * bus.subscribe("user.registered", myHandler);
  * await bus.publish(event);
  * ```
  */
-export class SyncEventBus<
+export class SequentialEventBus<
   Events extends Event = Event,
   TContext = undefined,
 > implements EventBus<Events, TContext> {
   private readonly handlers = new Map<
     string,
-    EventHandler<Events, unknown, TContext>[]
+    EventHandler<Events, TContext>[]
   >();
 
   subscribe<Name extends Events["eventName"]>(
     eventName: Name,
-    handler: EventHandler<EventNamed<Events, Name>, unknown, TContext>,
+    handler: EventHandler<EventNamed<Events, Name>, TContext>,
   ): void {
     const existing = this.handlers.get(eventName) ?? [];
     // Stored among the handlers of `Events` through the bivariance of `handle`.
@@ -85,6 +85,7 @@ export class SyncEventBus<
         await handler.handle(event, context);
       } catch (error: unknown) {
         failures.push({
+          eventId: event.eventId,
           eventIndex,
           eventName: event.eventName,
           handlerIndex,
