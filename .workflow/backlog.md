@@ -10,6 +10,17 @@ Work that is queued or proposed but not started. Each item becomes a branch, ope
 
 In the order approved.
 
+- **`docs/transaction-manager/contract-edge-cases`: what the transaction contract leaves unsaid.** Docs only, tier S, a patch of `@enardo/transaction-manager` and of `@enardo/transaction-manager-mongo`.
+  - The JSDoc of `TransactionManager` says commit and rollback, not that `work` may run more than once: only the README does.
+  - The contract says nothing of a nested `runInTransaction`: the Mongo adapter opens a new session, so an independent transaction (see `fix/transaction-manager-mongo/nested-run-in-transaction`).
+  - Nor of a failed commit: after `UnknownTransactionCommitResult` past the driver's 120 s the commit may have happened, and a caller that re-runs the use case may write twice.
+  - The adapter's README: `work` must not call `commitTransaction`, `abortTransaction` or `endSession` on the session. After an abort in `work`, the driver's `withTransaction` (7.6.0, step 8) returns the result, so `runInTransaction` resolves with nothing committed.
+  - From the architecture analysis of the two packages (2026-11-13).
+- **`fix/transaction-manager-mongo/nested-run-in-transaction`: a nested transaction may hang 120 s.** Tier L: the behavior may change.
+  - From reading `withTransaction` (driver 7.6.0), not run: an inner `runInTransaction` that writes a document the outer one wrote gets a `WriteConflict`, labelled `TransientTransactionError`; the driver retries it until 120 s while the outer one awaits it, then fails.
+  - First step: a probe on a replica set. If it holds, decide whether the adapter refuses a nested call (with a native error: a misuse), joins the outer transaction, or only documents it.
+  - From the architecture analysis of the two packages (2026-11-13).
+
 ## To evaluate
 
 - **pnpm 12** (12.15.0 on 2026-10-23), deferred while 11 gets fixes: nothing here needs it yet. Tier L. Found in a throwaway clone:
