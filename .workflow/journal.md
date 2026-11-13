@@ -2,7 +2,7 @@
 
 branch: chore/repo/upgrade-typescript-6
 tier: L
-phase: l/chunk-2/implement
+phase: l/chunk-3/implement
 base: 4ce8080
 started: 2026-11-13T15:42:10Z
 review_rounds: 0
@@ -13,7 +13,7 @@ spec: .workflow/specs/2026-11-13-upgrade-typescript-6.md
 
 spec_review_rounds: 2
 
-step_review_rounds: 2
+step_review_rounds: 3
 
 ## Intent
 
@@ -61,3 +61,5 @@ Every package builds, typechecks, lints and tests on TypeScript 6.0.3 (latest 6.
 - 2026-11-13T16:11:24Z human: last published @enardo/typescript-config is 1.1.0: no version bumps, chunk 5 dropped
 - 2026-11-13T16:19:59Z step review chunk 1 round 1: 1 findings
 - 2026-11-13T16:22:56Z step review chunk 1 round 2: 0 findings
+- 2026-11-13T16:26:26Z chunk 2: react-app.json typechecked under TS 6.0.3 in a probe outside the repo (vite installed there), exit 0
+- 2026-11-13T16:27:17Z step review chunk 2 round 1: 0 findings

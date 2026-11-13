@@ -19,7 +19,7 @@ A library whose `src/` or tests use names only the DOM declares overrides `lib` 
 
 The two runtime presets extend nothing: they are laid over a package's own `tsconfig.json`, through an `extends` array, so the package keeps its overrides and its `paths`.
 
-Paths use `${configDir}` (TypeScript 5.5+), which resolves against the `tsconfig.json` that extends the preset, not against this package. A preset can therefore carry `outDir`, `paths` and `include` for every package.
+Paths use `${configDir}` (TypeScript 5.5+), which resolves against the `tsconfig.json` that extends the preset, not against this package. A preset can therefore carry `outDir`, `paths` and `include` for every package. The presets are checked with TypeScript 6.0.
 
 ## Usage
 
