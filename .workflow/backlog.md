@@ -30,8 +30,6 @@ In the order approved.
   - From the second review of `feature/email/send-errors` (2026-10-20), and the analyses of this item on nodemailer 10.1.0 and 10.4.0 (2026-11-09) and on 10.1.0's source (2026-11-12), source read, not run.
 - **An ESLint rule that forbids extensions on relative imports**, in a preset of `@enardo/eslint-config`, so the repo keeps one style (extensionless, as `moduleResolution: bundler` and tsdown allow) without relying on reviews.
   - From the final review of `refactor/repo/drop-js-import-extensions` (2026-11-12).
-- **Type tests of `@enardo/events`' `EventBus.subscribe` through the interface.** Every `subscribe` type test goes through `SequentialEventBus`: a mutation of `src/event-bus.ts` alone (the handler's context `any` or `TContext | undefined`, `handle` returning `Promise<void>`) leaves the typecheck green, since the class satisfies the interface bivariantly. The cases that reject a handler without the context and accept one resolving to a value, written against `EventBus<Events, TContext>`.
-  - From the step review of chunk 1 of `feature/events/event-envelope` (2026-11-13).
 
 ## Dropped
 
