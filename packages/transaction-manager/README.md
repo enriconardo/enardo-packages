@@ -33,6 +33,11 @@ Implementations must:
 - Resolve only after the commit succeeded.
 - Hand `work` the same context type they declare. `work` may run more than once, if the driver retries after a transient error.
 
+Callers must know that:
+
+- **A rejection doesn't prove that nothing was committed.** A commit whose outcome the driver can't learn, such as one interrupted by a network error, may have been applied. A caller that runs the use case again after a rejection must make it idempotent, or it may write twice.
+- **A nested call is undefined.** The contract doesn't say what `runInTransaction` does when called from inside `work`: an implementation may open an independent transaction, which neither sees the outer one's uncommitted writes nor rolls back with it. Don't nest: code that writes inside a transaction receives the transaction as a parameter.
+
 ## Upgrading from 1.x
 
 The `I` prefix is gone, with no other change:
