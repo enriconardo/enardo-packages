@@ -10,12 +10,14 @@ describe("EventHandlersFailedError", () => {
     new EventHandlersFailedError([
       {
         eventIndex: 0,
+        eventId: "event-1",
         eventName: "user.registered",
         handlerIndex: 0,
         error: thrown,
       },
       {
         eventIndex: 1,
+        eventId: "event-2",
         eventName: "user.deleted",
         handlerIndex: 2,
         error: boom,
@@ -35,8 +37,18 @@ describe("EventHandlersFailedError", () => {
 
     expect(error.details).toEqual({
       failures: [
-        { eventIndex: 0, eventName: "user.registered", handlerIndex: 0 },
-        { eventIndex: 1, eventName: "user.deleted", handlerIndex: 2 },
+        {
+          eventIndex: 0,
+          eventId: "event-1",
+          eventName: "user.registered",
+          handlerIndex: 0,
+        },
+        {
+          eventIndex: 1,
+          eventId: "event-2",
+          eventName: "user.deleted",
+          handlerIndex: 2,
+        },
       ],
     });
     expect(error.message).toBe(
@@ -66,8 +78,18 @@ describe("EventHandlersFailedError", () => {
       code: "EVENT_HANDLERS_FAILED",
       details: {
         failures: [
-          { eventIndex: 0, eventName: "user.registered", handlerIndex: 0 },
-          { eventIndex: 1, eventName: "user.deleted", handlerIndex: 2 },
+          {
+            eventIndex: 0,
+            eventId: "event-1",
+            eventName: "user.registered",
+            handlerIndex: 0,
+          },
+          {
+            eventIndex: 1,
+            eventId: "event-2",
+            eventName: "user.deleted",
+            handlerIndex: 2,
+          },
         ],
       },
       cause: {

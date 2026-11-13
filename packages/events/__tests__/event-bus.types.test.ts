@@ -1,5 +1,6 @@
-import { describe, expectTypeOf, it } from "vitest";
-import { SyncEventBus } from "~/index";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import { SequentialEventBus } from "~/index";
+import * as entry from "~/index";
 import type { Event, EventBus, EventHandler, EventNamed } from "~/index";
 
 // These tests are enforced by `tsc --noEmit` (`pnpm typecheck`): `vitest run`
@@ -86,9 +87,10 @@ describe("EventNamed", () => {
   });
 });
 
-describe("SyncEventBus", () => {
+describe("SequentialEventBus", () => {
   describe("typed by an event union", () => {
-    const bus = (): SyncEventBus<UserEvents> => new SyncEventBus<UserEvents>();
+    const bus = (): SequentialEventBus<UserEvents> =>
+      new SequentialEventBus<UserEvents>();
 
     it("rejects a name outside the union", () => {
       void (() => {
@@ -132,7 +134,7 @@ describe("SyncEventBus", () => {
   });
 
   describe("by default", () => {
-    const bus = (): SyncEventBus => new SyncEventBus();
+    const bus = (): SequentialEventBus => new SequentialEventBus();
 
     it("accepts any name and a handler of every event", () => {
       void (() => {
@@ -152,8 +154,8 @@ describe("SyncEventBus", () => {
     interface AppContext {
       correlationId: string;
     }
-    const bus = (): SyncEventBus<UserEvents, AppContext> =>
-      new SyncEventBus<UserEvents, AppContext>();
+    const bus = (): SequentialEventBus<UserEvents, AppContext> =>
+      new SequentialEventBus<UserEvents, AppContext>();
     const correlationId = "c1";
     const appContextHandler = {} as EventHandler<UserRegistered, AppContext>;
 
@@ -204,7 +206,8 @@ describe("SyncEventBus", () => {
   });
 
   describe("with the default context", () => {
-    const bus = (): SyncEventBus<UserEvents> => new SyncEventBus<UserEvents>();
+    const bus = (): SequentialEventBus<UserEvents> =>
+      new SequentialEventBus<UserEvents>();
 
     it("accepts publish without a context", () => {
       void (async () => {
@@ -234,12 +237,13 @@ describe("SyncEventBus", () => {
   });
 });
 
-// The class alone would not prove these: `SyncEventBus` still satisfies an
+// The class alone would not prove these: `SequentialEventBus` still satisfies an
 // `EventBus` whose `publish` takes any `Event` and an optional context,
 // through method bivariance. These calls go through the interface.
 describe("EventBus", () => {
   describe("typed by an event union", () => {
-    const bus = (): EventBus<UserEvents> => new SyncEventBus<UserEvents>();
+    const bus = (): EventBus<UserEvents> =>
+      new SequentialEventBus<UserEvents>();
 
     it("rejects publishing an event outside the union", () => {
       void (async () => {
@@ -257,7 +261,7 @@ describe("EventBus", () => {
       correlationId: string;
     }
     const bus = (): EventBus<UserEvents, AppContext> =>
-      new SyncEventBus<UserEvents, AppContext>();
+      new SequentialEventBus<UserEvents, AppContext>();
     const correlationId = "c1";
 
     it("requires the context on publish and publishAll", () => {
@@ -278,7 +282,8 @@ describe("EventBus", () => {
   });
 
   describe("with the default context", () => {
-    const bus = (): EventBus<UserEvents> => new SyncEventBus<UserEvents>();
+    const bus = (): EventBus<UserEvents> =>
+      new SequentialEventBus<UserEvents>();
 
     it("accepts publish without a context", () => {
       void (async () => {
@@ -295,5 +300,14 @@ describe("EventBus", () => {
         await bus().publishAll([userRegistered], {});
       });
     });
+  });
+});
+
+describe("the package's entry", () => {
+  it("exports SequentialEventBus and no longer SyncEventBus", () => {
+    expect(entry).toHaveProperty("SequentialEventBus");
+    expect(entry).not.toHaveProperty("SyncEventBus");
+    expectTypeOf(entry).toHaveProperty("SequentialEventBus");
+    expectTypeOf(entry).not.toHaveProperty("SyncEventBus");
   });
 });

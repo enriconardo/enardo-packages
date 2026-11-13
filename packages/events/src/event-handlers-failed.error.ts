@@ -4,6 +4,8 @@ import { BaseError } from "@enardo/errors";
 export interface EventHandlerFailure {
   /** The event's index in `publishAll`'s array; 0 for `publish`. */
   readonly eventIndex: number;
+  /** The `eventId` of the event whose handler threw. */
+  readonly eventId: string;
   readonly eventName: string;
   /** The handler's position among the handlers of `eventName`, in subscription order. */
   readonly handlerIndex: number;
@@ -18,9 +20,11 @@ export interface EventHandlersFailedDetails extends Record<string, unknown> {
 /**
  * Thrown by a dispatch after every handler ran, when at least one threw.
  *
- * `details` and `message` hold indexes and names only: the thrown values may
- * carry personal data, so they are in the `cause`, an `AggregateError` at the
- * same positions as `details.failures`, for whoever logs the error.
+ * `details.failures` hold indexes, names and each event's `eventId` (an id is
+ * no personal data); `message` holds indexes and names only. Neither holds a
+ * payload or a thrown message: the thrown values may carry personal data, so
+ * they are in the `cause`, an `AggregateError` at the same positions as
+ * `details.failures`, for whoever logs the error.
  */
 export class EventHandlersFailedError extends BaseError {
   override readonly name = "EventHandlersFailedError";
@@ -34,11 +38,14 @@ export class EventHandlersFailedError extends BaseError {
       ...(EventHandlerFailure & { readonly error: unknown })[],
     ],
   ) {
-    const listed = failures.map(({ eventIndex, eventName, handlerIndex }) => ({
-      eventIndex,
-      eventName,
-      handlerIndex,
-    }));
+    const listed = failures.map(
+      ({ eventIndex, eventId, eventName, handlerIndex }) => ({
+        eventIndex,
+        eventId,
+        eventName,
+        handlerIndex,
+      }),
+    );
     const message = `Event handlers failed: ${listed
       .map((f) => `#${f.eventIndex} ${f.eventName}[${f.handlerIndex}]`)
       .join(", ")}`;

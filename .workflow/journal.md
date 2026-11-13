@@ -2,7 +2,7 @@
 
 branch: feature/events/event-envelope
 tier: L
-phase: l/chunk-1/commit
+phase: l/chunk-2/commit
 base: a09dc99
 started: 2026-11-13T09:16:04Z
 review_rounds: 0
@@ -13,7 +13,7 @@ spec: .workflow/specs/2026-11-13-event-envelope.md
 
 spec_review_rounds: 3
 
-step_review_rounds: 2
+step_review_rounds: 4
 
 ## Intent
 
@@ -56,3 +56,6 @@ Tier: L, confirmed by the human.
 - 2026-11-13T10:42:18Z human: accept the typecheck red for chunk 1 (type-only, the stubs are its whole code); skip the implementer, go to verify; report the lessons at close
 - 2026-11-13T10:43:57Z step review chunk 1 round 1: 2 findings (JSDoc of EventHandler's idempotency line and of eventId)
 - 2026-11-13T10:46:00Z step review chunk 1 round 2: 0 findings (ok); noted: EventBus.subscribe's context and return type untested through the interface (bivariance), beyond the spec's cases
+- 2026-11-13T10:48:31Z red check chunk 2: valid red, 8 AssertionError; 27 pass already (renamed tests, case 7, case 10's no-id half)
+- 2026-11-13T10:50:54Z step review chunk 2 round 1: 1 code finding (EventHandlersFailedError's JSDoc says details hold indexes and names only); minor test note (toEqual vs toStrictEqual for eventId: undefined) left: the spec does not require the key, the JSON is the same
+- 2026-11-13T10:53:27Z step review chunk 2 round 2: 0 findings (ok)
