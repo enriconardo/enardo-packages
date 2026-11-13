@@ -1,0 +1,9 @@
+version    = 1
+check      = pnpm verify:all
+run_tests  = bash scripts/test-files.sh {files}
+main       = main
+integrate  = merge
+rules      = CLAUDE.md, packages/*/CLAUDE.md, docs/adr/
+backlog    = .workflow/backlog.md
+tests_glob = packages/*/__tests__/**/*.test.ts
+red_types  = AssertionError, NotImplemented
