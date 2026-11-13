@@ -25,6 +25,7 @@ An ADR is never edited after it is accepted, except for its status. To change a 
 | [0021](0021-the-unit-of-work-hands-over-domain-events-inside-the-transaction.md) | The unit of work hands the aggregates' domain events to the app inside the transaction; it reports no change set | accepted |
 | [0022](0022-the-work-happens-in-a-dev-container-on-a-volume.md) | The work happens in a dev container, with the repo in a Docker volume | accepted |
 | [0023](0023-the-event-bus-carries-no-transaction-and-runs-every-handler.md) | The event bus carries no transaction, runs every handler and reports the failures together; it is typed by the events it carries | accepted |
+| [0024](0024-an-event-carries-an-id-its-creator-generates.md) | An event carries an id its creator generates, and a `Date` that a JSON transport rebuilds | accepted |
 
 ## Template
 
