@@ -16,12 +16,10 @@ import type { ContextArgument, EventBus, EventNamed } from "./event-bus";
  * {@link EventHandlersFailedError} listing each failure, whose `cause` carries
  * the thrown values. Handlers' return values are ignored.
  *
- * The bus is meant to run after the commit, from the app's relay: a handler
- * opens its own transaction if it needs one and is idempotent, since delivery
- * is at least once. An app that puts its transaction in `TContext` and
- * publishes inside a unit of work's hook does it knowingly: handlers run
- * before the commit, run again if the transaction is retried, and a failing
- * handler rolls back the use case.
+ * A dispatch runs the handlers subscribed when it reaches the event: one
+ * subscribed meanwhile runs from the next dispatch on.
+ *
+ * Meant to run after the commit: see the README, _Where the bus runs_.
  *
  * @example
  * ```ts
@@ -78,7 +76,8 @@ export class SyncEventBus<
     eventIndex: number,
     context: TContext,
   ): Promise<Failure[]> {
-    const handlers = this.handlers.get(event.eventName) ?? [];
+    // A copy: a handler subscribed while this dispatch runs waits for the next one.
+    const handlers = [...(this.handlers.get(event.eventName) ?? [])];
     const failures: Failure[] = [];
 
     for (const [handlerIndex, handler] of handlers.entries()) {

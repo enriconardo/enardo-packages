@@ -105,6 +105,8 @@ if the transaction is retried, and a failing handler rolls back the use case.
 
 `SyncEventBus` is sequential and in-process: events in array order, the
 handlers of each event in subscription order, each awaited before the next.
+A dispatch runs the handlers subscribed when it reaches the event: one
+subscribed meanwhile runs from the next dispatch on.
 Return values are ignored. With no handler for an event, nothing happens.
 
 A handler that throws or rejects does not stop the dispatch: every handler of
