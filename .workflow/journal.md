@@ -2,10 +2,10 @@
 
 branch: chore/repo/upgrade-typescript-6
 tier: L
-phase: close/review
+phase: close/integrate
 base: 4ce8080
 started: 2026-11-13T15:42:10Z
-review_rounds: 0
+review_rounds: 1
 verify_red_streak: 0
 escalations: 0
 
@@ -52,6 +52,7 @@ Every package builds, typechecks, lints and tests on TypeScript 6.0.3 (latest 6.
 
 - TypeScript 7 (7.0.2 on 2026-11-13), waiting for typescript-eslint's support (typescript-eslint#10940): with TS 7, typescript-eslint 8.72.2 refuses to load and the JS API is gone; tsdown ≥ 0.23 accepts ^7. From the probes of this branch.
 - `pnpm verify:all` builds only the packages others depend on: the 9 leaf packages (cqrs, database-mongo, email-nodemailer, env, http-client, id-generator-mongo, logger, password-hasher, uow-repository-mongo) are never built by it, so a leaf whose build breaks stays green. From chunk 3.
+- typescript-config README: "on any TypeScript version" could say that under TS 5 the preset's `types` narrows what loads instead of adding to it, so a TS 5 consumer who loses a global knows why. From code-reviewer (not blocking).
 
 ## Log
 
@@ -67,3 +68,5 @@ Every package builds, typechecks, lints and tests on TypeScript 6.0.3 (latest 6.
 - 2026-11-13T16:37:35Z step review chunk 3 round 1: 0 findings; note: tsdown 0.23.7 .mjs also differs beyond the spec's shape (inlined constants, /* @__PURE__ */, class field declarations for parameter properties, as tsc emits for es2022; no affected class extends a base)
 - 2026-11-13T16:41:53Z chunk 4: implementer's report empty; main agent ran the cases: peers check clean, verify:all --force 86/86 uncached, no lint finding
 - 2026-11-13T16:44:36Z step review chunk 4 round 1: 0 findings
+- 2026-11-13T16:46:44Z review round 1 on 03e85d5: 0 blocking
+- 2026-11-13T16:59:06Z human: go; backlog keep 1 (TypeScript 7) and 2 (verify:all never builds leaf packages, 'mi sembra anche grave'); drop 3 (README wording); no lessons

@@ -33,6 +33,14 @@ In the order approved.
   - First step: the constructor refuses a `proxy` that is not `http:` or `https:`, with a `TypeError`. Then decide whether the `EPROXY` left (a `503` beside a `407`) is retryable, as a wrong host already is since a caller bounds its retries. Tier L, a new major: documented behavior changes.
   - To take up when a project configures a proxy: `cambusa`, the only consumer, does not (2026-11-09).
   - From the second review of `feature/email/send-errors` (2026-10-20), and the analyses of this item on nodemailer 10.1.0 and 10.4.0 (2026-11-09) and on 10.1.0's source (2026-11-12), source read, not run.
+- **`pnpm verify` never builds the leaf packages.** The user judges it serious.
+  - `verify` and `verify:all` build only the packages others depend on, for their `dist/`: the 9 leaves (`cqrs`, `database-mongo`, `email-nodemailer`, `env`, `http-client`, `id-generator-mongo`, `logger`, `password-hasher`, `uow-repository-mongo`) are never built, so a leaf whose tsdown build breaks stays green, and its `exports` paths are never checked.
+  - Found after tsdown 0.23.7, which changes the `dist/` content: a full `turbo run build --force` was the only proof that the leaves still build.
+  - From chunk 3 of `chore/repo/upgrade-typescript-6` and its final review (2026-11-13).
+- **TypeScript 7** (7.0.2 on 2026-11-13), waiting for typescript-eslint's support (typescript-eslint#10940, for TS ≥ 7.1).
+  - With TS 7, typescript-eslint 8.72.2 refuses to load ("does not support TS 7.0") and the JS compiler API is gone; tsdown ≥ 0.23 accepts ^7.
+  - The one working layout today aliases `typescript` to `@typescript/typescript6` beside TS 7 for `tsc`, which every project using `@enardo/eslint-config` would have to copy: rejected.
+  - From the probes of `chore/repo/upgrade-typescript-6` (2026-11-13); its spec holds them.
 
 ## Dropped
 
