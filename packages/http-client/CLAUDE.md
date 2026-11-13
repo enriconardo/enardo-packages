@@ -69,7 +69,7 @@ __tests__/support/          the helpers both kinds of test file share, beyond a 
 | `tsconfig.browser.json` | Node globals, `node:*` and builtin imports | all of them after a `/// <reference types="node" />`: `@types/node` is a devDependency (the lint rule below reports the directive) |
 | `tsconfig.node.json` | DOM globals, DOM-only type names | what `@types/node` declares and Node 24 lacks without a flag: `EventSource`, Web Storage |
 | `isolatedDeclarations` (in both runtime programs) | exported types left to inference | |
-| lint `no-restricted-imports` | `undici`, `node:*`, builtin modules; a JS or TS extension on a relative import (every preset) | a dynamic `import()`, a type `typeof import("…")` |
+| lint `no-restricted-imports` | `undici`, `node:*`, builtin modules; a JS or TS extension on an import of `./`, `../` or `~/` (every preset) | a dynamic `import()`, a type `typeof import("…")` |
 | lint `triple-slash-reference` | a `/// <reference types>` or `lib` in `src/`, also in a `.d.ts` | Node types a dependency's declarations bring; `"types": ["node"]` in `tsconfig.browser.json` |
 | lint `no-restricted-globals` | globals of one runtime, also as `globalThis.<name>`; the globals Node 24 lacks | type positions, destructuring (`const { process } = globalThis`) |
 | the `browser` test project | what a browser does differently at run time, in Chromium, Firefox and WebKit, for the tests that need no Node | the `*.node.test.ts` tests; a browser's own `fetch`, since every test there stubs `fetchImpl`; browsers older than Playwright's builds |

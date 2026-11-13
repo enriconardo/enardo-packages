@@ -2,10 +2,10 @@
 
 branch: chore/eslint-config/forbid-relative-import-extensions
 tier: S
-phase: s/implement
+phase: close/review
 base: 4fd7970
 started: 2026-11-13T13:12:10Z
-review_rounds: 1
+review_rounds: 2
 verify_red_streak: 0
 escalations: 0
 
@@ -40,3 +40,4 @@ Decisions of the human:
 - 2026-11-13T13:12:20Z decisions: 3.0.0 major, include the ~/ alias, README row only, no ADR
 - 2026-11-13T13:17:33Z review round 1 on 99f72c3: 0 blocking
 - 2026-11-13T13:19:24Z checkpoint: apply suggestions 2 (typeof import miss) and 3 (http-client CLAUDE.md), not 1; no backlog item; then merge
+- 2026-11-13T13:22:34Z review round 2 on e1a9074: 0 blocking; fixing the ~/ wording of suggestion 3
