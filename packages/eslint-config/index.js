@@ -9,6 +9,17 @@ const NODE_ONLY = "Node only: src/ runs in browsers too.";
 const BROWSER_ONLY = "Browsers only: src/ runs on Node too.";
 const MISSING_ON_NODE = "Node 24 does not define it: src/ runs on Node too.";
 
+// Every package and app is bundled (tsdown, vite) or run by vitest, and
+// resolved as `moduleResolution: bundler`: a relative import needs no
+// extension, so the repo keeps one style, without it. Code that Node ran
+// unbundled would need the extensions instead. Only JS and TS extensions are
+// refused: `.json`, `.css` and a role suffix (`./product.entity`) stay.
+const RELATIVE_IMPORT_EXTENSION = {
+  regex: "^(?:\\.{1,2}|~)/.*\\.[cm]?[jt]sx?$",
+  message:
+    "Drop the extension: the code is bundled and resolved as moduleResolution bundler.",
+};
+
 const browserGlobals = Object.keys(globals.browser);
 const nodeGlobals = Object.keys(globals.node);
 
@@ -77,6 +88,10 @@ function createConfig({
         // `async` on a method with nothing to await keeps its errors as
         // rejections, which is what callers of a Promise-returning interface expect.
         "@typescript-eslint/require-await": "off",
+        "no-restricted-imports": [
+          "error",
+          { patterns: [RELATIVE_IMPORT_EXTENSION] },
+        ],
       },
     },
     {
@@ -197,6 +212,8 @@ export function runtimeNeutral(rootDir) {
           patterns: [
             { group: ["node:*"], message: NODE_ONLY },
             { group: ["undici/*"], message: NODE_ONLY },
+            // Restated: this entry replaces the options of createConfig's.
+            RELATIVE_IMPORT_EXTENSION,
           ],
         },
       ],
