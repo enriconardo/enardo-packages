@@ -11,7 +11,7 @@ await transactionManager.runInTransaction(async ({ session }) => {
 });
 ```
 
-> Published to the `@enardo` registry, version 0.2.0. MongoDB transactions need a replica set or a sharded cluster, even a single-node replica set. A standalone server doesn't work.
+> Published to the `@enardo` registry, version 0.2.1. MongoDB transactions need a replica set or a sharded cluster, even a single-node replica set. A standalone server doesn't work.
 
 ## Exports
 
@@ -53,7 +53,9 @@ The manager holds no state: create it once and share it.
 - **Commit.** When `work` resolves, the transaction commits, and `runInTransaction` resolves with the result of `work` only after the commit succeeded.
 - **Rollback.** When `work` rejects, the transaction aborts and `runInTransaction` rejects with the original error.
 - **Retries.** After a transient error, such as a write conflict with another transaction, the driver runs `work` again. Every attempt gets the same transaction `id`. Write `work` so that it can run more than once, and don't catch driver errors inside it without rethrowing, or the driver can't tell whether the transaction aborted.
-- **Session.** Pass `session` to every operation that belongs to the transaction. An operation without it runs outside the transaction and isn't rolled back.
+- **Session.** Pass `session` to every operation that belongs to the transaction. An operation without it runs outside the transaction and isn't rolled back. Don't call `commitTransaction`, `abortTransaction` or `endSession` on it: the manager owns the session. After an abort inside `work`, the driver takes the transaction as ended on purpose and returns the result, so `runInTransaction` resolves with nothing committed.
+- **Unknown commit result.** When the commit fails with the `UnknownTransactionCommitResult` label, such as after a network error, the driver retries the commit until 120 s have passed since `runInTransaction` started, then rejects with that error. The commit may have been applied: a caller that runs the use case again after it must make the use case idempotent, or it may write twice.
+- **Nesting.** Every call opens a session of its own, so a `runInTransaction` called from inside `work` runs an independent transaction: it doesn't see the outer one's uncommitted writes, and doesn't roll back with it. Don't nest: pass the outer `MongoTransaction` down instead.
 
 ## Upgrading from 0.1
 
