@@ -2,10 +2,10 @@
 
 branch: feature/events/event-envelope
 tier: L
-phase: l/chunk-4/commit
+phase: close/write
 base: a09dc99
 started: 2026-11-13T09:16:04Z
-review_rounds: 1
+review_rounds: 2
 verify_red_streak: 0
 escalations: 1
 
@@ -71,3 +71,4 @@ Tier: L, confirmed by the human.
 - 2026-11-13T11:17:37Z lessons: none for the project (every problem caught at its own step); the two candidates are workflow defects, to the checkpoint as such
 - 2026-11-13T11:20:59Z human at checkpoint: chunk 4 for backlog candidates 2 and 3 (README Result bullet, EventHandlerFailure.eventId JSDoc); backlog: keep 1 (EventBus interface type tests) and 4 (toStrictEqual)
 - 2026-11-13T11:22:55Z step review chunk 4 round 1: 0 findings (ok)
+- 2026-11-13T11:24:01Z review round 2 on 89cc07e: 0 blocking (ready); 1 wording suggestion (README:181-182)
