@@ -35,13 +35,6 @@ In the order approved.
 - **`toStrictEqual` for a failure without `eventId` in `@enardo/events`' tests.** The test of an event that reaches the bus without `eventId` asserts its failure with `toEqual`, which takes a missing key for `undefined`: a constructor that drops the key passes. `toStrictEqual` pins that the key is there.
   - From the step review of chunk 2 and the final review of `feature/events/event-envelope` (2026-11-13).
 
-- **The envelope of `@enardo/events`' `Event`**, while 2.0.0 is unpublished and breaking changes are free in it. Tier L.
-  - No `eventId`: the package asks for idempotent handlers under at-least-once delivery, but the envelope gives no key to deduplicate by; a handler of every event cannot, and each app would invent its own in the `payload`. Decide whether it is required, and who generates it.
-  - `occurredAt: Date` does not survive the outbox's JSON: the relay rebuilds it before `publish`, and the README does not say so. Decide between a `Date` documented as the relay's to rebuild, or a string.
-  - `EventHandler`'s `Result` parameter has no use: the bus ignores return values and `subscribe` types it `unknown`.
-  - `SyncEventBus` is asynchronous and sequential: a name such as `SequentialEventBus` says what it does.
-  - From the architectural review of `@enardo/events` (2026-11-13), the intent of `fix/events/dispatch-snapshot-and-docs`.
-
 ## Dropped
 
 What was decided against, so that it is not proposed again. One or two lines each: the reason, and where the decision lives when it lives elsewhere. The full analysis is in the history (`git log -S '<title>' -- .workflow/backlog.md docs/backlog.md`).
