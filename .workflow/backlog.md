@@ -32,8 +32,6 @@ In the order approved.
   - From the final review of `refactor/repo/drop-js-import-extensions` (2026-11-12).
 - **Type tests of `@enardo/events`' `EventBus.subscribe` through the interface.** Every `subscribe` type test goes through `SequentialEventBus`: a mutation of `src/event-bus.ts` alone (the handler's context `any` or `TContext | undefined`, `handle` returning `Promise<void>`) leaves the typecheck green, since the class satisfies the interface bivariantly. The cases that reject a handler without the context and accept one resolving to a value, written against `EventBus<Events, TContext>`.
   - From the step review of chunk 1 of `feature/events/event-envelope` (2026-11-13).
-- **`toStrictEqual` for a failure without `eventId` in `@enardo/events`' tests.** The test of an event that reaches the bus without `eventId` asserts its failure with `toEqual`, which takes a missing key for `undefined`: a constructor that drops the key passes. `toStrictEqual` pins that the key is there.
-  - From the step review of chunk 2 and the final review of `feature/events/event-envelope` (2026-11-13).
 
 ## Dropped
 
