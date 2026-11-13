@@ -178,8 +178,11 @@ error (`@enardo/errors` README, _Accept a `cause`_).
   `Result` is gone, and `handle` returns `Promise<unknown>`. A 1.x `Result`
   that `undefined` fits (`void`, `unknown`) still compiles and subscribes, now
   read as the context; one it does not fit (`number`, say) fails at
-  `subscribe`. Drop a 1.x `Result`. A direct `await handler.handle(...)` that
-  read a 1.x `Result` now gets `unknown`.
+  `subscribe` only for a handler typed through the interface: a class
+  `implements EventHandler<X, number>` passed as an instance subscribes
+  silently, its structural type having no context parameter, so its stale
+  `Result` survives. Drop a 1.x `Result` there too. A direct
+  `await handler.handle(...)` that read a 1.x `Result` now gets `unknown`.
 - `handle(event, context?: EventContext)` is `handle(event, context: TContext)`:
   a direct call writes `handle(event, undefined)`.
 - `EventContext` and its `session` are gone, in favor of `TContext`: the bus is

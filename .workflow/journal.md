@@ -2,10 +2,10 @@
 
 branch: feature/events/event-envelope
 tier: L
-phase: l/chunk-3/commit
+phase: l/chunk-4/commit
 base: a09dc99
 started: 2026-11-13T09:16:04Z
-review_rounds: 0
+review_rounds: 1
 verify_red_streak: 0
 escalations: 1
 
@@ -13,7 +13,7 @@ spec: .workflow/specs/2026-11-13-event-envelope.md
 
 spec_review_rounds: 3
 
-step_review_rounds: 8
+step_review_rounds: 9
 
 ## Intent
 
@@ -42,6 +42,9 @@ Tier: L, confirmed by the human.
 ## Backlog candidates
 
 - (events) Type tests of `EventBus.subscribe` through the interface, not only through the class: the step review of chunk 1 mutated `src/event-bus.ts:33` (context `any` or `TContext | undefined`, `handle` returning `Promise<void>`) and the typecheck stayed green, since the class satisfies the interface bivariantly. Cases 6 and 8 for `EventBus`.
+- (events, code-reviewer) README *Upgrading*, the `Result` bullet: a class `implements EventHandler<X, number>` passed as an instance subscribes silently (its structural type has no context parameter), so "fails at `subscribe`" holds only for a handler typed through the interface.
+- (events, code-reviewer) `EventHandlerFailure.eventId`'s JSDoc: say "copied as it is" (an untyped caller's event gives `undefined`), as the README does.
+- (events, step-reviewer chunk 2 and code-reviewer) the `eventId: undefined` test asserts with `toEqual`; `toStrictEqual` would pin that the key is present.
 
 ## Log
 
@@ -64,3 +67,7 @@ Tier: L, confirmed by the human.
 - 2026-11-13T11:01:19Z step review chunk 3 round 3: 1 finding (README:116 says the bus neither reads nor checks eventId, dropping the spec's 'beyond copying it into a failure'); third round, to the human
 - 2026-11-13T11:13:09Z human at escalation 1 (chunk 3 review round 3): retry, one round
 - 2026-11-13T11:15:14Z step review chunk 3 round 4 (granted by the human): 0 findings (ok); README narrows the spec's 'an implementing class breaks', accurately
+- 2026-11-13T11:17:22Z review round 1 on 1dcc90f: 0 blocking (ready); 3 suggestions to backlog candidates
+- 2026-11-13T11:17:37Z lessons: none for the project (every problem caught at its own step); the two candidates are workflow defects, to the checkpoint as such
+- 2026-11-13T11:20:59Z human at checkpoint: chunk 4 for backlog candidates 2 and 3 (README Result bullet, EventHandlerFailure.eventId JSDoc); backlog: keep 1 (EventBus interface type tests) and 4 (toStrictEqual)
+- 2026-11-13T11:22:55Z step review chunk 4 round 1: 0 findings (ok)

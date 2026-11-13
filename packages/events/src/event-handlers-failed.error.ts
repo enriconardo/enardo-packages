@@ -4,7 +4,10 @@ import { BaseError } from "@enardo/errors";
 export interface EventHandlerFailure {
   /** The event's index in `publishAll`'s array; 0 for `publish`. */
   readonly eventIndex: number;
-  /** The `eventId` of the event whose handler threw. */
+  /**
+   * The `eventId` of the event whose handler threw, copied as it is: an event
+   * that reaches the bus without one (an untyped caller) gives `undefined`.
+   */
   readonly eventId: string;
   readonly eventName: string;
   /** The handler's position among the handlers of `eventName`, in subscription order. */
