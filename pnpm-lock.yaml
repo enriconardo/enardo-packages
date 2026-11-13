@@ -93,6 +93,9 @@ importers:
       '@enardo/typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
       eslint:
         specifier: 'catalog:'
         version: 10.9.1
@@ -428,6 +431,9 @@ importers:
       '@enardo/typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
       eslint:
         specifier: 'catalog:'
         version: 10.9.1

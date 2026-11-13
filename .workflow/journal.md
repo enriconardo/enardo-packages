@@ -2,7 +2,7 @@
 
 branch: chore/repo/upgrade-typescript-6
 tier: L
-phase: l/checkpoint
+phase: l/chunk-2/implement
 base: 4ce8080
 started: 2026-11-13T15:42:10Z
 review_rounds: 0
@@ -12,6 +12,8 @@ escalations: 0
 spec: .workflow/specs/2026-11-13-upgrade-typescript-6.md
 
 spec_review_rounds: 2
+
+step_review_rounds: 2
 
 ## Intent
 
@@ -57,3 +59,5 @@ Every package builds, typechecks, lints and tests on TypeScript 6.0.3 (latest 6.
 - 2026-11-13T15:43:06Z human: TS 7 deferred until typescript-eslint supports it; go TS 6 as recommended: @types/node in database/id-generator, typescript-config major, tsdown 0.23 in own commit, typescript-eslint ^8.72.2
 - 2026-11-13T16:06:33Z human: spec approved; typescript-eslint 8.72.2 confirmed; last published @enardo/eslint-config is 1.1.0 (repo 3.0.0 unpublished)
 - 2026-11-13T16:11:24Z human: last published @enardo/typescript-config is 1.1.0: no version bumps, chunk 5 dropped
+- 2026-11-13T16:19:59Z step review chunk 1 round 1: 1 findings
+- 2026-11-13T16:22:56Z step review chunk 1 round 2: 0 findings
