@@ -34,12 +34,12 @@ export class SyncEventBus<
 > implements EventBus<Events, TContext> {
   private readonly handlers = new Map<
     string,
-    EventHandler<Events, unknown, TContext>[]
+    EventHandler<Events, TContext>[]
   >();
 
   subscribe<Name extends Events["eventName"]>(
     eventName: Name,
-    handler: EventHandler<EventNamed<Events, Name>, unknown, TContext>,
+    handler: EventHandler<EventNamed<Events, Name>, TContext>,
   ): void {
     const existing = this.handlers.get(eventName) ?? [];
     // Stored among the handlers of `Events` through the bivariance of `handle`.

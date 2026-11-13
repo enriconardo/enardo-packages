@@ -2,7 +2,7 @@
 
 branch: feature/events/event-envelope
 tier: L
-phase: l/checkpoint
+phase: l/chunk-1/commit
 base: a09dc99
 started: 2026-11-13T09:16:04Z
 review_rounds: 0
@@ -12,6 +12,8 @@ escalations: 0
 spec: .workflow/specs/2026-11-13-event-envelope.md
 
 spec_review_rounds: 3
+
+step_review_rounds: 2
 
 ## Intent
 
@@ -34,7 +36,12 @@ Tier: L, confirmed by the human.
 
 ## Lesson candidates
 
+- (plugin, Workflow Overload) A test-first chunk made only of types has no red `red-check.sh` can see: the stub step writes its whole code, and its type tests fail only under `tsc`, which the red check does not run (`red_types` has no compile error). Evidence: chunk 1 of this task, refused with "no recorded test fails"; its red was observed with `typecheck` against the old signatures (cases 1, 2, 4, 6a). Fix in the plugin: a type red (run the project's typecheck against the stash of the chunk's signatures), or the splitter marks a type-only chunk no test-first.
+- (project/spec) A spec that says a chunk "has no runtime red" contradicts that chunk being test-first with signatures to stub; the splitter and three spec reviews let it through. A spec reviewer or splitter checks the two agree.
+
 ## Backlog candidates
+
+- (events) Type tests of `EventBus.subscribe` through the interface, not only through the class: the step review of chunk 1 mutated `src/event-bus.ts:33` (context `any` or `TContext | undefined`, `handle` returning `Promise<void>`) and the typecheck stayed green, since the class satisfies the interface bivariantly. Cases 6 and 8 for `EventBus`.
 
 ## Log
 
@@ -45,3 +52,7 @@ Tier: L, confirmed by the human.
 - 2026-11-13T10:09:33Z human: add eventId to EventHandlerFailure (details.failures); spec gains decision 6, cases 9-10, chunk 2
 - 2026-11-13T10:12:49Z spec review 3: holds; four minors and three gaps fixed without another round
 - 2026-11-13T10:16:49Z human at checkpoint 1: "approvo"
+- 2026-11-13T10:35:14Z red check chunk 1: refused (no runtime red: the chunk is type-only and the stubs are its whole code); typecheck against the old signatures fails cases 1, 2, 4, 6a as expected (TS2339, TS2578, TS2344, TS2345); asked the human
+- 2026-11-13T10:42:18Z human: accept the typecheck red for chunk 1 (type-only, the stubs are its whole code); skip the implementer, go to verify; report the lessons at close
+- 2026-11-13T10:43:57Z step review chunk 1 round 1: 2 findings (JSDoc of EventHandler's idempotency line and of eventId)
+- 2026-11-13T10:46:00Z step review chunk 1 round 2: 0 findings (ok); noted: EventBus.subscribe's context and return type untested through the interface (bivariance), beyond the spec's cases

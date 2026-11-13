@@ -49,6 +49,7 @@ interface AppContext {
 
 function createEvent(payload: UserRegisteredPayload): UserRegisteredEvent {
   return {
+    eventId: `event-${payload.userId}`,
     eventName: "user.registered",
     occurredAt: new Date(),
     payload,
@@ -76,7 +77,7 @@ describe("SyncEventBus", () => {
     const bus = new SyncEventBus<UserEvents, AppContext>();
     const handleFn =
       vi.fn<(event: UserEvents, context: AppContext) => Promise<void>>();
-    const handler: EventHandler<UserRegisteredEvent, void, AppContext> = {
+    const handler: EventHandler<UserRegisteredEvent, AppContext> = {
       handle: handleFn,
     };
 
@@ -369,6 +370,7 @@ describe("SyncEventBus", () => {
 
       const context: AppContext = { correlationId: "c1" };
       const deleted: UserDeletedEvent = {
+        eventId: "event-deleted-u2",
         eventName: "user.deleted",
         occurredAt: new Date(),
         payload: { userId: "u2" },

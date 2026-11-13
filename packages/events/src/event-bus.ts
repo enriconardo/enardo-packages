@@ -30,7 +30,7 @@ export interface EventBus<Events extends Event = Event, TContext = undefined> {
    */
   subscribe<Name extends Events["eventName"]>(
     eventName: Name,
-    handler: EventHandler<EventNamed<Events, Name>, unknown, TContext>,
+    handler: EventHandler<EventNamed<Events, Name>, TContext>,
   ): void;
 
   /**

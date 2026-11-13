@@ -30,6 +30,48 @@ describe("Event", () => {
   it("types eventName as a string by default", () => {
     expectTypeOf<Event<{ id: string }>["eventName"]>().toEqualTypeOf<string>();
   });
+
+  it("types eventId as a string", () => {
+    expectTypeOf<
+      Event<{ id: string }, "user.registered">["eventId"]
+    >().toEqualTypeOf<string>();
+  });
+
+  it("requires eventId", () => {
+    void (() => {
+      // @ts-expect-error eventId is required
+      const event: Event<{ id: string }, "user.registered"> = {
+        eventName: "user.registered",
+        occurredAt: new Date(),
+        payload: { id: "1" },
+      };
+      return event;
+    });
+  });
+
+  it("types occurredAt as a Date", () => {
+    expectTypeOf<
+      Event<{ id: string }, "user.registered">["occurredAt"]
+    >().toEqualTypeOf<Date>();
+  });
+});
+
+describe("EventHandler", () => {
+  interface AppContext {
+    correlationId: string;
+  }
+
+  it("takes the context as its second type parameter", () => {
+    expectTypeOf<
+      EventHandler<UserRegistered, AppContext>["handle"]
+    >().parameters.toEqualTypeOf<[UserRegistered, AppContext]>();
+  });
+
+  it("gives handle an undefined context by default", () => {
+    expectTypeOf<EventHandler<UserRegistered>["handle"]>()
+      .parameter(1)
+      .toEqualTypeOf<undefined>();
+  });
 });
 
 describe("EventNamed", () => {
@@ -113,11 +155,7 @@ describe("SyncEventBus", () => {
     const bus = (): SyncEventBus<UserEvents, AppContext> =>
       new SyncEventBus<UserEvents, AppContext>();
     const correlationId = "c1";
-    const appContextHandler = {} as EventHandler<
-      UserRegistered,
-      void,
-      AppContext
-    >;
+    const appContextHandler = {} as EventHandler<UserRegistered, AppContext>;
 
     it("requires the context on publish and publishAll", () => {
       void (async () => {
@@ -148,6 +186,19 @@ describe("SyncEventBus", () => {
     it("accepts a handler that declares the context", () => {
       void (() => {
         bus().subscribe("user.registered", appContextHandler);
+      });
+    });
+
+    it("rejects a handler whose context is undefined", () => {
+      void (() => {
+        // @ts-expect-error the handler's context is undefined, not AppContext
+        bus().subscribe("user.registered", userRegisteredHandler);
+      });
+    });
+
+    it("accepts a handler whose handle resolves to a value", () => {
+      void (() => {
+        bus().subscribe("user.registered", { handle: async () => 1 });
       });
     });
   });
