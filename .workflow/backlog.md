@@ -28,8 +28,6 @@ In the order approved.
   - First step: the constructor refuses a `proxy` that is not `http:` or `https:`, with a `TypeError`. Then decide whether the `EPROXY` left (a `503` beside a `407`) is retryable, as a wrong host already is since a caller bounds its retries. Tier L, a new major: documented behavior changes.
   - To take up when a project configures a proxy: `cambusa`, the only consumer, does not (2026-11-09).
   - From the second review of `feature/email/send-errors` (2026-10-20), and the analyses of this item on nodemailer 10.1.0 and 10.4.0 (2026-11-09) and on 10.1.0's source (2026-11-12), source read, not run.
-- **An ESLint rule that forbids extensions on relative imports**, in a preset of `@enardo/eslint-config`, so the repo keeps one style (extensionless, as `moduleResolution: bundler` and tsdown allow) without relying on reviews.
-  - From the final review of `refactor/repo/drop-js-import-extensions` (2026-11-12).
 
 ## Dropped
 
