@@ -270,6 +270,12 @@ describe("EventBus", () => {
       });
     });
 
+    it("accepts a handler of every event", () => {
+      void (() => {
+        bus().subscribe("user.registered", handlerOfEvent);
+      });
+    });
+
     it("rejects publishing an event outside the union", () => {
       void (async () => {
         await bus().publish(userRegistered);

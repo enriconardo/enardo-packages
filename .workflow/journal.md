@@ -5,7 +5,7 @@ tier: S
 phase: s/implement
 base: 8abf7b0
 started: 2026-11-13T11:49:52Z
-review_rounds: 0
+review_rounds: 1
 verify_red_streak: 0
 escalations: 0
 
@@ -32,3 +32,5 @@ Check: each listed mutation of src/event-bus.ts must make `pnpm --filter @enardo
 ## Log
 
 - 2026-11-13T11:49:52Z opened on 8abf7b0 of main
+- 2026-11-13T11:52:16Z review round 1 on 7b8ce66: 0 blocking; suggestion: mirror 'accepts a handler of every event' in the EventBus block (code-reviewer)
+- 2026-11-13T13:07:27Z human: 'aggiungi il suggerimento, poi merge'
