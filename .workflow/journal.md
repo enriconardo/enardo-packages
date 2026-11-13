@@ -2,18 +2,18 @@
 
 branch: feature/events/event-envelope
 tier: L
-phase: l/chunk-2/commit
+phase: l/chunk-3/commit
 base: a09dc99
 started: 2026-11-13T09:16:04Z
 review_rounds: 0
 verify_red_streak: 0
-escalations: 0
+escalations: 1
 
 spec: .workflow/specs/2026-11-13-event-envelope.md
 
 spec_review_rounds: 3
 
-step_review_rounds: 4
+step_review_rounds: 8
 
 ## Intent
 
@@ -59,3 +59,8 @@ Tier: L, confirmed by the human.
 - 2026-11-13T10:48:31Z red check chunk 2: valid red, 8 AssertionError; 27 pass already (renamed tests, case 7, case 10's no-id half)
 - 2026-11-13T10:50:54Z step review chunk 2 round 1: 1 code finding (EventHandlersFailedError's JSDoc says details hold indexes and names only); minor test note (toEqual vs toStrictEqual for eventId: undefined) left: the spec does not require the key, the JSON is the same
 - 2026-11-13T10:53:27Z step review chunk 2 round 2: 0 findings (ok)
+- 2026-11-13T10:56:35Z step review chunk 3 round 1: 4 findings in Upgrading from 1.x (1.x EventHandler had no TContext; a 1.x Result of void or unknown compiles as the context; an implementing class breaks only on a typed EventBus or through EventContext, the spec's wording too broad; thrown values in cause.errors)
+- 2026-11-13T10:59:08Z step review chunk 3 round 2: 1 finding (Upgrading omits the per-dispatch snapshot of handlers, fcf8f38: in 1.x a handler subscribed during a dispatch ran in it)
+- 2026-11-13T11:01:19Z step review chunk 3 round 3: 1 finding (README:116 says the bus neither reads nor checks eventId, dropping the spec's 'beyond copying it into a failure'); third round, to the human
+- 2026-11-13T11:13:09Z human at escalation 1 (chunk 3 review round 3): retry, one round
+- 2026-11-13T11:15:14Z step review chunk 3 round 4 (granted by the human): 0 findings (ok); README narrows the spec's 'an implementing class breaks', accurately
