@@ -1,13 +1,4 @@
 {
-  "extraKnownMarketplaces": {
-    "workflow-overload": {
-      "source": {
-        "source": "github",
-        "repo": "enriconardo/workflow-overload"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "workflow-overload@workflow-overload": true
-  }
+  "enabledPlugins": {},
+  "extraKnownMarketplaces": {}
 }
