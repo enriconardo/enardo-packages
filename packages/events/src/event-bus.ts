@@ -22,12 +22,7 @@ export type ContextArgument<TContext> = undefined extends TContext
  * @template Events   - The union of the events the bus carries.
  * @template TContext - The app's context, passed to every handler unchanged.
  *
- * The bus is meant to run after the commit, from the app's relay: a handler
- * opens its own transaction if it needs one and is idempotent, since delivery
- * is at least once. An app that puts its transaction in `TContext` and
- * publishes inside a unit of work's hook does it knowingly: handlers run
- * before the commit, run again if the transaction is retried, and a failing
- * handler rolls back the use case.
+ * Meant to run after the commit: see the README, _Where the bus runs_.
  */
 export interface EventBus<Events extends Event = Event, TContext = undefined> {
   /**

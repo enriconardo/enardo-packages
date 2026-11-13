@@ -158,6 +158,26 @@ describe("SyncEventBus", () => {
     expect(steps).toEqual(["first started", "first settled", "second started"]);
   });
 
+  it("should run a handler subscribed during a dispatch from the next one", async () => {
+    const bus = new SyncEventBus<UserEvents>();
+    const late = vi.fn<() => Promise<void>>();
+    let subscribed = false;
+
+    bus.subscribe("user.registered", {
+      handle: async () => {
+        if (subscribed) return;
+        subscribed = true;
+        bus.subscribe("user.registered", { handle: late });
+      },
+    });
+
+    await bus.publish(createEvent({ userId: "u1", email: "a@b.com" }));
+    expect(late).not.toHaveBeenCalled();
+
+    await bus.publish(createEvent({ userId: "u2", email: "c@d.com" }));
+    expect(late).toHaveBeenCalledOnce();
+  });
+
   describe("when handlers throw", () => {
     it("should run the next handler, then reject with one EventHandlersFailedError", async () => {
       const bus = new SyncEventBus<UserEvents>();
