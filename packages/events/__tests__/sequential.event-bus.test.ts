@@ -432,7 +432,7 @@ describe("SequentialEventBus", () => {
       expect(handleFn).toHaveBeenCalledOnce();
       expect(error).toBeInstanceOf(EventHandlersFailedError);
       const failed = error as EventHandlersFailedError;
-      expect(failed.details).toEqual({
+      expect(failed.details).toStrictEqual({
         failures: [
           {
             eventIndex: 0,
