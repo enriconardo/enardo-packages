@@ -1,4 +1,4 @@
-# @enardo/entities
+# @enardo/ddd-entities
 
 Domain-model building blocks for DDD-style applications: `Entity`, `AggregateRoot`, and a typed `Id`.
 
@@ -11,6 +11,7 @@ Domain-model building blocks for DDD-style applications: `Entity`, `AggregateRoo
   - [Entity](#entity)
   - [AggregateRoot](#aggregateroot)
 - [Errors](#errors)
+- [Moving from @enardo/entities](#moving-from-enardoentities)
 - [Upgrading from 2.x](#upgrading-from-2x)
 - [Upgrading from 1.x](#upgrading-from-1x)
 - [Scripts](#scripts)
@@ -32,7 +33,7 @@ The package is a small core, and holds three guarantees:
 The package is published to the `@enardo` registry (`https://npm.enriconardo.com`, which needs a token to read):
 
 ```sh
-pnpm add @enardo/entities
+pnpm add @enardo/ddd-entities
 ```
 
 ---
@@ -44,7 +45,7 @@ pnpm add @enardo/entities
 A frozen value object that wraps a non-empty string, branded by a type parameter. The brand exists only in the type: nothing is added at run time.
 
 ```ts
-import { Id } from "@enardo/entities";
+import { Id } from "@enardo/ddd-entities";
 
 type UserId = Id<"User">;
 type ProductId = Id<"Product">;
@@ -81,7 +82,7 @@ export interface Equatable<T> {
 Abstract base class for objects identified by an id. It takes the type of the id and the type of the attributes.
 
 ```ts
-import { Entity, Id } from "@enardo/entities";
+import { Entity, Id } from "@enardo/ddd-entities";
 
 type ProductId = Id<"Product">;
 
@@ -151,7 +152,7 @@ AggregateRoot<TId, TAttributes, TEvent = never>
 `TEvent` has no constraint. Pick the union of the aggregate's events. If the app publishes them through an event package, make them extend that package's event type. With the default `never`, `raise` cannot be called, which suits an aggregate that raises nothing. The base raises no event of its own, on construction, mutation or anything else.
 
 ```ts
-import { AggregateRoot, Id } from "@enardo/entities";
+import { AggregateRoot, Id } from "@enardo/ddd-entities";
 
 type UserId = Id<"User">;
 
@@ -219,6 +220,12 @@ user.clearEvents();
 | `InvalidEntityIdError` | `INVALID_ENTITY_ID` | `Id.create` gets an empty or blank value |
 
 `InvalidEntityIdError` is a `BaseError` (`@enardo/errors`), with details `{ entityId, reason: "empty" }`: recognize it with `isBaseErrorLike` and its `code`. The types `InvalidEntityIdDetails` and `InvalidEntityIdReason` are exported.
+
+---
+
+## Moving from @enardo/entities
+
+The package was `@enardo/entities` up to 3.0.0, and continues at 3.0.0 under this name with the same API: replace the dependency (`pnpm remove @enardo/entities && pnpm add @enardo/ddd-entities`) and the import specifier. An app on 2.x or 1.x then follows the sections below.
 
 ---
 
