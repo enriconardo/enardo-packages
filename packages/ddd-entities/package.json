@@ -1,7 +1,7 @@
 {
-  "name": "@enardo/entities",
+  "name": "@enardo/ddd-entities",
   "version": "3.0.0",
-  "description": "An Entity Package",
+  "description": "DDD building blocks: Entity, AggregateRoot and a typed Id",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {

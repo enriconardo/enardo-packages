@@ -1,7 +1,7 @@
 {
   "name": "@enardo/events",
   "version": "2.0.0",
-  "description": "Domain events infrastructure for DDD applications",
+  "description": "Typed events and an in-process event bus",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
   "publishConfig": {
