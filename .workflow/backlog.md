@@ -1,6 +1,6 @@
 # Backlog
 
-Work that is queued or proposed but not started. Each item becomes a branch, opened with `/overload`.
+Work that is queued or proposed but not started. Each item becomes a branch.
 
 - **Adding items.** An item enters *To evaluate* when the user approves it at a checkpoint, from a review or an analysis. It moves to *Queued* when the user puts it in the queue.
 - **Removing items.** A branch removes its own item, in a commit of its own before the merge, so the item leaves this file with the merge: its spec and the git history keep the record. A dropped item moves to *Dropped*, in a line or two.

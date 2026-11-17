@@ -1,6 +1,4 @@
 {
-  "enabledPlugins": {
-    "workflow-overload@workflow-overload": true
-  },
+  "enabledPlugins": {},
   "extraKnownMarketplaces": {}
 }
