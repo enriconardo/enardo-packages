@@ -77,8 +77,6 @@ Packages are published through the `publish` skill, each publish approved by the
 
 ## Workflow
 
-Every task runs through Workflow Overload: `/overload <request>`, with the project's settings in `.workflow/config`.
-
 **Records.** Specs are frozen after merge, and read only when the user, the current spec or a backlog item points to one: the current truth is in READMEs and `CLAUDE.md` files. `docs/adr/` holds decisions beyond one task.
 
 ### Branches and commits

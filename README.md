@@ -16,4 +16,4 @@ Run it before merging.
 
 ## Conventions
 
-[CLAUDE.md](CLAUDE.md) holds the repo's conventions and workflow, for people and agents alike: the layout, branch names (`<type>/<scope>/<description>`), commit messages (`[<scope>] <type>: <summary>`), the code and test conventions, and where tasks run: Workflow Overload (`/overload`).
+[CLAUDE.md](CLAUDE.md) holds the repo's conventions and workflow, for people and agents alike: the layout, branch names (`<type>/<scope>/<description>`), commit messages (`[<scope>] <type>: <summary>`), and the code and test conventions.
