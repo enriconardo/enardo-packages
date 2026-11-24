@@ -8,7 +8,7 @@ const BRAND = Symbol.for("@enardo/errors.BaseError");
  * an object or `undefined`).
  *
  * Unlike `instanceof BaseError`, it recognizes an error built by another copy
- * or another major (from 1.1.0) of this package, and one of another realm.
+ * or another major of this package, and one of another realm.
  * The brand proves a convention, not a provenance. `details` is read as
  * {@link ErrorDetails}, whose values are `unknown`: a class's typed `details`
  * need `instanceof` with that class.

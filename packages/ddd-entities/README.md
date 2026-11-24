@@ -11,9 +11,6 @@ Domain-model building blocks for DDD-style applications: `Entity`, `AggregateRoo
   - [Entity](#entity)
   - [AggregateRoot](#aggregateroot)
 - [Errors](#errors)
-- [Moving from @enardo/entities](#moving-from-enardoentities)
-- [Upgrading from 2.x](#upgrading-from-2x)
-- [Upgrading from 1.x](#upgrading-from-1x)
 - [Scripts](#scripts)
 
 ---
@@ -220,63 +217,6 @@ user.clearEvents();
 | `InvalidEntityIdError` | `INVALID_ENTITY_ID` | `Id.create` gets an empty or blank value |
 
 `InvalidEntityIdError` is a `BaseError` (`@enardo/errors`), with details `{ entityId, reason: "empty" }`: recognize it with `isBaseErrorLike` and its `code`. The types `InvalidEntityIdDetails` and `InvalidEntityIdReason` are exported.
-
----
-
-## Moving from @enardo/entities
-
-The package was `@enardo/entities` up to 3.0.0, and continues at 3.0.0 under this name with the same API: replace the dependency (`pnpm remove @enardo/entities && pnpm add @enardo/ddd-entities`) and the import specifier. An app on 2.x or 1.x then follows the sections below.
-
----
-
-## Upgrading from 2.x
-
-An app on 1.x reads both sections, *Upgrading from 1.x* first.
-
-### What changed
-
-- **`EntityId` becomes `Id<B>`.** `EntityId.create(raw)` becomes `Id.create<"User">(raw)`, and an app names its ids as types (`type UserId = Id<"User">`). `Id<"User">` no longer passes for `Id<"Product">`.
-- **The constructor is `(id, attributes)`.** The id is outside the attributes, and `Entity<TAttributes>` becomes `Entity<TId, TAttributes>` (`TS2314` on the old form). `AggregateRoot<TAttributes>` becomes `AggregateRoot<TId, TAttributes, TEvent = never>`. `TId` needs an `equals`.
-- **No static `create` or `rehydrate`.** Build with the subclass's own constructor or factories. The mapper builds with `new User(id, attributes)` if the constructor is public.
-- **The events are the app's.** The base raises no `created`, `updated` or `deleted` event. A subclass declares its event type and calls `raise` where its domain says so.
-- **Removal is the repository's.** `markForRemoval` and its guards are gone: the repository deletes an aggregate it is asked to.
-- **No timestamps.** A `createdAt` or `updatedAt` that the domain shows is one of its attributes, set by its own methods. One that the store manages is a field that the mapper or a read model returns.
-- **No mutation hooks.** An invariant goes in the domain method, before `setAttribute`.
-- **`setAttribute` and `setAttributes` live on `Entity`**, so a child entity can change its own state.
-- **Nested values are no longer frozen.** The snapshot is frozen shallowly, and the types say `Readonly`.
-- **The state is private.** `_attributes`, `_events` and `_isMarkedForRemoval` are gone: read `id` and `attributes`.
-- **No event package is a dependency any more.** The only dependency is `@enardo/errors`.
-
-### Gone
-
-These fail to compile when used:
-
-- `EntityId`.
-- The one-argument forms `Entity<TAttributes>` and `AggregateRoot<TAttributes>` (`TS2314`).
-- `_attributes`, `_events` and `_isMarkedForRemoval`.
-- `EntityCommonAttributes` and `AggregateRootCommonAttributes`.
-- `AggregateRootLifecycleContext`, `AggregateRootCreatedPayload`, `AggregateRootDeletedPayload`, `AggregateRootUpdatedPayload`, `AggregateRootCreatedEvent`, `AggregateRootDeletedEvent` and `AggregateRootUpdatedEvent`.
-- `AggregateRoot.create`, `AggregateRoot.rehydrate`, `modelName`, `lifecycleEventName`, `createdAt` and `updatedAt`.
-- `markForRemoval`, `isMarkedForRemoval`, `assertMutable` and `onMarkedForRemoval`.
-- `onBeforeAttributeMutation`, `onAttributeMutation`, `hasCreatedEventQueued` and `addEvent`.
-- `createCreatedEvent`, `createDeletedEvent` and `createUpdatedEvent`.
-
-### Changes that still compile
-
-- A comparison with the 2.0.0 lifecycle messages, or a `"user.updated"` handler, is never reached.
-- `JSON.stringify(entity)` gives `{}`.
-- Nested attribute values are no longer frozen.
-- vitest's `toEqual` between two entities of the same class passes whatever their state, since `#` fields are not compared: compare `id` and `attributes`.
-- A method overriding a removed hook fails with `TS4113` if it carries `override`. Without the keyword, and with `noImplicitOverride` off, it compiles and never runs.
-- `InvalidEntityIdError` keeps its name, `code` and `details`. Its message becomes `An entity id cannot be empty`.
-
----
-
-## Upgrading from 1.x
-
-- `EntityNotMutableError`, `EntityAlreadyMarkedForRemovalError`, `EntityLifecycleError`, `EntityLifecycleErrorCode` and `EntityLifecycleErrorContext` are gone, and so is the protected `buildLifecycleErrorContext()`: a use of them fails to compile.
-- Both errors were a native `Error` in 2.0.0, and are gone with `markForRemoval` in 3.0.0. A comparison with the old `code` (`ENTITY_NOT_MUTABLE`, `ENTITY_ALREADY_MARKED_FOR_REMOVAL`) still compiles and is never true.
-- Since 2.0.0 the package depends on `@enardo/errors` `^1.2.0`. If another package of the app allows `1.0.0`, the app gets two copies of it, and an `instanceof BaseError` of one misses an `InvalidEntityIdError` of the other: keep one copy.
 
 ---
 

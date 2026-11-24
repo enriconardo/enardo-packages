@@ -1,6 +1,6 @@
 {
   "name": "@enardo/password-hasher",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "description": "Hashes passwords with Argon2id on node:crypto.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",

@@ -12,15 +12,13 @@ const productStore = new MongoDataStore<ProductRecords, ObjectId>({
 const transactionManager = new MongoTransactionManager(client);
 ```
 
-> Published to the `@enardo` registry, version 0.3.0: the API can still change. MongoDB transactions need a replica set or a sharded cluster, even a single-node replica set. A standalone server doesn't work.
+> Published to the `@enardo` registry. MongoDB transactions need a replica set or a sharded cluster, even a single-node replica set. A standalone server doesn't work.
 
 ## Contents
 
 - [What it provides](#what-it-provides)
 - [Quick start](#quick-start)
 - [Configuration and usage](#configuration-and-usage)
-- [Upgrading from 0.2](#upgrading-from-02)
-- [Upgrading from 0.1](#upgrading-from-01)
 - [Contributing](#contributing)
 
 ## What it provides
@@ -331,16 +329,6 @@ A relay that reads the outbox and publishes is the app's.
 ### Errors
 
 The package adds no error class. A misuse throws a native error, with no `code`: the constructor throws an `Error` when the collections name no root, or more than one; `apply` throws a `TypeError` when a change set has no entry for a mapped collection, since a `ChangeSet` must carry every collection, even those with nothing to write. The core errors, such as `ConcurrencyConflictError`, are described in the [core README](../uow-repository/README.md#errors).
-
-## Upgrading from 0.2
-
-`@enardo/uow-repository` `^0.3.0` is now the peer dependency. Its `TrackingRepository` takes an options object as its third argument, so a positional `identityKey` becomes `{ identityKey }`: see the core's [upgrade note](../uow-repository/README.md#upgrading-from-02). `add` of an identity removed in the same unit of work no longer replaces it and rejects with an `Error`; update the loaded aggregate instead. The package's own code does not change.
-
-## Upgrading from 0.1
-
-`InvalidDataStoreOptionsError` and `MissingCollectionChangesError` are removed, with their codes (`INVALID_DATA_STORE_OPTIONS`, `MISSING_COLLECTION_CHANGES`). Each misuse now throws a native error with the same message. A caller that read a `code` fixes the cause instead: the mappings or the change set.
-
-`@enardo/uow-repository` is now a peer dependency, not a dependency: install it beside this package. A field the mapper never returns is no longer unset on commit, and a custom `idField` no longer needs the mapper to carry `_id`: see the core's note. Its own changes are in its [upgrade note](../uow-repository/README.md#upgrading-from-01): the classes are now `TrackingRepository` and `TransactionalUnitOfWork`. The context type `IMongoTransaction` of `@enardo/transaction-manager-mongo` is now `MongoTransaction`.
 
 ## Contributing
 

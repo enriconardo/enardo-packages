@@ -163,39 +163,3 @@ those may carry personal data; they are in the `cause`. Whatever logs the error
 (`toJSON()` serializes the `cause`, stacks included) logs the thrown values
 too. A handler whose error may hold personal data keeps it out of its own
 error (`@enardo/errors` README, _Accept a `cause`_).
-
-## Upgrading from 1.x
-
-- `SyncEventBus` is `SequentialEventBus`, with no alias: rename the import and
-  every use. Its behavior is the sequential dispatch described above, except for
-  the failures (below) and one more break: 1.x iterated the live handler list,
-  so a handler subscribed meanwhile (to the event's name, by a running handler)
-  ran in that same dispatch; now it runs from the next dispatch on.
-- `Event` requires `eventId: string`: every event literal and test helper adds
-  it, an app that publishes in process with no outbox included. See _Where the
-  bus runs_ for when it is fixed.
-- `EventHandler<EventType, Result>` is `EventHandler<EventType, TContext>`:
-  `Result` is gone, and `handle` returns `Promise<unknown>`. A 1.x `Result`
-  that `undefined` fits (`void`, `unknown`) still compiles and subscribes, now
-  read as the context; one it does not fit (`number`, say) fails at
-  `subscribe` only for a handler typed through the interface: a class
-  `implements EventHandler<X, number>` passed as an instance subscribes
-  silently, its structural type having no context parameter, so its stale
-  `Result` survives. Drop a 1.x `Result` there too. A direct
-  `await handler.handle(...)` that read a 1.x `Result` now gets `unknown`.
-- `handle(event, context?: EventContext)` is `handle(event, context: TContext)`:
-  a direct call writes `handle(event, undefined)`.
-- `EventContext` and its `session` are gone, in favor of `TContext`: the bus is
-  meant to run after the commit, not in the transaction (_Where the bus runs_).
-- `MergeableEvent` and `isMergeableEvent` are removed.
-- `EventBus` is generic over `<Events, TContext>`, and
-  `subscribe<Name extends Events["eventName"]>(eventName, handler)` replaces
-  `subscribe<EventType>(eventName: string, handler)`: an explicit type argument
-  stops compiling. An app class implementing `EventBus` with the 1.x shape still
-  compiles against the default generics; it breaks once it is typed as
-  `EventBus<Events, TContext>`, or through its import of the removed
-  `EventContext`.
-- A dispatch runs every handler and reports the failures in one
-  `EventHandlersFailedError` (`code` `"EVENT_HANDLERS_FAILED"`, `details.failures`
-  with `eventId`), where 1.x stopped at the first handler that threw and
-  rethrew its error. A `catch` that read that error now reads it in `cause.errors`.

@@ -1,6 +1,6 @@
 {
   "name": "@enardo/database",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "The contract of a database connection's lifecycle.",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",

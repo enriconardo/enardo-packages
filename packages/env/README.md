@@ -40,11 +40,6 @@ const debug = env.bool("DEBUG") ?? false;
 - **An error never holds the value**, in its message or its serialized form, and it has no `details` or `toJSON()`: it can be a secret.
 - A source needs an index signature. `process.env` and `ImportMetaEnv` have one; an interface without it is refused by the compiler.
 
-## Upgrading from 2.x
-
-- `EnvMissingError`, `EnvMalformedError` and their codes (`ENV_MISSING`, `ENV_MALFORMED`) are removed, with `details` and `toJSON()`. Both cases throw a native `Error` with the same message, to fix in the configuration. An import of the removed names fails to compile. A comparison with the old `code` still compiles and is never reached.
-- `JSON.stringify` of an error gives `{}`: a caller serializing by hand reads `name`, `message` and `stack`.
-
 ## One `.env` for server and client
 
 Keep one `.env` at the monorepo's root.

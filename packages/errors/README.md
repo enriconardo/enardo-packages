@@ -53,17 +53,15 @@ try {
 }
 ```
 
-After the guard, `error.name` and `error.code` are `string` and `error.details` is `ErrorDetails | undefined`. The guard checks a brand that every `BaseError` carries, from 1.1.0 on, so it recognizes an error built by another copy or another major of this package, and one of another realm. The brand proves a convention, not a provenance.
+After the guard, `error.name` and `error.code` are `string` and `error.details` is `ErrorDetails | undefined`. The guard checks a brand that every `BaseError` carries, so it recognizes an error built by another copy or another major of this package, and one of another realm. The brand proves a convention, not a provenance.
 
 `instanceof` with a specific class gives its typed `details`, but is reliable only where you and the code that throws the error share one copy of the package that declares the class. Never use `instanceof BaseError` to recognize an error: with two copies of this package it fails silently, and the other copy's errors lose their `code`.
-
-A copy of 1.0.0 has no brand. While packages that allow 1.0.0 are in your tree, keep one copy of `@enardo/errors`, at 1.1.0 or later, with an override of your package manager (with pnpm 11, `overrides` in `pnpm-workspace.yaml`, which no longer reads the `pnpm` field of `package.json`).
 
 `BaseError` takes no type parameters on purpose: `instanceof` with a generic class narrows to `BaseError<any>`, which would make `error.code` `any` wherever an error is caught.
 
 ## Logging: `toJSON()`
 
-`message`, `stack` and `cause` are not enumerable, so `JSON.stringify` alone drops them: an error nested in log metadata used to come out as `{"code": …, "name": …}`. `toJSON()` returns:
+`message`, `stack` and `cause` are not enumerable, so `JSON.stringify` alone drops them: an error nested in log metadata would come out as `{"code": …, "name": …}`. `toJSON()` returns:
 
 - every own enumerable field (`code`, `details`, and fields a subclass adds), leaving out those whose value is `undefined`;
 - `name`, `message`, and `stack` when defined;
