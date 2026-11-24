@@ -11,7 +11,7 @@ await transactionManager.runInTransaction(async ({ session }) => {
 });
 ```
 
-> Published to the `@enardo` registry, version 0.2.1. MongoDB transactions need a replica set or a sharded cluster, even a single-node replica set. A standalone server doesn't work.
+> Published to the `@enardo` registry. MongoDB transactions need a replica set or a sharded cluster, even a single-node replica set. A standalone server doesn't work.
 
 ## Exports
 
@@ -56,11 +56,6 @@ The manager holds no state: create it once and share it.
 - **Session.** Pass `session` to every operation that belongs to the transaction. An operation without it runs outside the transaction and isn't rolled back. Don't call `commitTransaction`, `abortTransaction` or `endSession` on it: the manager owns the session. After an abort inside `work`, the driver takes the transaction as ended on purpose and returns the result, so `runInTransaction` resolves with nothing committed.
 - **Unknown commit result.** When the commit fails with the `UnknownTransactionCommitResult` label, such as after a network error, the driver retries the commit, for at most 120 s since `runInTransaction` started, or until the `timeoutMS` of the `MongoClient` when it has one; a commit that fails with `MaxTimeMSExpired` is rejected at once. The error it finally rejects with may not carry the label: with a `timeoutMS`, it is usually a `MongoOperationTimeoutError` with no labels. So a rejection without the label doesn't prove that nothing was committed: a caller that runs the use case again after a rejection must make the use case idempotent, or it may write twice.
 - **Nesting.** Every call opens a session of its own, so a `runInTransaction` called from inside `work` runs an independent transaction: it doesn't see the outer one's uncommitted writes, and doesn't roll back with it. Don't nest: pass the outer `MongoTransaction` down instead.
-
-## Upgrading from 0.1
-
-- `IMongoTransaction` is now `MongoTransaction`.
-- `@enardo/transaction-manager` `^2.0.0` is the peer: its `ITransaction` and `ITransactionManager` are now `Transaction` and `TransactionManager`.
 
 ## Contributing
 

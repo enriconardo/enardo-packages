@@ -127,12 +127,12 @@ describe("AggregateRoot types", () => {
     expect(misuse).toBeTypeOf("function");
   });
 
-  it("has none of the 2.0.0 statics, lifecycle and timestamps", () => {
+  it("has no statics, lifecycle or timestamps", () => {
     const order = newOrder();
     const misuse = (): void => {
       // A read, not a call: the lint preset refuses a call of a member that
-      // does not exist (no-unsafe-call). 2.0.0's create compiled with an
-      // attribute missing; on 2.0.0 each line here fails with TS2578.
+      // does not exist (no-unsafe-call). Each line here fails with TS2578
+      // if the member exists.
       // @ts-expect-error TS2339: no create
       void Order.create;
       // @ts-expect-error TS2339: no rehydrate

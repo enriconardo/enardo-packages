@@ -17,7 +17,7 @@ await emailSender.send({
 });
 ```
 
-> Published to the `@enardo` registry. `nodemailer` `^10.1.0` and `@enardo/email` `^4.0.0` are peer dependencies: install them beside the package.
+> Published to the `@enardo` registry. `nodemailer` `^10.1.0` and `@enardo/email` `^1.0.0` are peer dependencies: install them beside the package.
 
 ## Exports
 
@@ -106,13 +106,6 @@ The sender meets the contract's rules, with these limits:
 
 - it refuses some valid addresses (see [Addresses](#addresses));
 - it gives no access to its transporter: a `socks` proxy, which needs its module set on the transporter (`set("proxy_socks_module", …)`), rejects every send (`EPROXY`), and no nodemailer plugin (`use()`) can be added.
-
-## Upgrading from 4.x
-
-- `@enardo/email` `^4.0.0` is now the peer dependency: install it beside the package.
-- No sender is a native `Error` and content that is not a string a native `TypeError`, each with the message it had and no `code` (see `@enardo/email`'s upgrade note). `instanceof InvalidEmailMessageError` and a comparison with its `code` no longer match those two cases.
-- The `logger` option is gone, with the `Logger` and `LoggerMetadata` types: an import of them fails to compile.
-- `InvalidEmailSenderOptionsError`, its code and `InvalidEmailSenderOptionsReason` are removed. Each refusal of the constructor is a native error with the same message, to fix in the options (see [Errors](#errors)). An import of the removed names fails to compile. A comparison with the old `code` still compiles and is never reached.
 
 ## Contributing
 

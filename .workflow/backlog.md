@@ -57,7 +57,7 @@ What was decided against, so that it is not proposed again. One or two lines eac
 - **An error of another realm in the logger** (2026-10-26). No code meets one, and `Error.isError` is missing from Node 22 and the presets' `ES2022` lib.
 - **A path climbing above `@enardo/http-client`'s `baseUrl`** (2026-11-02). The README says so; checking it belongs to the caller's input validation, and an opt-in helper would be a minor if a project needs it.
 - **`no-restricted-exports` in the presets** (2026-11-02). It would prevent one rename that review catches, and costs a major of `@enardo/eslint-config`.
-- **Patching `BcryptPasswordHasher`'s 72-byte limit** (2026-11-03). Replaced by Argon2id in `@enardo/password-hasher` 3.0.0 (ADR 0016).
+- **Patching `BcryptPasswordHasher`'s 72-byte limit** (2026-11-03). Replaced by Argon2id in `@enardo/password-hasher` (ADR 0016).
 - **`@typescript-eslint/naming-convention` against the `I` prefix** (2026-11-05). Review is enough once no type has it, and the rule misses re-exports (ADR 0017).
 - **`serializeError` calling a nested cause's `toJSON()`** (2026-11-09). No class overrides `toJSON()`; the READMEs of `@enardo/errors` and `@enardo/logger` state the limit. To reopen at the first class that needs an override.
 - **OAuth2 token endpoint outages as `retryable`** (2026-11-09). `EOAUTH2` is nearly always permanent, and the status never reaches the error; no project uses OAuth2.

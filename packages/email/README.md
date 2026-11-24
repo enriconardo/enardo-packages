@@ -112,11 +112,6 @@ An implementation declares this package as a peer dependency, so it throws the c
 - Do with each option what its comment says, or reject the call; never ignore one silently. TypeScript cannot check it: a `send` that declares no `options` parameter still implements `EmailSender`.
   - `tags`: metadata for the provider, which never reaches the recipient. An implementation whose provider keeps no such data drops them, and says so in its documentation.
 
-## Upgrading from 3.x
-
-- The reasons `type` and `missing` of `InvalidEmailMessageDetails` are gone: `send` now rejects with a native error, with no `code`, for no sender and no default, and for a `subject`, `text` or `html` that is not a string. A comparison with `details.reason` or a `details.field` of content fails to compile.
-- `instanceof InvalidEmailMessageError` and a comparison with its `code` still compile, and no longer match those two cases.
-
 ## Contributing
 
 Run these inside `packages/email`:

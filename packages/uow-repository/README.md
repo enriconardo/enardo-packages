@@ -12,15 +12,13 @@ await unitOfWork.execute(async () => {
 // Committed in one transaction: an update of p-1 that sets only `price`, and an insert of p-2.
 ```
 
-> Published to the `@enardo` registry, version 0.3.0: the API can still change. The package ships no database adapters: install an adapter package for your database, or write a `DataStore` and a `TransactionManager` for your driver.
+> Published to the `@enardo` registry. The package ships no database adapters: install an adapter package for your database, or write a `DataStore` and a `TransactionManager` for your driver.
 
 ## Contents
 
 - [Why it exists](#why-it-exists)
 - [Quick start](#quick-start)
 - [Configuration and usage](#configuration-and-usage)
-- [Upgrading from 0.2](#upgrading-from-02)
-- [Upgrading from 0.1](#upgrading-from-01)
 - [Contributing](#contributing)
 
 ## Why it exists
@@ -552,40 +550,6 @@ A misuse is a fault in the caller's code, which it fixes rather than handles: it
 | `RangeError` | `retryOnConflict` gets a bad `attempts`                                                         |
 
 The messages of the record sets name the side at fault: `previous` is the snapshot, `next` the records the mapper produced.
-
-## Upgrading from 0.2
-
-The third argument of `TrackingRepository` is now an options object, so the positional `identityKey` moves into it:
-
-```ts
-// 0.2
-new TrackingRepository(store, mapper, (id) => id.value);
-// 0.3
-new TrackingRepository(store, mapper, { identityKey: (id) => id.value });
-```
-
-`add` of an identity removed in the same unit of work no longer replaces it: it rejects with an `Error`, as over a new or clean one. Remove-then-add (a delete, then an insert, restarting the version at 1) is gone, `FlushUnit.kind` loses `"replace"` and `EntityState` loses `"replaced"`. Update the loaded entity instead.
-
-`pullEvents` and `onEvents` are optional and add the type parameter `TEvent`, which defaults to `never`; see [Domain events](#domain-events). A participant of your own needs no change: its `pullEvents` member is optional.
-
-## Upgrading from 0.1
-
-A field `toRecords` never returns is no longer compared, so it is no longer unset on commit. An app that removed a field by leaving it out of `toRecords` now keeps it in the store: remove it with a migration of the stored documents, since a field `toRecords` returns as `undefined` is absent from both sides of the diff.
-
-`UnitOfWorkAlreadyUsedError`, `UnsupportedIdentityError`, `InvalidRecordSetError`, `DuplicateRecordKeyError` and `DuplicateEntityError` are removed, with their codes (`UOW_ALREADY_USED`, `UNSUPPORTED_IDENTITY`, `INVALID_RECORD_SET`, `DUPLICATE_RECORD_KEY`, `DUPLICATE_ENTITY`). Each misuse now throws a native error with the same message. A caller that read a `code` fixes the cause instead: the call, the mapper, the aggregate's invariant or the stored data.
-
-The `I` prefix is gone, and the contracts take the plain names, so the classes take a qualifier:
-
-| 0.1 | 0.2 |
-| --- | --- |
-| class `Repository` | class `TrackingRepository` |
-| class `UnitOfWork` | class `TransactionalUnitOfWork` |
-| `IRepository` | `Repository` |
-| `IUnitOfWork` | `UnitOfWork` |
-
-`@enardo/transaction-manager` `^2.0.0` is the dependency: its `ITransaction` and `ITransactionManager` are now `Transaction` and `TransactionManager`.
-
-Rename the classes first, then the contracts. Renaming `IRepository` to `Repository` first merges it with the class, and the next rename would hit both. A use of the class that is left behind fails to compile (`import { Repository }` with `verbatimModuleSyntax`, `extends Repository<…>`, `new UnitOfWork()`). The one form that still compiles is a `UnitOfWork` type with no type argument, which is now the contract: it keeps `execute` and `hasPendingChanges`, and has no `register`. Application code that held `IUnitOfWork` or `IRepository` takes the new `UnitOfWork` or `Repository`, never the classes.
 
 ## Contributing
 

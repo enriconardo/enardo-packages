@@ -1,6 +1,6 @@
 {
   "name": "@enardo/env",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "description": "Strict readers of environment variables, over `process.env` or `import.meta.env`",
   "author": "Enrico Nardo <hello@enriconardo.com>",
   "license": "UNLICENSED",
