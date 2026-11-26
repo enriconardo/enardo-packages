@@ -660,6 +660,62 @@ describe("MongoDatabase", () => {
       );
     });
 
+    it("should leave an existing index hidden when the schema says not hidden", async () => {
+      await setupDb.createCollection("users");
+      await setupDb
+        .collection("users")
+        .createIndexes([{ name: "i", key: { a: 1 } }]);
+      await setupDb.command({
+        collMod: "users",
+        index: { name: "i", hidden: true },
+      });
+      const db = await createConnectedDatabase();
+
+      await db.syncSchema([
+        {
+          collectionName: "users",
+          validation: anyDocument,
+          indexes: [{ name: "i", key: { a: 1 }, hidden: false }],
+        },
+      ]);
+
+      const indexes = await listIndexes(setupDb, "users");
+      expect(indexes).toContainEqual(
+        expect.objectContaining({ name: "i", hidden: true }),
+      );
+    });
+
+    it("should create a missing index beside an existing hidden one", async () => {
+      await setupDb.createCollection("users");
+      await setupDb
+        .collection("users")
+        .createIndexes([{ name: "i", key: { a: 1 } }]);
+      await setupDb.command({
+        collMod: "users",
+        index: { name: "i", hidden: true },
+      });
+      const db = await createConnectedDatabase();
+
+      await db.syncSchema([
+        {
+          collectionName: "users",
+          validation: anyDocument,
+          indexes: [
+            { name: "i", key: { a: 1 } },
+            { name: "j", key: { b: 1 } },
+          ],
+        },
+      ]);
+
+      const indexes = await listIndexes(setupDb, "users");
+      expect(indexes).toContainEqual(
+        expect.objectContaining({ name: "i", hidden: true }),
+      );
+      const created = await indexNamed(setupDb, "users", "j");
+      expect(created).toMatchObject({ key: { b: 1 } });
+      expect(created?.hidden).toBeUndefined();
+    });
+
     it("should leave an existing index visible when the schema says hidden", async () => {
       await setupDb.createCollection("users");
       await setupDb

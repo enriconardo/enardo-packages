@@ -53,3 +53,6 @@ This task blocks the suspended build of .workflow/specs/2026-11-26-widen-mongodb
 
 - 2026-11-26T16:14:39Z opened on ef6d665 of main
 - 2026-11-26T16:14:43Z candidate backlog: the test suite cannot run on mongod 9.x with mongodb-memory-server 10.4.3 (electionTimeoutMillis 500 < heartbeat 2000, code 93); 11.4.0 works. Decide whether the suite should also run on 9.x.
+- 2026-11-26T16:19:44Z review round 1 on bd9f03e: 0 blocking
+- 2026-11-26T16:19:44Z backlog candidate (code-reviewer): test explicit hidden:false in the schema over a hidden existing index, and a mixed batch (existing hidden + missing index)
+- 2026-11-26T16:23:05Z human: "aggiungi i due test qui, tieni il candidato 9.x, poi merge"
