@@ -16,7 +16,7 @@ docs/adr/                   architecture decision records
 .workflow/specs/            task specs
 ```
 
-Workspaces are declared in `pnpm-workspace.yaml`; internal dependencies use `workspace:^`. Shared dev tooling takes its version from the `catalog:` there: a package references `"catalog:"`, never a range of its own.
+Workspaces are declared in `pnpm-workspace.yaml`; internal dependencies use `workspace:^`. Shared dev tooling takes its version from the `catalog:` there: a package references `"catalog:"`, never a range of its own. A peer range, the package's contract with its consumers, is written in its `package.json` when it differs from the catalog's.
 
 ## Development environment
 

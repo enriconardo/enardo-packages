@@ -1,5 +1,5 @@
 ---
-status: approved
+status: done
 branch: chore/vitest-config/widen-mongodb-memory-server-peer
 inputs: none
 depends_on: pnpm-workspace.yaml, pnpm-lock.yaml, packages/vitest-config/package.json, packages/vitest-config/README.md, packages/vitest-config/replica-set.js, packages/database-mongo/package.json, packages/transaction-manager-mongo/package.json, packages/uow-repository-mongo/package.json, CLAUDE.md
@@ -50,4 +50,4 @@ depends_on: pnpm-workspace.yaml, pnpm-lock.yaml, packages/vitest-config/package.
 
 ## Chunks
 
-- [ ] 1. Widen the peer and move the catalog to 11 (no test-first): config and docs, which the existing suites prove; `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `packages/vitest-config/package.json`, `packages/vitest-config/README.md`, `CLAUDE.md`; all three test cases.
+- [x] 1. Widen the peer and move the catalog to 11 (no test-first): config and docs, which the existing suites prove; `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `packages/vitest-config/package.json`, `packages/vitest-config/README.md`, `CLAUDE.md`; all three test cases.
