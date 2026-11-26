@@ -3,7 +3,7 @@
 branch: chore/vitest-config/widen-mongodb-memory-server-peer
 tier: L
 command: task
-phase: l/checkpoint
+phase: close/check
 base: aa46498
 started: 2026-11-26T12:58:29Z
 verify_red_streak: 0

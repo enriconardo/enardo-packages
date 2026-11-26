@@ -50,4 +50,4 @@ depends_on: pnpm-workspace.yaml, pnpm-lock.yaml, packages/vitest-config/package.
 
 ## Chunks
 
-- [ ] 1. Widen the peer and move the catalog to 11 (no test-first: config and docs; the existing suites prove it): `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `packages/vitest-config/package.json`, `packages/vitest-config/README.md`, `CLAUDE.md`; all three test cases.
+- [ ] 1. Widen the peer and move the catalog to 11 (no test-first): config and docs, which the existing suites prove; `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `packages/vitest-config/package.json`, `packages/vitest-config/README.md`, `CLAUDE.md`; all three test cases.
