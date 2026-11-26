@@ -1,5 +1,5 @@
 ---
-status: approved
+status: done
 branch: chore/vitest-config/widen-mongodb-memory-server-peer
 inputs: none
 depends_on: pnpm-workspace.yaml, pnpm-lock.yaml, packages/vitest-config/package.json, packages/vitest-config/README.md, packages/vitest-config/replica-set.js, packages/database-mongo/package.json, packages/transaction-manager-mongo/package.json, packages/uow-repository-mongo/package.json, CLAUDE.md
