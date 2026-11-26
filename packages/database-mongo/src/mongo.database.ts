@@ -212,19 +212,52 @@ export class MongoDatabase implements Database {
   }
 
   /**
+   * The schema's indexes, each with the `hidden` of the existing index of its
+   * name, if any: a difference in `hidden` is no conflict, but MongoDB 8
+   * rejects it with 85 where 7.0 accepted it. The server still judges the rest.
+   */
+  private async withExistingHidden(
+    collectionName: string,
+    indexes: MongoIndex[],
+  ): Promise<MongoIndex[]> {
+    const existing = (await this.getDb()
+      .collection(collectionName)
+      .listIndexes()
+      .toArray()) as IndexDescriptionInfo[];
+    const hiddenByName = new Map(
+      existing.map((index) => [index.name, index.hidden === true]),
+    );
+
+    return indexes.map((index) => {
+      const hidden = hiddenByName.get(index.name);
+      if (hidden === undefined) return index;
+      const request: MongoIndex = { ...index };
+      // Absent, not `false`: the server stores a visible index without it.
+      delete request.hidden;
+      if (hidden) request.hidden = true;
+      return request;
+    });
+  }
+
+  /**
    * Create the indexes of a collection that don't exist yet.
    *
    * One `createIndexes` for all of them. When the server rejects it because an
    * index exists with another definition, each index goes to its own call to
    * find the one at fault: the server judges whether two definitions differ,
-   * since it normalizes what it stores and compares.
+   * since it normalizes what it stores and compares. On a collection that
+   * `existed`, an index takes the `hidden` of the existing one of its name.
    */
   private async createIndexes(
     collectionName: string,
-    indexes: MongoIndex[],
+    schemaIndexes: MongoIndex[],
+    existed: boolean,
   ): Promise<void> {
-    if (indexes.length === 0) return;
+    if (schemaIndexes.length === 0) return;
     const collection = this.getDb().collection(collectionName);
+    const indexes = existed
+      ? await this.withExistingHidden(collectionName, schemaIndexes)
+      : schemaIndexes;
 
     try {
       await collection.createIndexes(indexes);
@@ -289,7 +322,7 @@ export class MongoDatabase implements Database {
         createdCollections.push(name);
       }
 
-      await this.createIndexes(name, schema.indexes ?? []);
+      await this.createIndexes(name, schema.indexes ?? [], exists);
 
       if (exists) {
         await db.command({ collMod: name, validator: schema.validation });

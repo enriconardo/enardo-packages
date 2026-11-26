@@ -659,6 +659,50 @@ describe("MongoDatabase", () => {
         expect.objectContaining({ name: "i", hidden: true }),
       );
     });
+
+    it("should leave an existing index visible when the schema says hidden", async () => {
+      await setupDb.createCollection("users");
+      await setupDb
+        .collection("users")
+        .createIndexes([{ name: "i", key: { a: 1 } }]);
+      const db = await createConnectedDatabase();
+
+      await db.syncSchema([
+        {
+          collectionName: "users",
+          validation: anyDocument,
+          indexes: [{ name: "i", key: { a: 1 }, hidden: true }],
+        },
+      ]);
+
+      const index = await indexNamed(setupDb, "users", "i");
+      expect(index).toBeDefined();
+      expect(index?.hidden).toBeUndefined();
+    });
+
+    it("should reject when a hidden index differs from the schema in another option", async () => {
+      await setupDb.createCollection("users");
+      await setupDb
+        .collection("users")
+        .createIndexes([{ name: "i", key: { a: 1 } }]);
+      await setupDb.command({
+        collMod: "users",
+        index: { name: "i", hidden: true },
+      });
+      const db = await createConnectedDatabase();
+
+      await expectConflict(
+        db,
+        [
+          {
+            collectionName: "users",
+            validation: anyDocument,
+            indexes: [{ name: "i", key: { a: 1 }, unique: true }],
+          },
+        ],
+        { collection: "users", index: "i", code: 86 },
+      );
+    });
   });
 
   describe("dropStaleIndexes", () => {
