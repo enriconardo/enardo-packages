@@ -3,7 +3,7 @@
 branch: chore/vitest-config/widen-mongodb-memory-server-peer
 tier: L
 command: build
-phase: l/chunk-1/implement
+phase: close/check
 base: 278f250
 started: 2026-11-26T13:32:54Z
 verify_red_streak: 0

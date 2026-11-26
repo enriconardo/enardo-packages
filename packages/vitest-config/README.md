@@ -66,7 +66,7 @@ declare module "vitest" {
 const uri = inject("mongoUri");
 ```
 
-`mongodb-memory-server` is an optional peer: a package that calls `mongoReplicaSet()` installs it itself (`pnpm add -D mongodb-memory-server`), and one that calls only `browserProject()` does not.
+`mongodb-memory-server` is an optional peer, accepted on versions 10 (`^10.4.3`) and 11 (`^11.0.0`), which run the same calls `mongoReplicaSet()` makes: a package that calls `mongoReplicaSet()` installs it itself (`pnpm add -D mongodb-memory-server`), and one that calls only `browserProject()` does not.
 
 ## Tests that need Node
 
