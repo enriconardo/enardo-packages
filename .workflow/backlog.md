@@ -37,6 +37,10 @@ In the order approved.
   - `verify` and `verify:all` build only the packages others depend on, for their `dist/`: the 9 leaves (`cqrs`, `database-mongo`, `email-nodemailer`, `env`, `http-client`, `id-generator-mongo`, `logger`, `password-hasher`, `uow-repository-mongo`) are never built, so a leaf whose tsdown build breaks stays green, and its `exports` paths are never checked.
   - Found after tsdown 0.23.7, which changes the `dist/` content: a full `turbo run build --force` was the only proof that the leaves still build.
   - From chunk 3 of `chore/repo/upgrade-typescript-6` and its final review (2026-11-13).
+- **The Mongo suites cannot run on mongod 9.x.** 9.0 is GA (9.0.8 on 2026-11-26), and MongoDB 8 already changed how `createIndexes` judges `hidden`: a server major can break the adapters while the suites stay green on the catalog's default mongod.
+  - `mongodb-memory-server` 10.4.3 hard-codes `electionTimeoutMillis: 500`, which 9.0 refuses (93 `InvalidReplicaSetConfig`, under the 2000 ms heartbeat): no replica set starts. 11.4.0 sets 5000 and starts 9.0.8; its default mongod is 8.2.6.
+  - To decide: which mongod versions the suites run on (the catalog's default only, or also the newest major through `MONGOMS_VERSION`, uncached since turbo's key does not hold it).
+  - From the probes of `fix/database-mongo/keep-hidden-on-mongo-8` (2026-11-26).
 - **TypeScript 7** (7.0.2 on 2026-11-13), waiting for typescript-eslint's support (typescript-eslint#10940, for TS ≥ 7.1).
   - With TS 7, typescript-eslint 8.72.2 refuses to load ("does not support TS 7.0") and the JS compiler API is gone; tsdown ≥ 0.23 accepts ^7.
   - The one working layout today aliases `typescript` to `@typescript/typescript6` beside TS 7 for `tsc`, which every project using `@enardo/eslint-config` would have to copy: rejected.
