@@ -1,0 +1,12 @@
+version = 1
+check = pnpm verify:all
+check_integrate =
+run_tests = bash scripts/run-tests.sh {files}
+run_integrate_tests =
+main = main
+integrate = merge
+rules = CLAUDE.md, packages/http-status/CLAUDE.md, packages/database-mongo/CLAUDE.md, packages/email-nodemailer/CLAUDE.md, packages/errors/CLAUDE.md, packages/logger/CLAUDE.md, packages/env/CLAUDE.md, packages/http-client/CLAUDE.md, docs/adr/
+backlog = .workflow/backlog.md
+tests_glob = packages/*/__tests__/**/*.test.ts
+integrate_tests_glob =
+red_types = AssertionError, NotImplemented
