@@ -3,7 +3,7 @@
 branch: fix/database-mongo/keep-hidden-on-mongo-8
 tier: S
 command: task
-phase: close/check
+phase: close/write
 base: ef6d665
 started: 2026-11-26T16:14:39Z
 verify_red_streak: 0
@@ -56,3 +56,4 @@ This task blocks the suspended build of .workflow/specs/2026-11-26-widen-mongodb
 - 2026-11-26T16:19:44Z review round 1 on bd9f03e: 0 blocking
 - 2026-11-26T16:19:44Z backlog candidate (code-reviewer): test explicit hidden:false in the schema over a hidden existing index, and a mixed batch (existing hidden + missing index)
 - 2026-11-26T16:23:05Z human: "aggiungi i due test qui, tieni il candidato 9.x, poi merge"
+- 2026-11-26T16:25:07Z review round 2 on 7e57122: 0 blocking; suggestion (spy on createIndexes to pin the single batch) not taken: the package's tests use no mock of mongodb
